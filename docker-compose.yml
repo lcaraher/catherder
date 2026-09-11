@@ -1,0 +1,34 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://catherder:catherder@db:5432/catherder
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      # A Watchtower container runs on this host; keep it away from these services.
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: catherder
+      POSTGRES_PASSWORD: catherder
+      POSTGRES_DB: catherder
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catherder -d catherder"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
+volumes:
+  pgdata:

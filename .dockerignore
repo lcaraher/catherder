@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+docs
+infra
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md
+CLAUDE.md
+AGENTS.md
+LICENSE
+*.log

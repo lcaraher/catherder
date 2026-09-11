@@ -146,3 +146,7 @@ vite.config.ts.timestamp-*
 infra/aws/terraform.tfvars
 *.tfstate*
 .terraform/
+
+# Claude-authored files not yet rewritten by DW
+CLAUDE.md
+AGENTS.md

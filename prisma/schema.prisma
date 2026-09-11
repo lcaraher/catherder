@@ -1,0 +1,9 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Plain PostgreSQL only — no vendor-specific features (see CLAUDE.md rule 3).
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
