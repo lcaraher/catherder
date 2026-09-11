@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "node prisma/seed.mjs",
+    "db:seed": "node prisma/seed.ts",
     "test": "echo \"no test framework configured yet\""
   },
   "dependencies": {

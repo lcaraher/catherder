@@ -7,3 +7,243 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum WorkspaceRole {
+  OWNER
+  ORGANIZER
+  PARTICIPANT
+}
+
+enum EventMode {
+  GM_GROUPS
+  SINGLE_ACTIVITY
+}
+
+enum EventStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum EventParticipantRole {
+  GAMEMASTER
+  PLAYER
+}
+
+enum ResponseStatus {
+  INVITED
+  SUBMITTED
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  TEXT
+  RANKING
+}
+
+model User {
+  id          String   @id @default(cuid())
+  displayName String
+  email       String   @unique
+  // IANA time-zone name (e.g. "America/New_York"); availability times are
+  // local wall-clock in this zone, never UTC (CLAUDE.md rule 4).
+  timeZone    String
+  createdAt   DateTime @default(now())
+
+  identities           ExternalIdentity[]
+  ownedWorkspaces      Workspace[]
+  memberships          WorkspaceMember[]
+  gmEvents             Event[]                @relation("EventGm")
+  eventParticipations  EventParticipant[]
+  standingAvailability StandingAvailability[]
+  eventAvailability    EventAvailability[]
+  answers              Answer[]
+  auditEvents          AuditEvent[]
+}
+
+model ExternalIdentity {
+  id        String   @id @default(cuid())
+  userId    String
+  issuer    String
+  subject   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([issuer, subject])
+  @@index([userId])
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  ownerUserId String
+  createdAt   DateTime @default(now())
+
+  owner   User              @relation(fields: [ownerUserId], references: [id])
+  members WorkspaceMember[]
+  events  Event[]
+
+  @@index([ownerUserId])
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        WorkspaceRole
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  workspaceId   String
+  name          String
+  mode          EventMode
+  gmUserId      String?
+  requiredHours Int
+  minGroupSize  Int?
+  maxGroupSize  Int?
+  status        EventStatus
+  createdAt     DateTime    @default(now())
+
+  workspace    Workspace           @relation(fields: [workspaceId], references: [id])
+  gmUser       User?               @relation("EventGm", fields: [gmUserId], references: [id])
+  participants EventParticipant[]
+  availability EventAvailability[]
+  questions    Question[]
+  answers      Answer[]
+
+  @@index([workspaceId])
+  @@index([gmUserId])
+}
+
+model EventParticipant {
+  eventId        String
+  userId         String
+  role           EventParticipantRole
+  responseStatus ResponseStatus
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@id([eventId, userId])
+  @@index([userId])
+}
+
+model StandingAvailability {
+  id      String @id @default(cuid())
+  userId  String
+  version Int
+  // 0 = Monday … 6 = Sunday
+  weekday Int
+  // Local wall-clock times in the user's timeZone (CLAUDE.md rule 4).
+  startLocal DateTime @db.Time()
+  endLocal   DateTime @db.Time()
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model EventAvailability {
+  id      String @id @default(cuid())
+  eventId String
+  userId  String
+  // 0 = Monday … 6 = Sunday
+  weekday Int
+  // Local wall-clock times in the user's timeZone (CLAUDE.md rule 4).
+  startLocal                DateTime @db.Time()
+  endLocal                  DateTime @db.Time()
+  copiedFromStandingVersion Int
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([eventId])
+  @@index([userId])
+}
+
+model Question {
+  id           String       @id @default(cuid())
+  eventId      String
+  type         QuestionType
+  prompt       String
+  version      Int
+  displayOrder Int
+
+  event   Event            @relation(fields: [eventId], references: [id])
+  options QuestionOption[]
+  answers Answer[]
+
+  @@index([eventId])
+}
+
+model QuestionOption {
+  id           String @id @default(cuid())
+  questionId   String
+  label        String
+  displayOrder Int
+
+  question Question       @relation(fields: [questionId], references: [id])
+  choices  AnswerChoice[]
+
+  @@index([questionId])
+}
+
+model Answer {
+  id              String   @id @default(cuid())
+  questionId      String
+  questionVersion Int
+  eventId         String
+  userId          String
+  updatedAt       DateTime @updatedAt
+
+  question Question       @relation(fields: [questionId], references: [id])
+  event    Event          @relation(fields: [eventId], references: [id])
+  user     User           @relation(fields: [userId], references: [id])
+  choices  AnswerChoice[]
+  text     AnswerText?
+
+  @@unique([questionId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+model AnswerChoice {
+  answerId String
+  optionId String
+  // Set for RANKING questions only.
+  rank Int?
+
+  answer Answer         @relation(fields: [answerId], references: [id])
+  option QuestionOption @relation(fields: [optionId], references: [id])
+
+  @@id([answerId, optionId])
+  @@index([optionId])
+}
+
+model AnswerText {
+  answerId String @id
+  text     String
+
+  answer Answer @relation(fields: [answerId], references: [id])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  entity      String
+  entityId    String
+  action      String
+  at          DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+}
