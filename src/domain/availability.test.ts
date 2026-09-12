@@ -16,6 +16,8 @@ import {
   slotToDbTime,
   SLOTS_PER_DAY,
   validateRanges,
+  weekFromRanges,
+  weekToCells,
   type SlotStatus,
 } from "./availability.ts";
 
@@ -317,6 +319,15 @@ describe("whole-week editing", () => {
     assert.equal(result[2][40], "AVAILABLE");
     const cleared = setDaySlots(result, 4, null);
     assert.deepEqual(cleared[4], Array(SLOTS_PER_DAY).fill(null));
+  });
+
+  it("weekFromRanges and weekToCells round-trip with cellsToRanges", () => {
+    const ranges = [
+      { weekday: 0, startSlot: 18, endSlot: 24, status: "AVAILABLE" as const },
+      { weekday: 0, startSlot: 24, endSlot: 27, status: "TENTATIVE" as const },
+      { weekday: 6, startSlot: 44, endSlot: 48, status: "AVAILABLE" as const },
+    ];
+    assert.deepEqual(cellsToRanges(weekToCells(weekFromRanges(ranges))), ranges);
   });
 
   it("clearWeek returns an empty week without mutating its input", () => {

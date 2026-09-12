@@ -208,6 +208,32 @@ export function setDaySlots(
   );
 }
 
+/** Builds a week array from ranges (e.g. rows loaded from the database). */
+export function weekFromRanges(
+  ranges: readonly AvailabilityRange[],
+): SlotStatus[][] {
+  const week = emptyWeek();
+  for (const range of ranges) {
+    for (let slot = range.startSlot; slot < range.endSlot; slot++) {
+      week[range.weekday][slot] = range.status;
+    }
+  }
+  return week;
+}
+
+/** Flattens a week array into painted cells (for cellsToRanges). */
+export function weekToCells(
+  week: readonly (readonly SlotStatus[])[],
+): AvailabilityCell[] {
+  const cells: AvailabilityCell[] = [];
+  week.forEach((day, weekday) =>
+    day.forEach((status, slot) => {
+      if (status !== null) cells.push({ weekday, slot, status });
+    }),
+  );
+  return cells;
+}
+
 /** Returns a fresh all-empty week; the input is left untouched. */
 export function clearWeek(
   week: readonly (readonly SlotStatus[])[],
