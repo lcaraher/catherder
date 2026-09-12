@@ -2,14 +2,20 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   cellsToRanges,
+  collapseDay,
   collapseHourCell,
+  copyDaySlots,
   cycleStatus,
   dbTimeToSlot,
+  emptyWeek,
   isValidIanaTimeZone,
   rangesToCells,
+  setDaySlots,
   slotLabel,
   slotToDbTime,
+  SLOTS_PER_DAY,
   validateRanges,
+  type SlotStatus,
 } from "./availability.ts";
 
 describe("cellsToRanges", () => {
@@ -251,6 +257,85 @@ describe("collapseHourCell (hour-mode collapse rule)", () => {
     const collapsed = collapseHourCell("AVAILABLE", "TENTATIVE");
     const next = cycleStatus(collapsed === "MIXED" ? null : collapsed);
     assert.equal(next, "AVAILABLE");
+  });
+});
+
+describe("whole-week editing", () => {
+  function weekWith(
+    entries: Array<[weekday: number, slot: number, status: SlotStatus]>,
+  ): SlotStatus[][] {
+    const week = emptyWeek();
+    for (const [weekday, slot, status] of entries) week[weekday][slot] = status;
+    return week;
+  }
+
+  it("copies a day containing both available and tentative blocks", () => {
+    const week = weekWith([
+      [0, 18, "AVAILABLE"],
+      [0, 19, "AVAILABLE"],
+      [0, 20, "TENTATIVE"],
+      [2, 30, "TENTATIVE"],
+    ]);
+    const result = copyDaySlots(week, 0, [2, 4]);
+    assert.deepEqual(result[2], week[0]);
+    assert.deepEqual(result[4], week[0]);
+    // Replacement, not merge: the target's old slot 30 is gone.
+    assert.equal(result[2][30], null);
+    // Untouched days and the source stay as they were.
+    assert.deepEqual(result[0], week[0]);
+    assert.deepEqual(result[1], week[1]);
+  });
+
+  it("copying an empty day over a painted one leaves the target empty", () => {
+    const week = weekWith([
+      [3, 10, "AVAILABLE"],
+      [3, 11, "TENTATIVE"],
+    ]);
+    const result = copyDaySlots(week, 5, [3]);
+    assert.deepEqual(result[3], Array(SLOTS_PER_DAY).fill(null));
+  });
+
+  it("never treats the source day as a target", () => {
+    const week = weekWith([[1, 12, "AVAILABLE"]]);
+    const result = copyDaySlots(week, 1, [1]);
+    assert.deepEqual(result, week);
+  });
+
+  it("does not mutate the input week", () => {
+    const week = weekWith([[0, 5, "AVAILABLE"]]);
+    copyDaySlots(week, 0, [6]);
+    setDaySlots(week, 0, "TENTATIVE");
+    assert.equal(week[6][5], null);
+    assert.equal(week[0][5], "AVAILABLE");
+  });
+
+  it("setDaySlots sets every slot of one day only", () => {
+    const week = weekWith([[2, 40, "AVAILABLE"]]);
+    const result = setDaySlots(week, 4, "TENTATIVE");
+    assert.deepEqual(result[4], Array(SLOTS_PER_DAY).fill("TENTATIVE"));
+    assert.equal(result[2][40], "AVAILABLE");
+    const cleared = setDaySlots(result, 4, null);
+    assert.deepEqual(cleared[4], Array(SLOTS_PER_DAY).fill(null));
+  });
+
+  it("collapseDay agrees with the collapseHourCell rule", () => {
+    assert.equal(collapseDay(Array(SLOTS_PER_DAY).fill("AVAILABLE")), "AVAILABLE");
+    assert.equal(collapseDay(Array(SLOTS_PER_DAY).fill(null)), null);
+    const mixed: SlotStatus[] = Array(SLOTS_PER_DAY).fill(null);
+    mixed[10] = "TENTATIVE";
+    assert.equal(collapseDay(mixed), "MIXED");
+  });
+
+  it("cycles a mixed day to available", () => {
+    const week = weekWith([
+      [0, 18, "AVAILABLE"],
+      [0, 20, "TENTATIVE"],
+    ]);
+    const collapsed = collapseDay(week[0]);
+    const next = cycleStatus(collapsed === "MIXED" ? null : collapsed);
+    assert.equal(next, "AVAILABLE");
+    const result = setDaySlots(week, 0, next);
+    assert.deepEqual(result[0], Array(SLOTS_PER_DAY).fill("AVAILABLE"));
   });
 });
 

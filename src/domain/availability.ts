@@ -172,6 +172,60 @@ export function collapseHourCell(
 }
 
 // ---------------------------------------------------------------------------
+// Whole-week editing over slot arrays: week[weekday][slot], 7 × 48.
+
+/** A fresh all-empty week. */
+export function emptyWeek(): SlotStatus[][] {
+  return Array.from({ length: WEEKDAY_COUNT }, () =>
+    Array<SlotStatus>(SLOTS_PER_DAY).fill(null),
+  );
+}
+
+/**
+ * Collapses a day (or any run of slots) with the same rule as
+ * collapseHourCell: one state if every slot agrees, otherwise "MIXED".
+ */
+export function collapseDay(
+  slots: readonly SlotStatus[],
+): SlotStatus | "MIXED" {
+  if (slots.length === 0) return null;
+  let collapsed: SlotStatus | "MIXED" = slots[0];
+  for (const slot of slots.slice(1)) {
+    if (collapsed === "MIXED") return "MIXED";
+    collapsed = collapseHourCell(collapsed, slot);
+  }
+  return collapsed;
+}
+
+/** Returns a new week with every slot of the given day set to status. */
+export function setDaySlots(
+  week: readonly (readonly SlotStatus[])[],
+  weekday: number,
+  status: SlotStatus,
+): SlotStatus[][] {
+  return week.map((day, w) =>
+    w === weekday ? day.map(() => status) : [...day],
+  );
+}
+
+/**
+ * Returns a new week where each target day's slots are replaced entirely by
+ * the source day's slots (statuses included) — no merging. The source day is
+ * never treated as a target.
+ */
+export function copyDaySlots(
+  week: readonly (readonly SlotStatus[])[],
+  sourceDay: number,
+  targetDays: readonly number[],
+): SlotStatus[][] {
+  const targets = new Set(targetDays);
+  targets.delete(sourceDay);
+  return week.map((day, w) =>
+    targets.has(w) ? [...week[sourceDay]] : [...day],
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Time formatting and DB TIME mapping.
 
 /** Slot boundary (0–48) as a wall-clock label, e.g. 19 -> "09:30". */
