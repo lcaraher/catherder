@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   cellsToRanges,
+  clearWeek,
   collapseDay,
   collapseHourCell,
   copyDaySlots,
@@ -316,6 +317,19 @@ describe("whole-week editing", () => {
     assert.equal(result[2][40], "AVAILABLE");
     const cleared = setDaySlots(result, 4, null);
     assert.deepEqual(cleared[4], Array(SLOTS_PER_DAY).fill(null));
+  });
+
+  it("clearWeek returns an empty week without mutating its input", () => {
+    const week = weekWith([
+      [0, 18, "AVAILABLE"],
+      [4, 30, "TENTATIVE"],
+    ]);
+    const result = clearWeek(week);
+    assert.deepEqual(result, emptyWeek());
+    assert.equal(week[0][18], "AVAILABLE");
+    assert.equal(week[4][30], "TENTATIVE");
+    // A fresh structure, not a reference to the input.
+    assert.notEqual(result, week);
   });
 
   it("collapseDay agrees with the collapseHourCell rule", () => {

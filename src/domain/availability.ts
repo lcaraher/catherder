@@ -208,6 +208,14 @@ export function setDaySlots(
   );
 }
 
+/** Returns a fresh all-empty week; the input is left untouched. */
+export function clearWeek(
+  week: readonly (readonly SlotStatus[])[],
+): SlotStatus[][] {
+  void week;
+  return emptyWeek();
+}
+
 /**
  * Returns a new week where each target day's slots are replaced entirely by
  * the source day's slots (statuses included) — no merging. The source day is

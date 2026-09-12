@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   cellsToRanges,
+  clearWeek,
   collapseDay,
   collapseHourCell,
   copyDaySlots,
@@ -76,6 +77,7 @@ export function AvailabilityGrid({
   const [copyTargets, setCopyTargets] = useState<boolean[]>(() =>
     Array(WEEKDAY_COUNT).fill(false),
   );
+  const [confirmingClear, setConfirmingClear] = useState(false);
   // Server and client both render half-hour mode (no hydration mismatch);
   // after mount, narrow viewports fall back to hour mode unless the user
   // has already chosen a granularity themselves.
@@ -171,6 +173,14 @@ export function AvailabilityGrid({
     if (targets.length === 0) return;
     setWeek((prev) => copyDaySlots(prev, copySource, targets));
     setCopyTargets(Array(WEEKDAY_COUNT).fill(false));
+  }
+
+  // On-screen only, like every other edit; nothing persists until Save.
+  const weekIsEmpty = week.every((day) => day.every((slot) => slot === null));
+
+  function confirmClear() {
+    setWeek((prev) => clearWeek(prev));
+    setConfirmingClear(false);
   }
 
   async function save() {
@@ -333,45 +343,7 @@ export function AvailabilityGrid({
         </li>
       </ul>
 
-      <div
-        className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-zinc-200 bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-800"
-        style={{ touchAction: "none" }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
-        <div className="bg-white dark:bg-zinc-950" />
-        {WEEKDAY_LABELS.map((label, weekday) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => toggleDay(weekday)}
-            aria-label={`${WEEKDAY_NAMES[weekday]}: set the whole day to ${stateLabel(nextDayStatus(weekday))}`}
-            className="bg-white py-1 text-center text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900"
-          >
-            {label}
-          </button>
-        ))}
-        {Array.from({ length: rowCount }, (_, row) => {
-          const startSlot = granularity === "half" ? row : row * 2;
-          const showLabel = granularity === "hour" || row % 2 === 0;
-          return (
-            <div key={row} className="contents">
-              <div
-                className={`flex items-center justify-end bg-white pr-2 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500 ${
-                  granularity === "half" ? "h-4" : "h-6"
-                }`}
-              >
-                {showLabel ? slotLabel(startSlot) : ""}
-              </div>
-              {WEEKDAY_LABELS.map((_, weekday) => renderCell(weekday, row))}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <label htmlFor="copy-source" className="text-zinc-600 dark:text-zinc-400">
           Copy
         </label>
@@ -424,6 +396,77 @@ export function AvailabilityGrid({
         >
           Apply
         </button>
+
+        <div className="ml-4 flex items-center gap-2">
+          {confirmingClear ? (
+            <>
+              <span className="text-zinc-600 dark:text-zinc-400">
+                Clear everything?
+              </span>
+              <button
+                type="button"
+                onClick={confirmClear}
+                className="rounded border border-red-300 px-3 py-1 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingClear(false)}
+                className="rounded border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingClear(true)}
+              disabled={weekIsEmpty}
+              className="rounded border border-zinc-300 px-3 py-1 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-900"
+            >
+              Clear week
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div
+        className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-zinc-200 bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-800"
+        style={{ touchAction: "none" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        <div className="bg-white dark:bg-zinc-950" />
+        {WEEKDAY_LABELS.map((label, weekday) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => toggleDay(weekday)}
+            aria-label={`${WEEKDAY_NAMES[weekday]}: set the whole day to ${stateLabel(nextDayStatus(weekday))}`}
+            className="bg-white py-1 text-center text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900"
+          >
+            {label}
+          </button>
+        ))}
+        {Array.from({ length: rowCount }, (_, row) => {
+          const startSlot = granularity === "half" ? row : row * 2;
+          const showLabel = granularity === "hour" || row % 2 === 0;
+          return (
+            <div key={row} className="contents">
+              <div
+                className={`flex items-center justify-end bg-white pr-2 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500 ${
+                  granularity === "half" ? "h-4" : "h-6"
+                }`}
+              >
+                {showLabel ? slotLabel(startSlot) : ""}
+              </div>
+              {WEEKDAY_LABELS.map((_, weekday) => renderCell(weekday, row))}
+            </div>
+          );
+        })}
       </div>
 
       <div className="mt-5">
