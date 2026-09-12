@@ -1,6 +1,6 @@
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
-import { dbTimeToHour } from "@/domain/availability";
+import { dbTimeToSlot } from "@/domain/availability";
 import { AvailabilityGrid } from "@/components/availability-grid";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,9 @@ export default async function AvailabilityPage() {
   });
   const ranges = rows.map((row) => ({
     weekday: row.weekday,
-    startHour: dbTimeToHour(row.startLocal, "start"),
-    endHour: dbTimeToHour(row.endLocal, "end"),
+    startSlot: dbTimeToSlot(row.startLocal, "start"),
+    endSlot: dbTimeToSlot(row.endLocal, "end"),
+    status: row.status,
   }));
 
   const timeZones = Intl.supportedValuesOf("timeZone");
@@ -26,6 +27,7 @@ export default async function AvailabilityPage() {
       <AvailabilityGrid
         initialRanges={ranges}
         initialTimeZone={user.timeZone}
+        initialNote={user.availabilityNote ?? ""}
         timeZones={timeZones}
       />
     </main>

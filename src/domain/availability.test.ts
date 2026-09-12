@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   cellsToRanges,
-  dbTimeToHour,
-  hourToDbTime,
+  collapseHourCell,
+  cycleStatus,
+  dbTimeToSlot,
   isValidIanaTimeZone,
   rangesToCells,
+  slotLabel,
+  slotToDbTime,
   validateRanges,
 } from "./availability.ts";
 
@@ -14,99 +17,119 @@ describe("cellsToRanges", () => {
     assert.deepEqual(cellsToRanges([]), []);
   });
 
-  it("merges adjacent hours into one range", () => {
+  it("merges contiguous same-status slots into one range", () => {
     assert.deepEqual(
       cellsToRanges([
-        { weekday: 0, hour: 9 },
-        { weekday: 0, hour: 10 },
-        { weekday: 0, hour: 11 },
+        { weekday: 0, slot: 18, status: "AVAILABLE" },
+        { weekday: 0, slot: 19, status: "AVAILABLE" },
+        { weekday: 0, slot: 20, status: "AVAILABLE" },
       ]),
-      [{ weekday: 0, startHour: 9, endHour: 12 }],
+      [{ weekday: 0, startSlot: 18, endSlot: 21, status: "AVAILABLE" }],
     );
   });
 
-  it("splits non-adjacent hours into separate ranges", () => {
+  it("does not merge adjacent slots with different statuses", () => {
     assert.deepEqual(
       cellsToRanges([
-        { weekday: 2, hour: 8 },
-        { weekday: 2, hour: 12 },
-        { weekday: 2, hour: 13 },
+        { weekday: 1, slot: 20, status: "AVAILABLE" },
+        { weekday: 1, slot: 21, status: "AVAILABLE" },
+        { weekday: 1, slot: 22, status: "TENTATIVE" },
+        { weekday: 1, slot: 23, status: "TENTATIVE" },
       ]),
       [
-        { weekday: 2, startHour: 8, endHour: 9 },
-        { weekday: 2, startHour: 12, endHour: 14 },
+        { weekday: 1, startSlot: 20, endSlot: 22, status: "AVAILABLE" },
+        { weekday: 1, startSlot: 22, endSlot: 24, status: "TENTATIVE" },
       ],
     );
   });
 
-  it("keeps weekdays separate even for the same hours", () => {
+  it("splits non-adjacent slots into separate ranges", () => {
     assert.deepEqual(
       cellsToRanges([
-        { weekday: 1, hour: 9 },
-        { weekday: 3, hour: 9 },
+        { weekday: 2, slot: 16, status: "AVAILABLE" },
+        { weekday: 2, slot: 24, status: "AVAILABLE" },
+        { weekday: 2, slot: 25, status: "AVAILABLE" },
       ]),
       [
-        { weekday: 1, startHour: 9, endHour: 10 },
-        { weekday: 3, startHour: 9, endHour: 10 },
+        { weekday: 2, startSlot: 16, endSlot: 17, status: "AVAILABLE" },
+        { weekday: 2, startSlot: 24, endSlot: 26, status: "AVAILABLE" },
       ],
     );
   });
 
-  it("tolerates duplicate and unsorted input", () => {
+  it("keeps weekdays separate even for the same slots", () => {
     assert.deepEqual(
       cellsToRanges([
-        { weekday: 5, hour: 21 },
-        { weekday: 5, hour: 20 },
-        { weekday: 5, hour: 21 },
+        { weekday: 1, slot: 18, status: "TENTATIVE" },
+        { weekday: 3, slot: 18, status: "TENTATIVE" },
       ]),
-      [{ weekday: 5, startHour: 20, endHour: 22 }],
+      [
+        { weekday: 1, startSlot: 18, endSlot: 19, status: "TENTATIVE" },
+        { weekday: 3, startSlot: 18, endSlot: 19, status: "TENTATIVE" },
+      ],
     );
   });
 
-  it("merges up to midnight as an exclusive endHour of 24", () => {
+  it("tolerates unsorted input and lets the last duplicate win", () => {
     assert.deepEqual(
       cellsToRanges([
-        { weekday: 6, hour: 22 },
-        { weekday: 6, hour: 23 },
+        { weekday: 5, slot: 41, status: "AVAILABLE" },
+        { weekday: 5, slot: 40, status: "AVAILABLE" },
+        { weekday: 5, slot: 41, status: "AVAILABLE" },
       ]),
-      [{ weekday: 6, startHour: 22, endHour: 24 }],
+      [{ weekday: 5, startSlot: 40, endSlot: 42, status: "AVAILABLE" }],
+    );
+  });
+
+  it("merges up to midnight as an exclusive endSlot of 48", () => {
+    assert.deepEqual(
+      cellsToRanges([
+        { weekday: 6, slot: 46, status: "AVAILABLE" },
+        { weekday: 6, slot: 47, status: "AVAILABLE" },
+      ]),
+      [{ weekday: 6, startSlot: 46, endSlot: 48, status: "AVAILABLE" }],
     );
   });
 });
 
 describe("rangesToCells", () => {
-  it("expands a range into its hour cells", () => {
-    assert.deepEqual(rangesToCells([{ weekday: 4, startHour: 6, endHour: 9 }]), [
-      { weekday: 4, hour: 6 },
-      { weekday: 4, hour: 7 },
-      { weekday: 4, hour: 8 },
-    ]);
+  it("expands a range into its slot cells with status", () => {
+    assert.deepEqual(
+      rangesToCells([
+        { weekday: 4, startSlot: 13, endSlot: 16, status: "TENTATIVE" },
+      ]),
+      [
+        { weekday: 4, slot: 13, status: "TENTATIVE" },
+        { weekday: 4, slot: 14, status: "TENTATIVE" },
+        { weekday: 4, slot: 15, status: "TENTATIVE" },
+      ],
+    );
   });
 
-  it("round-trips with cellsToRanges", () => {
-    const ranges = [
-      { weekday: 0, startHour: 9, endHour: 12 },
-      { weekday: 0, startHour: 18, endHour: 24 },
-      { weekday: 6, startHour: 0, endHour: 2 },
+  it("round-trips with cellsToRanges, preserving status boundaries", () => {
+    const ranges: ReturnType<typeof cellsToRanges> = [
+      { weekday: 0, startSlot: 18, endSlot: 24, status: "AVAILABLE" },
+      { weekday: 0, startSlot: 24, endSlot: 27, status: "TENTATIVE" },
+      { weekday: 6, startSlot: 44, endSlot: 48, status: "AVAILABLE" },
     ];
     assert.deepEqual(cellsToRanges(rangesToCells(ranges)), ranges);
   });
 });
 
 describe("validateRanges", () => {
-  it("accepts valid ranges", () => {
+  it("accepts valid ranges with both statuses", () => {
     const input = [
-      { weekday: 0, startHour: 9, endHour: 12 },
-      { weekday: 6, startHour: 22, endHour: 24 },
+      { weekday: 0, startSlot: 18, endSlot: 24, status: "AVAILABLE" },
+      { weekday: 6, startSlot: 44, endSlot: 48, status: "TENTATIVE" },
     ];
     assert.deepEqual(validateRanges(input), input);
   });
 
-  it("accepts touching (non-overlapping) ranges", () => {
+  it("accepts touching ranges of different statuses", () => {
     assert.doesNotThrow(() =>
       validateRanges([
-        { weekday: 1, startHour: 9, endHour: 10 },
-        { weekday: 1, startHour: 10, endHour: 11 },
+        { weekday: 1, startSlot: 18, endSlot: 20, status: "AVAILABLE" },
+        { weekday: 1, startSlot: 20, endSlot: 22, status: "TENTATIVE" },
       ]),
     );
   });
@@ -118,79 +141,152 @@ describe("validateRanges", () => {
 
   it("rejects out-of-range weekdays", () => {
     assert.throws(
-      () => validateRanges([{ weekday: 7, startHour: 1, endHour: 2 }]),
-      /weekday/,
-    );
-    assert.throws(
-      () => validateRanges([{ weekday: -1, startHour: 1, endHour: 2 }]),
+      () =>
+        validateRanges([
+          { weekday: 7, startSlot: 1, endSlot: 2, status: "AVAILABLE" },
+        ]),
       /weekday/,
     );
   });
 
-  it("rejects non-integer and out-of-range hours", () => {
+  it("rejects non-integer and out-of-range slots", () => {
     assert.throws(
-      () => validateRanges([{ weekday: 0, startHour: 1.5, endHour: 3 }]),
-      /hours/,
+      () =>
+        validateRanges([
+          { weekday: 0, startSlot: 1.5, endSlot: 3, status: "AVAILABLE" },
+        ]),
+      /slots/,
     );
     assert.throws(
-      () => validateRanges([{ weekday: 0, startHour: 1, endHour: 25 }]),
-      /hours/,
+      () =>
+        validateRanges([
+          { weekday: 0, startSlot: 1, endSlot: 49, status: "AVAILABLE" },
+        ]),
+      /slots/,
     );
   });
 
   it("rejects empty or inverted ranges", () => {
     assert.throws(
-      () => validateRanges([{ weekday: 0, startHour: 5, endHour: 5 }]),
-      /hours/,
+      () =>
+        validateRanges([
+          { weekday: 0, startSlot: 5, endSlot: 5, status: "AVAILABLE" },
+        ]),
+      /slots/,
     );
-    assert.throws(
-      () => validateRanges([{ weekday: 0, startHour: 6, endHour: 5 }]),
-      /hours/,
-    );
-  });
-
-  it("rejects overlapping ranges on the same weekday", () => {
     assert.throws(
       () =>
         validateRanges([
-          { weekday: 2, startHour: 9, endHour: 12 },
-          { weekday: 2, startHour: 11, endHour: 13 },
+          { weekday: 0, startSlot: 6, endSlot: 5, status: "AVAILABLE" },
+        ]),
+      /slots/,
+    );
+  });
+
+  it("rejects unknown statuses", () => {
+    assert.throws(
+      () =>
+        validateRanges([
+          { weekday: 0, startSlot: 1, endSlot: 2, status: "MAYBE" },
+        ]),
+      /status/,
+    );
+    assert.throws(
+      () => validateRanges([{ weekday: 0, startSlot: 1, endSlot: 2 }]),
+      /status/,
+    );
+  });
+
+  it("rejects overlaps within a weekday regardless of status", () => {
+    assert.throws(
+      () =>
+        validateRanges([
+          { weekday: 2, startSlot: 18, endSlot: 24, status: "AVAILABLE" },
+          { weekday: 2, startSlot: 22, endSlot: 26, status: "TENTATIVE" },
+        ]),
+      /overlap/,
+    );
+    assert.throws(
+      () =>
+        validateRanges([
+          { weekday: 2, startSlot: 18, endSlot: 24, status: "AVAILABLE" },
+          { weekday: 2, startSlot: 20, endSlot: 22, status: "AVAILABLE" },
         ]),
       /overlap/,
     );
   });
 
-  it("allows the same hours on different weekdays", () => {
+  it("allows the same slots on different weekdays", () => {
     assert.doesNotThrow(() =>
       validateRanges([
-        { weekday: 2, startHour: 9, endHour: 12 },
-        { weekday: 3, startHour: 9, endHour: 12 },
+        { weekday: 2, startSlot: 18, endSlot: 24, status: "AVAILABLE" },
+        { weekday: 3, startSlot: 18, endSlot: 24, status: "TENTATIVE" },
       ]),
     );
   });
 });
 
+describe("cycleStatus", () => {
+  it("cycles empty -> available -> tentative -> empty", () => {
+    assert.equal(cycleStatus(null), "AVAILABLE");
+    assert.equal(cycleStatus("AVAILABLE"), "TENTATIVE");
+    assert.equal(cycleStatus("TENTATIVE"), null);
+  });
+});
+
+describe("collapseHourCell (hour-mode collapse rule)", () => {
+  it("collapses agreeing halves to their shared state", () => {
+    assert.equal(collapseHourCell("AVAILABLE", "AVAILABLE"), "AVAILABLE");
+    assert.equal(collapseHourCell("TENTATIVE", "TENTATIVE"), "TENTATIVE");
+    assert.equal(collapseHourCell(null, null), null);
+  });
+
+  it("reports disagreeing halves as MIXED", () => {
+    assert.equal(collapseHourCell("AVAILABLE", "TENTATIVE"), "MIXED");
+    assert.equal(collapseHourCell(null, "AVAILABLE"), "MIXED");
+    assert.equal(collapseHourCell("TENTATIVE", null), "MIXED");
+  });
+
+  it("treats a mixed cell as empty, so the next click makes both available", () => {
+    const collapsed = collapseHourCell("AVAILABLE", "TENTATIVE");
+    const next = cycleStatus(collapsed === "MIXED" ? null : collapsed);
+    assert.equal(next, "AVAILABLE");
+  });
+});
+
+describe("slotLabel", () => {
+  it("labels half-hour boundaries", () => {
+    assert.equal(slotLabel(0), "00:00");
+    assert.equal(slotLabel(19), "09:30");
+    assert.equal(slotLabel(47), "23:30");
+    assert.equal(slotLabel(48), "24:00");
+  });
+});
+
 describe("db TIME mapping", () => {
-  it("stores whole hours as their wall-clock time", () => {
-    assert.equal(hourToDbTime(9).getUTCHours(), 9);
-    assert.equal(hourToDbTime(0).getUTCHours(), 0);
+  it("stores slots at half-hour boundaries", () => {
+    assert.equal(slotToDbTime(18).getUTCHours(), 9);
+    assert.equal(slotToDbTime(18).getUTCMinutes(), 0);
+    assert.equal(slotToDbTime(19).getUTCHours(), 9);
+    assert.equal(slotToDbTime(19).getUTCMinutes(), 30);
   });
 
-  it("stores midnight-at-end (24) as 00:00", () => {
-    assert.equal(hourToDbTime(24).getUTCHours(), 0);
+  it("stores midnight-at-end (slot 48) as 00:00", () => {
+    assert.equal(slotToDbTime(48).getUTCHours(), 0);
+    assert.equal(slotToDbTime(48).getUTCMinutes(), 0);
   });
 
-  it("reads 00:00 back as 0 for starts and 24 for ends", () => {
-    assert.equal(dbTimeToHour(hourToDbTime(0), "start"), 0);
-    assert.equal(dbTimeToHour(hourToDbTime(24), "end"), 24);
+  it("reads 00:00 back as 0 for starts and 48 for ends", () => {
+    assert.equal(dbTimeToSlot(slotToDbTime(0), "start"), 0);
+    assert.equal(dbTimeToSlot(slotToDbTime(48), "end"), 48);
   });
 
   it("round-trips every paintable boundary", () => {
-    for (let hour = 0; hour < 24; hour++) {
-      assert.equal(dbTimeToHour(hourToDbTime(hour), "start"), hour);
+    for (let slot = 0; slot < 48; slot++) {
+      assert.equal(dbTimeToSlot(slotToDbTime(slot), "start"), slot);
     }
-    for (let hour = 1; hour <= 24; hour++) {
-      assert.equal(dbTimeToHour(hourToDbTime(hour), "end"), hour);
+    for (let slot = 1; slot <= 48; slot++) {
+      assert.equal(dbTimeToSlot(slotToDbTime(slot), "end"), slot);
     }
   });
 });

@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import {
-  hourToDbTime,
   isValidIanaTimeZone,
+  slotToDbTime,
   validateRanges,
 } from "@/domain/availability";
 
 export const dynamic = "force-dynamic";
 
-// Replaces the caller's entire standing availability (and time zone) in one
-// transaction, bumping the version so copies into events can reference it.
+// Replaces the caller's entire standing availability (with per-range status),
+// availability note, and time zone in one transaction, bumping the version so
+// copies into events can reference it.
 export async function PUT(request: Request) {
   const user = await getSessionUser();
   if (!user) {
@@ -27,13 +28,21 @@ export async function PUT(request: Request) {
       { status: 400 },
     );
   }
-  const timeZone = (body as { timeZone?: unknown }).timeZone;
+  const { timeZone, note } = body as { timeZone?: unknown; note?: unknown };
   if (!isValidIanaTimeZone(timeZone)) {
     return NextResponse.json(
       { error: "timeZone must be a valid IANA time-zone name" },
       { status: 400 },
     );
   }
+  if (note !== undefined && note !== null && typeof note !== "string") {
+    return NextResponse.json(
+      { error: "note must be a string" },
+      { status: 400 },
+    );
+  }
+  const availabilityNote =
+    typeof note === "string" && note.trim().length > 0 ? note : null;
 
   const version = await prisma.$transaction(async (tx) => {
     const { _max } = await tx.standingAvailability.aggregate({
@@ -48,12 +57,16 @@ export async function PUT(request: Request) {
           userId: user.id,
           version: nextVersion,
           weekday: range.weekday,
-          startLocal: hourToDbTime(range.startHour),
-          endLocal: hourToDbTime(range.endHour),
+          startLocal: slotToDbTime(range.startSlot),
+          endLocal: slotToDbTime(range.endSlot),
+          status: range.status,
         })),
       });
     }
-    await tx.user.update({ where: { id: user.id }, data: { timeZone } });
+    await tx.user.update({
+      where: { id: user.id },
+      data: { timeZone, availabilityNote },
+    });
     return nextVersion;
   });
 

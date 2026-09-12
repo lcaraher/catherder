@@ -35,6 +35,11 @@ enum ResponseStatus {
   SUBMITTED
 }
 
+enum AvailabilityStatus {
+  AVAILABLE
+  TENTATIVE
+}
+
 enum QuestionType {
   SINGLE_CHOICE
   MULTI_CHOICE
@@ -48,8 +53,10 @@ model User {
   email       String   @unique
   // IANA time-zone name (e.g. "America/New_York"); availability times are
   // local wall-clock in this zone, never UTC (CLAUDE.md rule 4).
-  timeZone    String
-  createdAt   DateTime @default(now())
+  timeZone         String
+  // Free-text note shown alongside standing availability. Sensitive: never log.
+  availabilityNote String?
+  createdAt        DateTime @default(now())
 
   identities           ExternalIdentity[]
   ownedWorkspaces      Workspace[]
@@ -128,6 +135,8 @@ model EventParticipant {
   userId         String
   role           EventParticipantRole
   responseStatus ResponseStatus
+  // Free-text note for this event. Sensitive: never log.
+  note           String?
 
   event Event @relation(fields: [eventId], references: [id])
   user  User  @relation(fields: [userId], references: [id])
@@ -143,8 +152,9 @@ model StandingAvailability {
   // 0 = Monday … 6 = Sunday
   weekday Int
   // Local wall-clock times in the user's timeZone (CLAUDE.md rule 4).
-  startLocal DateTime @db.Time()
-  endLocal   DateTime @db.Time()
+  startLocal DateTime           @db.Time()
+  endLocal   DateTime           @db.Time()
+  status     AvailabilityStatus @default(AVAILABLE)
 
   user User @relation(fields: [userId], references: [id])
 
@@ -158,8 +168,9 @@ model EventAvailability {
   // 0 = Monday … 6 = Sunday
   weekday Int
   // Local wall-clock times in the user's timeZone (CLAUDE.md rule 4).
-  startLocal                DateTime @db.Time()
-  endLocal                  DateTime @db.Time()
+  startLocal                DateTime           @db.Time()
+  endLocal                  DateTime           @db.Time()
+  status                    AvailabilityStatus @default(AVAILABLE)
   copiedFromStandingVersion Int
 
   event Event @relation(fields: [eventId], references: [id])
