@@ -10,7 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.ts",
-    "test": "echo \"no test framework configured yet\""
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@prisma/client": "^6",

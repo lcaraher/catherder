@@ -1,0 +1,61 @@
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/adapters/auth";
+import { prisma } from "@/adapters/db/client";
+import {
+  hourToDbTime,
+  isValidIanaTimeZone,
+  validateRanges,
+} from "@/domain/availability";
+
+export const dynamic = "force-dynamic";
+
+// Replaces the caller's entire standing availability (and time zone) in one
+// transaction, bumping the version so copies into events can reference it.
+export async function PUT(request: Request) {
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: "not signed in" }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null);
+  let ranges;
+  try {
+    ranges = validateRanges((body as { ranges?: unknown } | null)?.ranges);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "invalid ranges" },
+      { status: 400 },
+    );
+  }
+  const timeZone = (body as { timeZone?: unknown }).timeZone;
+  if (!isValidIanaTimeZone(timeZone)) {
+    return NextResponse.json(
+      { error: "timeZone must be a valid IANA time-zone name" },
+      { status: 400 },
+    );
+  }
+
+  const version = await prisma.$transaction(async (tx) => {
+    const { _max } = await tx.standingAvailability.aggregate({
+      where: { userId: user.id },
+      _max: { version: true },
+    });
+    const nextVersion = (_max.version ?? 0) + 1;
+    await tx.standingAvailability.deleteMany({ where: { userId: user.id } });
+    if (ranges.length > 0) {
+      await tx.standingAvailability.createMany({
+        data: ranges.map((range) => ({
+          userId: user.id,
+          version: nextVersion,
+          weekday: range.weekday,
+          startLocal: hourToDbTime(range.startHour),
+          endLocal: hourToDbTime(range.endHour),
+        })),
+      });
+    }
+    await tx.user.update({ where: { id: user.id }, data: { timeZone } });
+    return nextVersion;
+  });
+
+  return NextResponse.json({ version });
+}
