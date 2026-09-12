@@ -33,16 +33,57 @@ function optionalSize(value: FormDataEntryValue | null): number | null {
   return Number(text);
 }
 
+interface EventFields {
+  name: string;
+  requiredSlots: number;
+  minGroupSize: number | null;
+  maxGroupSize: number | null;
+}
+
+// Shared by create and edit so both enforce identical rules. Returns the
+// parsed fields or the first validation error.
+function parseEventFields(
+  formData: FormData,
+): { fields: EventFields } | { error: string } {
+  const name = String(formData.get("name") ?? "").trim();
+  const targetHours = Number(String(formData.get("targetHours") ?? ""));
+  // The form works in hours with 0.5 steps; storage is half-hour slots.
+  const requiredSlots = Math.round(targetHours * 2);
+  const minGroupSize = optionalSize(formData.get("minGroupSize"));
+  const maxGroupSize = optionalSize(formData.get("maxGroupSize"));
+
+  if (name === "") return { error: "Name is required." };
+  if (
+    !Number.isFinite(targetHours) ||
+    requiredSlots < 1 ||
+    Math.abs(targetHours * 2 - requiredSlots) > 1e-9
+  ) {
+    return {
+      error:
+        "Target session length must be at least half an hour, in half-hour steps.",
+    };
+  }
+  for (const size of [minGroupSize, maxGroupSize]) {
+    if (size !== null && (!Number.isInteger(size) || size < 1)) {
+      return { error: "Group sizes must be whole numbers of at least 1." };
+    }
+  }
+  if (
+    minGroupSize !== null &&
+    maxGroupSize !== null &&
+    minGroupSize > maxGroupSize
+  ) {
+    return { error: "Min group size cannot exceed max group size." };
+  }
+  return { fields: { name, requiredSlots, minGroupSize, maxGroupSize } };
+}
+
 export async function createEvent(formData: FormData) {
   const workspaceId = String(formData.get("workspaceId") ?? "");
   const { user } = await requireRole(workspaceId, ORGANIZER_ROLES);
 
-  const name = String(formData.get("name") ?? "").trim();
   const mode = String(formData.get("mode") ?? "") as EventMode;
   const gmUserId = String(formData.get("gmUserId") ?? "").trim() || null;
-  const requiredHours = Number(String(formData.get("requiredHours") ?? ""));
-  const minGroupSize = optionalSize(formData.get("minGroupSize"));
-  const maxGroupSize = optionalSize(formData.get("maxGroupSize"));
 
   function fail(message: string): never {
     redirect(
@@ -50,19 +91,9 @@ export async function createEvent(formData: FormData) {
     );
   }
 
-  if (name === "") fail("Name is required.");
+  const parsed = parseEventFields(formData);
+  if ("error" in parsed) fail(parsed.error);
   if (!EVENT_MODES.includes(mode)) fail("Choose a mode.");
-  if (!Number.isInteger(requiredHours) || requiredHours < 1) {
-    fail("Required consecutive hours must be a whole number of at least 1.");
-  }
-  for (const size of [minGroupSize, maxGroupSize]) {
-    if (size !== null && (!Number.isInteger(size) || size < 1)) {
-      fail("Group sizes must be whole numbers of at least 1.");
-    }
-  }
-  if (minGroupSize !== null && maxGroupSize !== null && minGroupSize > maxGroupSize) {
-    fail("Min group size cannot exceed max group size.");
-  }
   if (mode === "GM_GROUPS") {
     if (!gmUserId) fail("GameMaster groups mode needs a GameMaster.");
     const gmMembership = await prisma.workspaceMember.findUnique({
@@ -75,15 +106,23 @@ export async function createEvent(formData: FormData) {
     const created = await tx.event.create({
       data: {
         workspaceId,
-        name,
         mode,
         gmUserId: mode === "GM_GROUPS" ? gmUserId : null,
-        requiredHours,
-        minGroupSize,
-        maxGroupSize,
         status: "DRAFT",
+        ...parsed.fields,
       },
     });
+    // The GameMaster is always a participant of their own event.
+    if (created.gmUserId) {
+      await tx.eventParticipant.create({
+        data: {
+          eventId: created.id,
+          userId: created.gmUserId,
+          role: "GAMEMASTER",
+          responseStatus: "INVITED",
+        },
+      });
+    }
     await tx.auditEvent.create({
       data: {
         actorUserId: user.id,
@@ -96,6 +135,62 @@ export async function createEvent(formData: FormData) {
   });
 
   redirect(eventPath(workspaceId, event.id));
+}
+
+export async function updateEvent(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const { event } = await requireOrganizerForEvent(eventId);
+  const gmUserId = String(formData.get("gmUserId") ?? "").trim() || null;
+
+  function fail(message: string): never {
+    redirect(
+      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(message)}`,
+    );
+  }
+
+  const parsed = parseEventFields(formData);
+  if ("error" in parsed) fail(parsed.error);
+  if (event.mode === "GM_GROUPS") {
+    if (!gmUserId) fail("GameMaster groups mode needs a GameMaster.");
+    const gmMembership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: { workspaceId: event.workspaceId, userId: gmUserId },
+      },
+    });
+    if (!gmMembership) fail("The GameMaster must be a workspace member.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({
+      where: { id: eventId },
+      data: {
+        ...parsed.fields,
+        ...(event.mode === "GM_GROUPS" ? { gmUserId } : {}),
+      },
+    });
+    // Moving the GameMaster moves the GAMEMASTER participant row: the new GM
+    // is added if absent, the previous GM stays on as a PLAYER.
+    if (event.mode === "GM_GROUPS" && gmUserId && gmUserId !== event.gmUserId) {
+      if (event.gmUserId) {
+        await tx.eventParticipant.updateMany({
+          where: { eventId, userId: event.gmUserId },
+          data: { role: "PLAYER" },
+        });
+      }
+      await tx.eventParticipant.upsert({
+        where: { eventId_userId: { eventId, userId: gmUserId } },
+        update: { role: "GAMEMASTER" },
+        create: {
+          eventId,
+          userId: gmUserId,
+          role: "GAMEMASTER",
+          responseStatus: "INVITED",
+        },
+      });
+    }
+  });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+  redirect(eventPath(event.workspaceId, eventId));
 }
 
 export async function setEventStatus(formData: FormData) {
@@ -139,6 +234,17 @@ export async function addParticipant(formData: FormData) {
       responseStatus: "INVITED",
     },
   });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+}
+
+export async function removeParticipant(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const { event } = await requireOrganizerForEvent(eventId);
+
+  // The event's GameMaster cannot be removed while they hold that role.
+  if (userId === event.gmUserId) return;
+  await prisma.eventParticipant.deleteMany({ where: { eventId, userId } });
   revalidatePath(eventPath(event.workspaceId, eventId));
 }
 

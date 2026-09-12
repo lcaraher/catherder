@@ -113,7 +113,8 @@ model Event {
   name          String
   mode          EventMode
   gmUserId      String?
-  requiredHours Int
+  // Target session length in half-hour slots (e.g. 6 = 3 hours).
+  requiredSlots Int
   minGroupSize  Int?
   maxGroupSize  Int?
   status        EventStatus

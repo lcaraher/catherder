@@ -61,7 +61,7 @@ async function main() {
         name: eventName,
         mode: "GM_GROUPS",
         gmUserId: gm.id,
-        requiredHours: 3,
+        requiredSlots: 6,
         status: "DRAFT",
       },
     }));

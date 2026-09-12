@@ -9,6 +9,7 @@ import {
   type SlotStatus,
 } from "@/domain/availability";
 import { WeekGridEditor } from "@/components/week-grid-editor";
+import { TEXT_ANSWER_MAX_LENGTH } from "@/domain/questions";
 
 export interface QuestionDto {
   id: string;
@@ -156,13 +157,24 @@ export function RespondForm({
         )}
 
         {question.type === "TEXT" && (
-          <textarea
-            value={answer.text}
-            onChange={(e) => update(question.id, { text: e.target.value })}
-            rows={3}
-            aria-label={question.prompt}
-            className={`w-full ${inputClass}`}
-          />
+          <div>
+            <textarea
+              value={answer.text}
+              onChange={(e) => update(question.id, { text: e.target.value })}
+              rows={3}
+              aria-label={question.prompt}
+              className={`w-full ${inputClass}`}
+            />
+            <p
+              className={`mt-1 text-xs ${
+                answer.text.length > TEXT_ANSWER_MAX_LENGTH
+                  ? "text-red-600"
+                  : "text-zinc-400"
+              }`}
+            >
+              {answer.text.length}/{TEXT_ANSWER_MAX_LENGTH}
+            </p>
+          </div>
         )}
 
         {question.type === "RANKING" && (

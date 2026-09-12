@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { slotToDbTime, validateRanges } from "@/domain/availability";
+import { TEXT_ANSWER_MAX_LENGTH } from "@/domain/questions";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,13 @@ export async function POST(
       error instanceof Error ? error.message : "invalid ranges",
     );
   }
+  // Deliberately not tied to the event's target length: a window shorter
+  // than the target is still a valid submission.
+  if (ranges.length === 0) {
+    return badRequest(
+      "Add at least one available or tentative block. If you truly have no availability, tell the GameMaster directly.",
+    );
+  }
 
   if (!Array.isArray(body?.answers)) {
     return badRequest("answers must be an array");
@@ -113,6 +121,11 @@ export async function POST(
         break;
       }
       case "TEXT": {
+        if (answer.text.length > TEXT_ANSWER_MAX_LENGTH) {
+          return badRequest(
+            `Text answers are limited to ${TEXT_ANSWER_MAX_LENGTH} characters ("${question.prompt}" is over the limit).`,
+          );
+        }
         break;
       }
       case "RANKING": {

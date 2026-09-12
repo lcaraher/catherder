@@ -64,19 +64,24 @@ export default async function NewEventPage({
         </div>
         <div>
           <label
-            htmlFor="requiredHours"
+            htmlFor="targetHours"
             className="mb-1 block text-zinc-600 dark:text-zinc-400"
           >
-            Required consecutive hours
+            Target session length (hours)
           </label>
           <input
-            id="requiredHours"
-            name="requiredHours"
+            id="targetHours"
+            name="targetHours"
             type="number"
-            min={1}
+            min={0.5}
+            step={0.5}
             required
             className={inputClass}
           />
+          <p className="mt-1 text-xs text-zinc-500">
+            A starting point for grouping — you can change it later, and it
+            does not limit what participants submit.
+          </p>
         </div>
         <div className="flex gap-4">
           <div className="flex-1">

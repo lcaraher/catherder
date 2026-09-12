@@ -6,9 +6,11 @@ import {
   addParticipant,
   addQuestion,
   addQuestionOption,
+  removeParticipant,
   removeQuestionOption,
   reorderQuestion,
   setEventStatus,
+  updateEvent,
   updateQuestionPrompt,
 } from "../actions";
 
@@ -47,10 +49,13 @@ function GmBadge() {
 
 export default async function EventPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workspaceId: string; eventId: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { workspaceId, eventId } = await params;
+  const { error } = await searchParams;
   await requireRole(workspaceId, ["OWNER", "ORGANIZER"]);
 
   const event = await prisma.event.findUnique({
@@ -73,13 +78,15 @@ export default async function EventPage({
   if (!event || event.workspaceId !== workspaceId) notFound();
 
   const participantIds = new Set(event.participants.map((p) => p.userId));
-  const addableMembers = (
-    await prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      include: { user: { select: { id: true, displayName: true } } },
-      orderBy: { user: { displayName: "asc" } },
-    })
-  ).filter((member) => !participantIds.has(member.userId));
+  const allMembers = await prisma.workspaceMember.findMany({
+    where: { workspaceId },
+    include: { user: { select: { id: true, displayName: true } } },
+    orderBy: { user: { displayName: "asc" } },
+  });
+  // Existing participants (which always includes the GameMaster) are excluded.
+  const addableMembers = allMembers.filter(
+    (member) => !participantIds.has(member.userId),
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
@@ -105,10 +112,16 @@ export default async function EventPage({
             <GmBadge />
           </>
         )}
-        {` · ${event.requiredHours}h consecutive`}
+        {` · target ${event.requiredSlots / 2}h`}
         {event.minGroupSize !== null && ` · min ${event.minGroupSize}`}
         {event.maxGroupSize !== null && ` · max ${event.maxGroupSize}`}
       </p>
+
+      {error && (
+        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
       <div className="mb-8 flex items-center gap-2">
         {event.status !== "OPEN" ? (
@@ -145,6 +158,111 @@ export default async function EventPage({
       </div>
 
       <section className="mb-8">
+        <h2 className="mb-3 text-lg font-medium">Edit event</h2>
+        <form
+          action={updateEvent}
+          className="flex flex-col gap-3 rounded border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+        >
+          <input type="hidden" name="eventId" value={event.id} />
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-48 flex-1">
+              <label htmlFor="edit-name" className="mb-1 block text-zinc-600 dark:text-zinc-400">
+                Name
+              </label>
+              <input
+                id="edit-name"
+                name="name"
+                defaultValue={event.name}
+                required
+                className={`w-full ${inputClass}`}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-targetHours"
+                className="mb-1 block text-zinc-600 dark:text-zinc-400"
+              >
+                Target session length (hours)
+              </label>
+              <input
+                id="edit-targetHours"
+                name="targetHours"
+                type="number"
+                min={0.5}
+                step={0.5}
+                defaultValue={event.requiredSlots / 2}
+                required
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-minGroupSize"
+                className="mb-1 block text-zinc-600 dark:text-zinc-400"
+              >
+                Min group size
+              </label>
+              <input
+                id="edit-minGroupSize"
+                name="minGroupSize"
+                type="number"
+                min={1}
+                defaultValue={event.minGroupSize ?? ""}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-maxGroupSize"
+                className="mb-1 block text-zinc-600 dark:text-zinc-400"
+              >
+                Max group size
+              </label>
+              <input
+                id="edit-maxGroupSize"
+                name="maxGroupSize"
+                type="number"
+                min={1}
+                defaultValue={event.maxGroupSize ?? ""}
+                className={inputClass}
+              />
+            </div>
+            {event.mode === "GM_GROUPS" && (
+              <div>
+                <label
+                  htmlFor="edit-gmUserId"
+                  className="mb-1 block text-zinc-600 dark:text-zinc-400"
+                >
+                  GameMaster
+                </label>
+                <select
+                  id="edit-gmUserId"
+                  name="gmUserId"
+                  defaultValue={event.gmUserId ?? ""}
+                  className={inputClass}
+                >
+                  {allMembers.map((member) => (
+                    <option key={member.user.id} value={member.user.id}>
+                      {member.user.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-zinc-500">
+            Target session length is a starting point for grouping — you can
+            change it later, and it does not limit what participants submit.
+          </p>
+          <div>
+            <button type="submit" className={smallButton}>
+              Save changes
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
         {event.participants.length === 0 ? (
           <p className="mb-3 text-sm text-zinc-500">No participants yet.</p>
@@ -163,14 +281,33 @@ export default async function EventPage({
                     <span className="text-xs text-zinc-400">Player</span>
                   )}
                 </span>
-                <span
-                  className={`text-xs ${
-                    participant.responseStatus === "SUBMITTED"
-                      ? "text-emerald-600"
-                      : "text-zinc-400"
-                  }`}
-                >
-                  {participant.responseStatus}
+                <span className="flex items-center gap-3">
+                  <span
+                    className={`text-xs ${
+                      participant.responseStatus === "SUBMITTED"
+                        ? "text-emerald-600"
+                        : "text-zinc-400"
+                    }`}
+                  >
+                    {participant.responseStatus}
+                  </span>
+                  {participant.userId !== event.gmUserId && (
+                    <form action={removeParticipant}>
+                      <input type="hidden" name="eventId" value={event.id} />
+                      <input
+                        type="hidden"
+                        name="userId"
+                        value={participant.userId}
+                      />
+                      <button
+                        type="submit"
+                        aria-label={`Remove ${participant.user.displayName}`}
+                        className={smallButton}
+                      >
+                        Remove
+                      </button>
+                    </form>
+                  )}
                 </span>
               </li>
             ))}
