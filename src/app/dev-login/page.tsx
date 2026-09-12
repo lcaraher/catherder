@@ -24,8 +24,7 @@ export default async function DevLoginPage() {
                   type="submit"
                   className="w-full rounded border border-zinc-300 px-4 py-2 text-left hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
                 >
-                  <span className="font-medium">{user.displayName}</span>{" "}
-                  <span className="text-sm text-zinc-500">{user.email}</span>
+                  <span className="font-medium">{user.displayName}</span>
                 </button>
               </form>
             </li>
