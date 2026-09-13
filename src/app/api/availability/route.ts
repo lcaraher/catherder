@@ -28,8 +28,10 @@ export async function PUT(request: Request) {
       { status: 400 },
     );
   }
+  // The zone is normally changed through /api/me/time-zone; this PUT only
+  // updates it when a caller still sends one.
   const { timeZone, note } = body as { timeZone?: unknown; note?: unknown };
-  if (!isValidIanaTimeZone(timeZone)) {
+  if (timeZone !== undefined && !isValidIanaTimeZone(timeZone)) {
     return NextResponse.json(
       { error: "timeZone must be a valid IANA time-zone name" },
       { status: 400 },
@@ -65,7 +67,10 @@ export async function PUT(request: Request) {
     }
     await tx.user.update({
       where: { id: user.id },
-      data: { timeZone, availabilityNote },
+      data: {
+        ...(typeof timeZone === "string" ? { timeZone } : {}),
+        availabilityNote,
+      },
     });
     return nextVersion;
   });

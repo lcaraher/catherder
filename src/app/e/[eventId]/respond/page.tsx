@@ -3,7 +3,12 @@ import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot, type AvailabilityRange } from "@/domain/availability";
 import { canEditResponse } from "@/domain/response-access";
+import {
+  buildTimeZoneOptions,
+  groupTimeZoneOptions,
+} from "@/domain/time-zones";
 import { RespondForm } from "@/components/respond-form";
+import { TimeZonePicker } from "@/components/time-zone-picker";
 import { WeekGridDisplay } from "@/components/week-grid-display";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +88,7 @@ export default async function RespondPage({
           <>
             <h2 className="mb-3 text-lg font-medium">Your availability</h2>
             <p className="mb-3 text-sm text-zinc-500">
-              Times are wall-clock in your time zone ({user.timeZone}).
+              Times are based in your time zone ({user.timeZone}).
             </p>
             <WeekGridDisplay ranges={toRanges(eventRows)} />
 
@@ -162,15 +167,24 @@ export default async function RespondPage({
     ]),
   );
 
+  // Abbreviations and offsets are computed at render time so DST is right
+  // for today; the client only filters this prepared list.
+  const zoneGroups = groupTimeZoneOptions(
+    buildTimeZoneOptions(Intl.supportedValuesOf("timeZone")),
+  );
+
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
       <p className="mb-6 text-sm text-zinc-500">
-        Adjust your availability for this event (your standing week is
-        pre-filled; changes here apply to this event only), then answer the
-        questions below. Times are wall-clock in your time zone (
-        {user.timeZone}).
+        Adjust your availability for this event (If your 'My Availability' page is filled in, it will pre-fill those saved times here; changes here apply to this event only), then answer the
+        questions below.
       </p>
+      <TimeZonePicker
+        groups={zoneGroups}
+        initialZoneId={user.timeZone}
+        hint="Every hour in the grid below is read in this zone. It's your personal setting — if it isn't where you actually are, fix it before filling in your week."
+      />
       <RespondForm
         eventId={eventId}
         initialRanges={initialRanges}

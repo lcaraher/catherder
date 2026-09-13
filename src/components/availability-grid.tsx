@@ -12,26 +12,20 @@ import { WeekGridEditor } from "@/components/week-grid-editor";
 
 interface Props {
   initialRanges: AvailabilityRange[];
-  initialTimeZone: string;
   initialNote: string;
-  timeZones: string[];
 }
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-export function AvailabilityGrid({
-  initialRanges,
-  initialTimeZone,
-  initialNote,
-  timeZones,
-}: Props) {
+export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
   const [initialWeek] = useState(() => weekFromRanges(initialRanges));
   // The editor owns the on-screen week; we only need the latest value at save.
   const weekRef = useRef<SlotStatus[][]>(initialWeek);
-  const [timeZone, setTimeZone] = useState(initialTimeZone);
   const [note, setNote] = useState(initialNote);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
+  // The time zone is managed by the TimeZonePicker rendered alongside; this
+  // save only touches the week and the note.
   async function save() {
     setSaveStatus("saving");
     try {
@@ -39,7 +33,6 @@ export function AvailabilityGrid({
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          timeZone,
           note,
           ranges: cellsToRanges(weekToCells(weekRef.current)),
         }),
@@ -54,27 +47,6 @@ export function AvailabilityGrid({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <label htmlFor="timezone" className="text-zinc-600 dark:text-zinc-400">
-          Time zone
-        </label>
-        <select
-          id="timezone"
-          value={timeZone}
-          onChange={(e) => setTimeZone(e.target.value)}
-          className="rounded border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          {timeZones.map((zone) => (
-            <option key={zone} value={zone}>
-              {zone}
-            </option>
-          ))}
-        </select>
-        <span className="text-zinc-500">
-          Hours below are wall-clock times in this zone.
-        </span>
-      </div>
-
       <WeekGridEditor
         initialWeek={initialWeek}
         onChange={(week) => {
