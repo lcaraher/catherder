@@ -177,7 +177,9 @@ export default async function RespondPage({
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
       <p className="mb-6 text-sm text-zinc-500">
-        Adjust your availability for this event (If your 'My Availability' page is filled in, it will pre-fill those saved times here; changes here apply to this event only), then answer the
+        Adjust your availability for this event (If your &lsquo;My
+        Availability&rsquo; page is filled in, it will pre-fill those saved
+        times here; changes here apply to this event only), then answer the
         questions below.
       </p>
       <TimeZonePicker
@@ -188,6 +190,7 @@ export default async function RespondPage({
       <RespondForm
         eventId={eventId}
         initialRanges={initialRanges}
+        standingRanges={toRanges(standingRows)}
         questions={event.questions.map((question) => ({
           id: question.id,
           type: question.type,

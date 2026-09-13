@@ -234,6 +234,21 @@ export function weekToCells(
   return cells;
 }
 
+/** True when two week arrays hold the same status in every slot. */
+export function weeksEqual(
+  a: readonly (readonly SlotStatus[])[],
+  b: readonly (readonly SlotStatus[])[],
+): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (day, weekday) =>
+        day.length === b[weekday].length &&
+        day.every((status, slot) => status === b[weekday][slot]),
+    )
+  );
+}
+
 /** Returns a fresh all-empty week; the input is left untouched. */
 export function clearWeek(
   week: readonly (readonly SlotStatus[])[],

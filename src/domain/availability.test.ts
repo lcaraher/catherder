@@ -17,6 +17,7 @@ import {
   SLOTS_PER_DAY,
   validateRanges,
   weekFromRanges,
+  weeksEqual,
   weekToCells,
   type SlotStatus,
 } from "./availability.ts";
@@ -412,5 +413,23 @@ describe("isValidIanaTimeZone", () => {
     assert.equal(isValidIanaTimeZone(""), false);
     assert.equal(isValidIanaTimeZone(5), false);
     assert.equal(isValidIanaTimeZone(null), false);
+  });
+});
+
+describe("weeksEqual", () => {
+  const ranges = [
+    { weekday: 1, startSlot: 18, endSlot: 21, status: "AVAILABLE" as const },
+  ];
+
+  it("treats two independently built weeks with the same content as equal", () => {
+    assert.equal(weeksEqual(emptyWeek(), emptyWeek()), true);
+    assert.equal(weeksEqual(weekFromRanges(ranges), weekFromRanges(ranges)), true);
+  });
+
+  it("detects a single differing slot", () => {
+    const a = weekFromRanges(ranges);
+    const b = weekFromRanges(ranges);
+    b[1][18] = "TENTATIVE";
+    assert.equal(weeksEqual(a, b), false);
   });
 });

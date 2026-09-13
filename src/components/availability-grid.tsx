@@ -4,11 +4,13 @@ import { useRef, useState } from "react";
 import {
   cellsToRanges,
   weekFromRanges,
+  weeksEqual,
   weekToCells,
   type AvailabilityRange,
   type SlotStatus,
 } from "@/domain/availability";
 import { WeekGridEditor } from "@/components/week-grid-editor";
+import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 
 interface Props {
   initialRanges: AvailabilityRange[];
@@ -24,20 +26,33 @@ export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
   const [note, setNote] = useState(initialNote);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
+  // What the server currently holds, updated after each successful save.
+  // Dirtiness is a comparison against this, not an "edited" flag, so painting
+  // a cell and painting it back leaves the form clean.
+  const savedRef = useRef({ week: initialWeek, note: initialNote });
+  useUnsavedChangesGuard(
+    () =>
+      !weeksEqual(weekRef.current, savedRef.current.week) ||
+      note !== savedRef.current.note,
+  );
+
   // The time zone is managed by the TimeZonePicker rendered alongside; this
   // save only touches the week and the note.
   async function save() {
+    const sentWeek = weekRef.current;
+    const sentNote = note;
     setSaveStatus("saving");
     try {
       const response = await fetch("/api/availability", {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          note,
-          ranges: cellsToRanges(weekToCells(weekRef.current)),
+          note: sentNote,
+          ranges: cellsToRanges(weekToCells(sentWeek)),
         }),
       });
       if (!response.ok) throw new Error(`save failed (${response.status})`);
+      savedRef.current = { week: sentWeek, note: sentNote };
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus((s) => (s === "saved" ? "idle" : s)), 2000);
     } catch {
@@ -45,8 +60,35 @@ export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
     }
   }
 
+  // Rendered twice — above the grid (the grid is taller than most viewports)
+  // and below the note — so both buttons always share one status.
+  function saveControls(margin: string) {
+    return (
+      <div className={`${margin} flex items-center gap-3`}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saveStatus === "saving"}
+          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+        >
+          {saveStatus === "saving" ? "Saving…" : "Save"}
+        </button>
+        {saveStatus === "saved" && (
+          <span className="text-sm text-emerald-600">Saved ✓</span>
+        )}
+        {saveStatus === "error" && (
+          <span className="text-sm text-red-600">
+            Save failed — please try again.
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
+      {saveControls("mb-4")}
+
       <WeekGridEditor
         initialWeek={initialWeek}
         onChange={(week) => {
@@ -70,24 +112,7 @@ export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
         />
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={save}
-          disabled={saveStatus === "saving"}
-          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-        >
-          {saveStatus === "saving" ? "Saving…" : "Save"}
-        </button>
-        {saveStatus === "saved" && (
-          <span className="text-sm text-emerald-600">Saved ✓</span>
-        )}
-        {saveStatus === "error" && (
-          <span className="text-sm text-red-600">
-            Save failed — please try again.
-          </span>
-        )}
-      </div>
+      {saveControls("mt-4")}
     </div>
   );
 }

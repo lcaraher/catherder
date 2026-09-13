@@ -29,6 +29,11 @@ interface Props {
   initialWeek: SlotStatus[][];
   /** Called with the full week after every on-screen edit. */
   onChange: (week: SlotStatus[][]) => void;
+  /**
+   * Extra parent-owned controls rendered in the bulk-edit row, to the right
+   * of "Clear week" (e.g. the respond form's reload-from-saved button).
+   */
+  extraControls?: React.ReactNode;
 }
 
 type Granularity = "half" | "hour";
@@ -53,7 +58,7 @@ function bandClass(status: SlotStatus): string {
  * instructions, legend, and bulk-edit (copy day / clear week) controls.
  * Owns the week state; parents receive every change through onChange.
  */
-export function WeekGridEditor({ initialWeek, onChange }: Props) {
+export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) {
   const [week, setWeek] = useState<SlotStatus[][]>(initialWeek);
   const [copySource, setCopySource] = useState(0);
   const [copyTargets, setCopyTargets] = useState<boolean[]>(() =>
@@ -378,6 +383,7 @@ export function WeekGridEditor({ initialWeek, onChange }: Props) {
             </button>
           )}
         </div>
+        {extraControls}
       </div>
 
       <div
