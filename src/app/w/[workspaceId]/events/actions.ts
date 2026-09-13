@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { EventMode, QuestionType, WorkspaceRole } from "@prisma/client";
 import { ForbiddenError, requireRole, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { canManageEvent } from "@/domain/event-access";
 
 const ORGANIZER_ROLES: WorkspaceRole[] = ["OWNER", "ORGANIZER"];
 const EVENT_MODES: EventMode[] = ["GM_GROUPS", "SINGLE_ACTIVITY"];
@@ -16,29 +17,30 @@ const QUESTION_TYPES: QuestionType[] = [
 ];
 
 // Every action re-authorizes server-side; forms only decide what's visible.
-async function requireOrganizerForEvent(eventId: string) {
+// The event's GameMaster runs their own event; a workspace OWNER/ORGANIZER
+// manages it as an admin override. Both facts come from the database, never
+// from IdP claims.
+async function requireEventManager(eventId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) throw new Error("event not found");
-  const { user } = await requireRole(event.workspaceId, ORGANIZER_ROLES);
-  return { event, user };
-}
-
-// The results/unlock controls are also open to the event's GameMaster, who
-// may hold only PARTICIPANT workspace membership. Authorization still comes
-// from the database, never from IdP claims: via requireRole, with the
-// GameMaster fallback read from Event.gmUserId.
-async function requireOrganizerOrGmForEvent(eventId: string) {
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event) throw new Error("event not found");
-  try {
-    const { user } = await requireRole(event.workspaceId, ORGANIZER_ROLES);
-    return { event, user };
-  } catch (error) {
-    if (!(error instanceof ForbiddenError)) throw error;
-    const user = await requireUser();
-    if (event.gmUserId !== user.id) throw error;
-    return { event, user };
+  const user = await requireUser();
+  const membership = await prisma.workspaceMember.findUnique({
+    where: {
+      workspaceId_userId: { workspaceId: event.workspaceId, userId: user.id },
+    },
+  });
+  const allowed = canManageEvent({
+    viewerUserId: user.id,
+    gmUserId: event.gmUserId,
+    viewerIsWorkspaceOrganizer:
+      membership !== null && ORGANIZER_ROLES.includes(membership.role),
+  });
+  if (!allowed) {
+    throw new ForbiddenError(
+      "must be the event's GameMaster or a workspace OWNER or ORGANIZER",
+    );
   }
+  return { event, user };
 }
 
 function eventPath(workspaceId: string, eventId: string): string {
@@ -157,7 +159,7 @@ export async function createEvent(formData: FormData) {
 
 export async function updateEvent(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
-  const { event } = await requireOrganizerForEvent(eventId);
+  const { event } = await requireEventManager(eventId);
   const gmUserId = String(formData.get("gmUserId") ?? "").trim() || null;
 
   function fail(message: string): never {
@@ -215,7 +217,7 @@ export async function setEventStatus(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const status = String(formData.get("status") ?? "");
   if (status !== "OPEN" && status !== "CLOSED") return;
-  const { event, user } = await requireOrganizerForEvent(eventId);
+  const { event, user } = await requireEventManager(eventId);
   if (event.status === status) return;
 
   await prisma.$transaction(async (tx) => {
@@ -235,7 +237,7 @@ export async function setEventStatus(formData: FormData) {
 export async function setResultsRevealed(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const revealed = String(formData.get("revealed") ?? "") === "true";
-  const { event, user } = await requireOrganizerOrGmForEvent(eventId);
+  const { event, user } = await requireEventManager(eventId);
   if ((event.resultsRevealedAt !== null) === revealed) return;
 
   await prisma.$transaction(async (tx) => {
@@ -260,7 +262,7 @@ export async function setResultsRevealed(formData: FormData) {
 // reveal, and their audit trail land together or not at all.
 export async function closeEventAndShareResults(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
-  const { event, user } = await requireOrganizerOrGmForEvent(eventId);
+  const { event, user } = await requireEventManager(eventId);
   if (event.status !== "OPEN") return;
 
   const alreadyRevealed = event.resultsRevealedAt !== null;
@@ -298,7 +300,7 @@ export async function setParticipantEditLock(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const unlocked = String(formData.get("unlocked") ?? "") === "true";
-  const { event, user } = await requireOrganizerOrGmForEvent(eventId);
+  const { event, user } = await requireEventManager(eventId);
 
   const participant = await prisma.eventParticipant.findUnique({
     where: { eventId_userId: { eventId, userId } },
@@ -327,7 +329,7 @@ export async function setParticipantEditLock(formData: FormData) {
 export async function addParticipant(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const userId = String(formData.get("userId") ?? "");
-  const { event } = await requireOrganizerForEvent(eventId);
+  const { event } = await requireEventManager(eventId);
 
   const membership = await prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId: event.workspaceId, userId } },
@@ -350,7 +352,7 @@ export async function addParticipant(formData: FormData) {
 export async function removeParticipant(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const userId = String(formData.get("userId") ?? "");
-  const { event } = await requireOrganizerForEvent(eventId);
+  const { event } = await requireEventManager(eventId);
 
   // The event's GameMaster cannot be removed while they hold that role.
   if (userId === event.gmUserId) return;
@@ -366,7 +368,7 @@ export async function addQuestion(formData: FormData) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line !== "");
-  const { event } = await requireOrganizerForEvent(eventId);
+  const { event } = await requireEventManager(eventId);
 
   if (!QUESTION_TYPES.includes(type) || prompt === "") return;
   if (type !== "TEXT" && optionLines.length === 0) return;
@@ -402,7 +404,7 @@ export async function reorderQuestion(formData: FormData) {
     where: { id: questionId },
   });
   if (!question) return;
-  const { event } = await requireOrganizerForEvent(question.eventId);
+  const { event } = await requireEventManager(question.eventId);
 
   const neighbor = await prisma.question.findFirst({
     where: {
@@ -437,7 +439,7 @@ export async function updateQuestionPrompt(formData: FormData) {
     where: { id: questionId },
   });
   if (!question) return;
-  const { event } = await requireOrganizerForEvent(question.eventId);
+  const { event } = await requireEventManager(question.eventId);
 
   // Once answers exist the answered version is preserved: the edit bumps the
   // question's version, and Answer.questionVersion keeps recording which
@@ -458,7 +460,7 @@ export async function addQuestionOption(formData: FormData) {
     where: { id: questionId },
   });
   if (!question || question.type === "TEXT") return;
-  const { event } = await requireOrganizerForEvent(question.eventId);
+  const { event } = await requireEventManager(question.eventId);
 
   const answered = (await prisma.answer.count({ where: { questionId } })) > 0;
   const count = await prisma.questionOption.count({ where: { questionId } });
@@ -483,7 +485,7 @@ export async function removeQuestionOption(formData: FormData) {
     include: { question: true },
   });
   if (!option) return;
-  const { event } = await requireOrganizerForEvent(option.question.eventId);
+  const { event } = await requireEventManager(option.question.eventId);
 
   // Options are only removable while nothing references them; once answers
   // exist the choices must stay intact.

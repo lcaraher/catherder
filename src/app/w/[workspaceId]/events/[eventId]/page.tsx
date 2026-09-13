@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ForbiddenError, requireRole, requireUser } from "@/adapters/auth";
+import { ForbiddenError, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { canManageEvent, isAdminOverride } from "@/domain/event-access";
 import {
   addParticipant,
   addQuestion,
@@ -60,16 +61,15 @@ export default async function EventPage({
   const { workspaceId, eventId } = await params;
   const { error } = await searchParams;
 
-  // OWNER/ORGANIZER members manage the event; the event's GameMaster (who may
-  // hold only PARTICIPANT workspace membership) also gets in, for the results
-  // and unlock controls. Every action re-checks on the server regardless.
-  let isOrganizer = true;
-  try {
-    await requireRole(workspaceId, ["OWNER", "ORGANIZER"]);
-  } catch (err) {
-    if (!(err instanceof ForbiddenError)) throw err;
-    isOrganizer = false;
-  }
+  // The event's GameMaster runs their own event, even with only PARTICIPANT
+  // workspace membership; a workspace OWNER/ORGANIZER manages it as a visible
+  // admin override. Every action re-checks on the server regardless.
+  const user = await requireUser();
+  const membership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId: user.id } },
+  });
+  const viewerIsWorkspaceOrganizer =
+    membership?.role === "OWNER" || membership?.role === "ORGANIZER";
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -90,14 +90,17 @@ export default async function EventPage({
   });
   if (!event || event.workspaceId !== workspaceId) notFound();
 
-  if (!isOrganizer) {
-    const user = await requireUser();
-    if (event.gmUserId !== user.id) {
-      throw new ForbiddenError(
-        "workspace membership with role OWNER or ORGANIZER, or being the event's GameMaster, required",
-      );
-    }
+  const access = {
+    viewerUserId: user.id,
+    gmUserId: event.gmUserId,
+    viewerIsWorkspaceOrganizer,
+  };
+  if (!canManageEvent(access)) {
+    throw new ForbiddenError(
+      "must be the event's GameMaster or a workspace OWNER or ORGANIZER",
+    );
   }
+  const adminOverride = isAdminOverride(access);
 
   const participantIds = new Set(event.participants.map((p) => p.userId));
   const allMembers = await prisma.workspaceMember.findMany({
@@ -139,13 +142,20 @@ export default async function EventPage({
         {event.maxGroupSize !== null && ` · max ${event.maxGroupSize}`}
       </p>
 
+      {adminOverride && event.gmUser && (
+        <p className="mb-4 rounded border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-300">
+          This event is run by{" "}
+          <span className="font-medium">{event.gmUser.displayName}</span> — you
+          are acting as a workspace admin.
+        </p>
+      )}
+
       {error && (
         <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
           {error}
         </p>
       )}
 
-      {isOrganizer && (
       <div className="mb-8 flex items-center gap-2">
         {event.status !== "OPEN" ? (
           <form action={setEventStatus}>
@@ -179,7 +189,6 @@ export default async function EventPage({
           </span>
         )}
       </div>
-      )}
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Results sharing</h2>
@@ -240,7 +249,6 @@ export default async function EventPage({
         </div>
       </section>
 
-      {isOrganizer && (
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Edit event</h2>
         <form
@@ -345,7 +353,6 @@ export default async function EventPage({
           </div>
         </form>
       </section>
-      )}
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
@@ -422,7 +429,7 @@ export default async function EventPage({
                       </form>
                     )
                   )}
-                  {isOrganizer && participant.userId !== event.gmUserId && (
+                  {participant.userId !== event.gmUserId && (
                     <form action={removeParticipant}>
                       <input type="hidden" name="eventId" value={event.id} />
                       <input
@@ -444,7 +451,7 @@ export default async function EventPage({
             ))}
           </ul>
         )}
-        {isOrganizer && addableMembers.length > 0 && (
+        {addableMembers.length > 0 && (
           <form action={addParticipant} className="flex items-center gap-2 text-sm">
             <input type="hidden" name="eventId" value={event.id} />
             <select name="userId" className={inputClass}>
@@ -461,7 +468,6 @@ export default async function EventPage({
         )}
       </section>
 
-      {isOrganizer && (
       <section>
         <h2 className="mb-3 text-lg font-medium">Questions</h2>
         {event.questions.length === 0 ? (
@@ -595,7 +601,6 @@ export default async function EventPage({
           </div>
         </form>
       </section>
-      )}
     </main>
   );
 }
