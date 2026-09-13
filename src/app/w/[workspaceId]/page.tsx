@@ -52,17 +52,9 @@ export default async function WorkspacePage({
 
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">
-            {membership.workspace.name}
-          </h1>
-          <Link
-            href={`/w/${workspaceId}/events/new`}
-            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-          >
-            New event
-          </Link>
-        </div>
+        <h1 className="mb-6 text-2xl font-semibold">
+          {membership.workspace.name}
+        </h1>
 
         {events.length === 0 ? (
           <p className="text-sm text-zinc-500">No events yet.</p>

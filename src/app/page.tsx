@@ -62,7 +62,7 @@ export default async function Home() {
   const [memberships, participations, gmEvents] = await Promise.all([
     prisma.workspaceMember.findMany({
       where: { userId: user.id },
-      include: { workspace: { select: { id: true, name: true } } },
+      select: { workspaceId: true },
       orderBy: { workspace: { name: "asc" } },
     }),
     prisma.eventParticipant.findMany({
@@ -108,11 +108,22 @@ export default async function Home() {
   const nothingWaiting =
     needsResponse.length === 0 &&
     submitted.length === 0 &&
-    gmEvents.length === 0 &&
-    memberships.length === 0;
+    gmEvents.length === 0;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      {memberships.length > 0 && (
+        // With one membership this creates straight there; with several, the
+        // form itself offers a destination picker. Non-members see nothing.
+        <div className="mb-6">
+          <Link
+            href={`/w/${memberships[0].workspaceId}/events/new`}
+            className="inline-block rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            New event
+          </Link>
+        </div>
+      )}
       {nothingWaiting ? (
         <p className="text-sm text-zinc-500">
           Nothing is waiting for you right now — enjoy the quiet.
@@ -178,28 +189,6 @@ export default async function Home() {
             </section>
           )}
 
-          {memberships.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-medium">Your workspaces</h2>
-              <ul className="flex flex-col gap-2">
-                {memberships.map((membership) => (
-                  <li key={membership.workspaceId}>
-                    <Link
-                      href={`/w/${membership.workspaceId}`}
-                      className="flex items-center justify-between rounded border border-zinc-200 px-4 py-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-                    >
-                      <span className="font-medium">
-                        {membership.workspace.name}
-                      </span>
-                      <span className="text-xs text-zinc-500">
-                        {membership.role}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </div>
       )}
     </main>

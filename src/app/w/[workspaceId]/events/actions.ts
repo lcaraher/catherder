@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { EventMode, QuestionType, WorkspaceRole } from "@prisma/client";
-import { ForbiddenError, requireRole, requireUser } from "@/adapters/auth";
+import { ForbiddenError, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { canManageEvent } from "@/domain/event-access";
 
@@ -100,10 +100,19 @@ function parseEventFields(
 
 export async function createEvent(formData: FormData) {
   const workspaceId = String(formData.get("workspaceId") ?? "");
-  const { user } = await requireRole(workspaceId, ORGANIZER_ROLES);
+  // Running a game is not a workspace permission: any member may create an
+  // event. Membership still comes from the database, never from IdP claims.
+  const user = await requireUser();
+  const creatorMembership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId: user.id } },
+  });
+  if (!creatorMembership) {
+    throw new ForbiddenError("workspace membership required");
+  }
 
   const mode = String(formData.get("mode") ?? "") as EventMode;
-  const gmUserId = String(formData.get("gmUserId") ?? "").trim() || null;
+  // The creator runs their own game unless they picked someone else.
+  const gmUserId = String(formData.get("gmUserId") ?? "").trim() || user.id;
 
   function fail(message: string): never {
     redirect(
@@ -114,12 +123,11 @@ export async function createEvent(formData: FormData) {
   const parsed = parseEventFields(formData);
   if ("error" in parsed) fail(parsed.error);
   if (!EVENT_MODES.includes(mode)) fail("Choose a mode.");
-  if (mode === "GM_GROUPS") {
-    if (!gmUserId) fail("GameMaster groups mode needs a GameMaster.");
+  if (mode === "GM_GROUPS" && gmUserId !== user.id) {
     const gmMembership = await prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: gmUserId } },
     });
-    if (!gmMembership) fail("The GameMaster must be a workspace member.");
+    if (!gmMembership) fail("The GameMaster must be a member.");
   }
 
   const event = await prisma.$transaction(async (tx) => {
@@ -177,7 +185,7 @@ export async function updateEvent(formData: FormData) {
         workspaceId_userId: { workspaceId: event.workspaceId, userId: gmUserId },
       },
     });
-    if (!gmMembership) fail("The GameMaster must be a workspace member.");
+    if (!gmMembership) fail("The GameMaster must be a member.");
   }
 
   await prisma.$transaction(async (tx) => {

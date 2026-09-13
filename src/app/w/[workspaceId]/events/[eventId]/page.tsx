@@ -146,7 +146,7 @@ export default async function EventPage({
         <p className="mb-4 rounded border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-300">
           This event is run by{" "}
           <span className="font-medium">{event.gmUser.displayName}</span> — you
-          are acting as a workspace admin.
+          are acting as an admin.
         </p>
       )}
 

@@ -1,5 +1,7 @@
-import { requireRole } from "@/adapters/auth";
+import { notFound } from "next/navigation";
+import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { EventDestinationSelect } from "@/components/event-destination-select";
 import { createEvent } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +18,25 @@ export default async function NewEventPage({
 }) {
   const { workspaceId } = await params;
   const { error } = await searchParams;
-  await requireRole(workspaceId, ["OWNER", "ORGANIZER"]);
+  const user = await requireUser();
 
-  const members = await prisma.workspaceMember.findMany({
-    where: { workspaceId },
-    include: { user: { select: { id: true, displayName: true } } },
-    orderBy: { user: { displayName: "asc" } },
-  });
+  const [viewerMemberships, members] = await Promise.all([
+    prisma.workspaceMember.findMany({
+      where: { userId: user.id },
+      include: { workspace: { select: { name: true } } },
+      orderBy: { workspace: { name: "asc" } },
+    }),
+    prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      include: { user: { select: { id: true, displayName: true } } },
+      orderBy: { user: { displayName: "asc" } },
+    }),
+  ]);
+  // Any member may create an event here; a non-member gets a 404 so the page
+  // never confirms the workspace exists.
+  if (!viewerMemberships.some((m) => m.workspaceId === workspaceId)) {
+    notFound();
+  }
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -34,6 +48,24 @@ export default async function NewEventPage({
       )}
       <form action={createEvent} className="flex flex-col gap-4 text-sm">
         <input type="hidden" name="workspaceId" value={workspaceId} />
+        {viewerMemberships.length > 1 && (
+          <div>
+            <label
+              htmlFor="destination"
+              className="mb-1 block text-zinc-600 dark:text-zinc-400"
+            >
+              Create in
+            </label>
+            <EventDestinationSelect
+              id="destination"
+              currentWorkspaceId={workspaceId}
+              options={viewerMemberships.map((m) => ({
+                workspaceId: m.workspaceId,
+                name: m.workspace.name,
+              }))}
+            />
+          </div>
+        )}
         <div>
           <label htmlFor="name" className="mb-1 block text-zinc-600 dark:text-zinc-400">
             Name
@@ -51,10 +83,15 @@ export default async function NewEventPage({
         </div>
         <div>
           <label htmlFor="gmUserId" className="mb-1 block text-zinc-600 dark:text-zinc-400">
-            GameMaster (required for GameMaster groups mode)
+            GameMaster (GameMaster groups mode only — you, unless you pick
+            someone else)
           </label>
-          <select id="gmUserId" name="gmUserId" className={inputClass}>
-            <option value="">—</option>
+          <select
+            id="gmUserId"
+            name="gmUserId"
+            defaultValue={user.id}
+            className={inputClass}
+          >
             {members.map((member) => (
               <option key={member.user.id} value={member.user.id}>
                 {member.user.displayName}
