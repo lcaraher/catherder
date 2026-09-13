@@ -4,9 +4,9 @@ import { prisma } from "@/adapters/db/client";
 import { canEditResponse } from "@/domain/response-access";
 
 const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-  OPEN: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400",
-  CLOSED: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",
+  DRAFT: "bg-badge-draft text-badge-draft-text",
+  OPEN: "bg-badge-open text-badge-open-text",
+  CLOSED: "bg-badge-closed text-badge-closed-text",
 };
 
 // One inbox row: the event, which workspace it belongs to, its status, and
@@ -28,15 +28,15 @@ function EventRow({
     <li>
       <Link
         href={href}
-        className="flex items-center justify-between gap-3 rounded border border-zinc-200 px-4 py-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+        className="flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted"
       >
         <span className="min-w-0">
           <span className="block truncate font-medium">{name}</span>
-          <span className="block truncate text-xs text-zinc-500">
+          <span className="block truncate text-xs text-hint">
             {workspaceName}
           </span>
         </span>
-        <span className="flex shrink-0 items-center gap-3 text-sm text-zinc-500">
+        <span className="flex shrink-0 items-center gap-3 text-sm text-hint">
           {note && <span className="text-xs">{note}</span>}
           <span
             className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
@@ -118,14 +118,14 @@ export default async function Home() {
         <div className="mb-6">
           <Link
             href={`/w/${memberships[0].workspaceId}/events/new`}
-            className="inline-block rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+            className="inline-block rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
           >
             New event
           </Link>
         </div>
       )}
       {nothingWaiting ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-hint">
           Nothing is waiting for you right now — enjoy the quiet.
         </p>
       ) : (

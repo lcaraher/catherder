@@ -69,15 +69,15 @@ export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
           type="button"
           onClick={save}
           disabled={saveStatus === "saving"}
-          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover disabled:opacity-50"
         >
           {saveStatus === "saving" ? "Saving…" : "Save"}
         </button>
         {saveStatus === "saved" && (
-          <span className="text-sm text-emerald-600">Saved ✓</span>
+          <span className="text-sm text-status-submitted">Saved ✓</span>
         )}
         {saveStatus === "error" && (
-          <span className="text-sm text-red-600">
+          <span className="text-sm text-error">
             Save failed — please try again.
           </span>
         )}
@@ -99,7 +99,7 @@ export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
       <div className="mt-5">
         <label
           htmlFor="availability-note"
-          className="mb-1 block text-sm text-zinc-600 dark:text-zinc-400"
+          className="mb-1 block text-sm text-muted"
         >
           Anything I should know about your availability?
         </label>
@@ -108,7 +108,7 @@ export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
-          className="w-full rounded border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-full rounded border border-edge-strong bg-field px-3 py-2 text-sm"
         />
       </div>
 

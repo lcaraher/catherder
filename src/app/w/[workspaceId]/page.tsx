@@ -7,9 +7,9 @@ import { canManageEvent } from "@/domain/event-access";
 export const dynamic = "force-dynamic";
 
 const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-  OPEN: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400",
-  CLOSED: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",
+  DRAFT: "bg-badge-draft text-badge-draft-text",
+  OPEN: "bg-badge-open text-badge-open-text",
+  CLOSED: "bg-badge-closed text-badge-closed-text",
 };
 
 export default async function WorkspacePage({
@@ -57,17 +57,17 @@ export default async function WorkspacePage({
         </h1>
 
         {events.length === 0 ? (
-          <p className="text-sm text-zinc-500">No events yet.</p>
+          <p className="text-sm text-hint">No events yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {events.map((event) => (
               <li key={event.id}>
                 <Link
                   href={rowHref(event)}
-                  className="flex items-center justify-between rounded border border-zinc-200 px-4 py-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                  className="flex items-center justify-between rounded border border-edge px-4 py-3 hover:bg-surface-muted"
                 >
                   <span className="font-medium">{event.name}</span>
-                  <span className="flex items-center gap-3 text-sm text-zinc-500">
+                  <span className="flex items-center gap-3 text-sm text-hint">
                     <span>{event._count.participants} participants</span>
                     <span
                       className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[event.status]}`}
@@ -108,7 +108,7 @@ export default async function WorkspacePage({
       </h1>
 
       {events.length === 0 ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-hint">
           No events for you here yet.
         </p>
       ) : (
@@ -117,15 +117,15 @@ export default async function WorkspacePage({
             <li key={event.id}>
               <Link
                 href={rowHref(event)}
-                className="flex items-center justify-between rounded border border-zinc-200 px-4 py-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                className="flex items-center justify-between rounded border border-edge px-4 py-3 hover:bg-surface-muted"
               >
                 <span className="font-medium">{event.name}</span>
-                <span className="flex items-center gap-3 text-sm text-zinc-500">
+                <span className="flex items-center gap-3 text-sm text-hint">
                   <span
                     className={`text-xs ${
                       event.participants[0]?.responseStatus === "SUBMITTED"
-                        ? "text-emerald-600"
-                        : "text-zinc-400"
+                        ? "text-status-submitted"
+                        : "text-status-invited"
                     }`}
                   >
                     {event.participants[0]?.responseStatus}

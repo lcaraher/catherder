@@ -16,7 +16,7 @@ interface Props {
 }
 
 const smallButton =
-  "rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-900";
+  "rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40";
 
 // The device zone never changes within a page visit, so the store never
 // notifies; the server snapshot is null so server HTML and the hydration
@@ -97,9 +97,9 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
     deviceZone !== null && deviceZone !== zoneId && !suggestionDismissed;
 
   return (
-    <div className="mb-6 rounded border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+    <div className="mb-6 rounded border border-edge p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-zinc-600 dark:text-zinc-400">
+        <span className="text-muted">
           Your time zone:
         </span>
         <span className="font-medium">{labelOf(zoneId)}</span>
@@ -110,15 +110,15 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
         >
           {open ? "Close" : "Change"}
         </button>
-        {saving && <span className="text-xs text-zinc-400">Saving…</span>}
+        {saving && <span className="text-xs text-faint">Saving…</span>}
       </div>
       {hint && (
-        <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+        <p className="mt-1 text-xs text-hint">{hint}</p>
       )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-error">{error}</p>}
 
       {showSuggestion && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded border border-notice-warn-border bg-notice-warn px-2 py-1.5 text-xs text-notice-warn-text">
           <span>
             Your device says {cityOf(deviceZone)}, your profile says{" "}
             {cityOf(zoneId)}.
@@ -148,17 +148,17 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder='Search by city, zone or abbreviation — e.g. "EST", "Brussels"'
             aria-label="Search time zones"
-            className="w-full rounded border border-zinc-300 bg-transparent px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full rounded border border-edge-strong bg-field px-2 py-1 text-sm"
           />
-          <div className="mt-2 max-h-72 overflow-y-auto rounded border border-zinc-200 dark:border-zinc-800">
+          <div className="mt-2 max-h-72 overflow-y-auto rounded border border-edge">
             {visibleGroups.length === 0 ? (
-              <p className="px-2 py-2 text-xs text-zinc-500">
+              <p className="px-2 py-2 text-xs text-hint">
                 No matching time zones.
               </p>
             ) : (
               visibleGroups.map((group) => (
                 <div key={group.heading}>
-                  <p className="sticky top-0 bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                  <p className="sticky top-0 bg-surface-raised px-2 py-1 text-xs font-semibold text-muted">
                     {group.heading}
                   </p>
                   <ul>
@@ -168,9 +168,9 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
                           type="button"
                           disabled={saving}
                           onClick={() => save(option.id)}
-                          className={`w-full px-2 py-1 text-left text-sm hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-zinc-900 ${
+                          className={`w-full px-2 py-1 text-left text-sm hover:bg-btn-secondary-hover disabled:opacity-40 ${
                             option.id === zoneId
-                              ? "bg-emerald-50 font-medium dark:bg-emerald-950/50"
+                              ? "bg-selected font-medium"
                               : ""
                           }`}
                         >

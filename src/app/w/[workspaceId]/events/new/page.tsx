@@ -7,7 +7,7 @@ import { createEvent } from "../actions";
 export const dynamic = "force-dynamic";
 
 const inputClass =
-  "w-full rounded border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900";
+  "w-full rounded border border-edge-strong bg-field px-3 py-2 text-sm";
 
 export default async function NewEventPage({
   params,
@@ -42,7 +42,7 @@ export default async function NewEventPage({
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <h1 className="mb-6 text-2xl font-semibold">New event</h1>
       {error && (
-        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+        <p className="mb-4 rounded border border-notice-error-border bg-notice-error px-3 py-2 text-sm text-notice-error-text">
           {error}
         </p>
       )}
@@ -52,7 +52,7 @@ export default async function NewEventPage({
           <div>
             <label
               htmlFor="destination"
-              className="mb-1 block text-zinc-600 dark:text-zinc-400"
+              className="mb-1 block text-muted"
             >
               Create in
             </label>
@@ -67,13 +67,13 @@ export default async function NewEventPage({
           </div>
         )}
         <div>
-          <label htmlFor="name" className="mb-1 block text-zinc-600 dark:text-zinc-400">
+          <label htmlFor="name" className="mb-1 block text-muted">
             Name
           </label>
           <input id="name" name="name" required className={inputClass} />
         </div>
         <div>
-          <label htmlFor="mode" className="mb-1 block text-zinc-600 dark:text-zinc-400">
+          <label htmlFor="mode" className="mb-1 block text-muted">
             Mode
           </label>
           <select id="mode" name="mode" className={inputClass}>
@@ -82,7 +82,7 @@ export default async function NewEventPage({
           </select>
         </div>
         <div>
-          <label htmlFor="gmUserId" className="mb-1 block text-zinc-600 dark:text-zinc-400">
+          <label htmlFor="gmUserId" className="mb-1 block text-muted">
             GameMaster (GameMaster groups mode only — you, unless you pick
             someone else)
           </label>
@@ -102,7 +102,7 @@ export default async function NewEventPage({
         <div>
           <label
             htmlFor="targetHours"
-            className="mb-1 block text-zinc-600 dark:text-zinc-400"
+            className="mb-1 block text-muted"
           >
             Target session length (hours)
           </label>
@@ -115,7 +115,7 @@ export default async function NewEventPage({
             required
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-hint">
             A starting point for grouping — you can change it later, and it
             does not limit what participants submit.
           </p>
@@ -124,7 +124,7 @@ export default async function NewEventPage({
           <div className="flex-1">
             <label
               htmlFor="minGroupSize"
-              className="mb-1 block text-zinc-600 dark:text-zinc-400"
+              className="mb-1 block text-muted"
             >
               Min group size (optional)
             </label>
@@ -139,7 +139,7 @@ export default async function NewEventPage({
           <div className="flex-1">
             <label
               htmlFor="maxGroupSize"
-              className="mb-1 block text-zinc-600 dark:text-zinc-400"
+              className="mb-1 block text-muted"
             >
               Max group size (optional)
             </label>
@@ -155,7 +155,7 @@ export default async function NewEventPage({
         <div>
           <button
             type="submit"
-            className="rounded bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-500"
+            className="rounded bg-btn-primary px-4 py-2 font-medium text-on-primary hover:bg-btn-primary-hover"
           >
             Create event
           </button>

@@ -39,10 +39,10 @@ interface Props {
 type SubmitStatus = "idle" | "submitting" | "submitted" | "error";
 
 const inputClass =
-  "rounded border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900";
+  "rounded border border-edge-strong bg-field px-3 py-2 text-sm";
 
 const smallButton =
-  "rounded border border-zinc-300 px-3 py-1 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900";
+  "rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover disabled:opacity-50";
 
 function buildAnswerState(
   questions: QuestionDto[],
@@ -184,7 +184,7 @@ export function RespondForm({
           type="button"
           onClick={submit}
           disabled={status === "submitting" || status === "submitted"}
-          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover disabled:opacity-50"
         >
           {status === "submitting"
             ? "Submitting…"
@@ -193,12 +193,12 @@ export function RespondForm({
               : "Submit"}
         </button>
         {status === "submitted" && (
-          <span className="text-sm text-emerald-600">
+          <span className="text-sm text-status-submitted">
             Response submitted ✓
           </span>
         )}
         {status === "error" && (
-          <span className="text-sm text-red-600">{errorMessage}</span>
+          <span className="text-sm text-error">{errorMessage}</span>
         )}
       </div>
     );
@@ -209,7 +209,7 @@ export function RespondForm({
     return (
       <li
         key={question.id}
-        className="rounded border border-zinc-200 p-4 dark:border-zinc-800"
+        className="rounded border border-edge p-4"
       >
         <p className="mb-3 text-sm font-medium">
           {index + 1}. {question.prompt}
@@ -267,8 +267,8 @@ export function RespondForm({
             <p
               className={`mt-1 text-xs ${
                 answer.text.length > TEXT_ANSWER_MAX_LENGTH
-                  ? "text-red-600"
-                  : "text-zinc-400"
+                  ? "text-error"
+                  : "text-faint"
               }`}
             >
               {answer.text.length}/{TEXT_ANSWER_MAX_LENGTH}
@@ -278,7 +278,7 @@ export function RespondForm({
 
         {question.type === "RANKING" && (
           <div className="flex flex-col gap-1 text-sm">
-            <p className="mb-1 text-xs text-zinc-500">
+            <p className="mb-1 text-xs text-hint">
               Rank every option; 1 is your top pick, each rank used once.
             </p>
             {question.options.map((option) => (
@@ -324,14 +324,14 @@ export function RespondForm({
           <div className="flex flex-wrap items-center gap-2">
             {confirmingReload ? (
               <>
-                <span className="text-zinc-600 dark:text-zinc-400">
+                <span className="text-muted">
                   Replace this grid with your saved week? Edits made here for
                   this event will be lost.
                 </span>
                 <button
                   type="button"
                   onClick={reloadFromStanding}
-                  className="rounded border border-red-300 px-3 py-1 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                  className="rounded border border-btn-danger-border px-3 py-1 text-btn-danger-text hover:bg-btn-danger-wash"
                 >
                   Yes, replace
                 </button>
@@ -347,7 +347,7 @@ export function RespondForm({
               <button
                 type="button"
                 onClick={() => setConfirmingReload(true)}
-                className={`${smallButton} text-zinc-600 dark:text-zinc-400`}
+                className={`${smallButton} text-muted`}
               >
                 Reload from my saved availability
               </button>

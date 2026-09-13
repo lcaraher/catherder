@@ -1,24 +1,272 @@
 @import "tailwindcss";
 
+/*
+ * Named colour tokens for the whole app. Components never use palette
+ * classes (zinc-*, emerald-*, …) — only the role utilities generated from
+ * the @theme block below. Light values live on :root; dark values are
+ * declared twice: once for an explicit [data-theme="dark"] (nothing sets it
+ * yet — that is the design pass) and once for system preference when no
+ * explicit theme is set. The literal values are the exact Tailwind v4
+ * palette entries the app rendered before this refactor, so nothing shifts.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ----- Surfaces ----- */
+  --surface: #ffffff; /* page background (body) */
+  --surface-card: #ffffff; /* week-grid chrome: corner, day headers, time gutter */
+  --surface-muted: oklch(98.5% 0 none); /* muted panels (read-only notice), list-row hover */
+  --surface-raised: oklch(96.7% 0.001 286.375); /* sticky group headings, inline code chips */
+  --field: transparent; /* form inputs, selects, textareas */
+  --selected: oklch(97.9% 0.021 166.113); /* currently-selected option row (time-zone picker) */
+
+  /* ----- Text ----- */
+  --foreground: #171717; /* primary text (body default) */
+  --muted: oklch(44.2% 0.017 285.786); /* secondary text: labels, legends, instructions */
+  --hint: oklch(55.2% 0.016 285.938); /* hints, empty states, breadcrumbs, subtitles */
+  --faint: oklch(70.5% 0.015 286.067); /* faint metadata: counters, question meta, "Saving…" */
+  --disabled: oklch(87.1% 0.006 286.286); /* disabled control labels (copy-day source) */
+  --on-primary: #ffffff; /* text on solid primary and danger buttons */
+  --error: oklch(57.7% 0.245 27.325); /* inline error text under forms */
+
+  /* ----- Borders ----- */
+  --edge: oklch(92% 0.004 286.32); /* default borders: cards, rows, sections */
+  --edge-strong: oklch(87.1% 0.006 286.286); /* stronger borders: inputs, small buttons */
+  --ring: oklch(59.6% 0.145 163.225); /* focus ring (reserved — nothing renders it yet) */
+
+  /* ----- Buttons ----- */
+  --btn-primary: oklch(59.6% 0.145 163.225); /* primary action background */
+  --btn-primary-hover: oklch(69.6% 0.17 162.48); /* primary action hover background */
+  --btn-secondary: transparent; /* secondary buttons are outline-only */
+  --btn-secondary-hover: oklch(96.7% 0.001 286.375); /* secondary button hover background */
+  --btn-secondary-text: var(--muted); /* secondary button text, where set explicitly */
+  --btn-danger: oklch(57.7% 0.245 27.325); /* solid danger background (Close event) */
+  --btn-danger-hover: oklch(63.7% 0.237 25.331); /* solid danger hover background */
+  --btn-danger-text: oklch(57.7% 0.245 27.325); /* outline danger text (Clear week, reload) */
+  --btn-danger-border: oklch(80.8% 0.114 19.571); /* outline danger border */
+  --btn-danger-wash: oklch(97.1% 0.013 17.38); /* outline danger hover background */
+  --toggle-active: oklch(27.4% 0.006 286.033); /* selected segment of the granularity toggle */
+  --toggle-active-text: #ffffff; /* text on the selected toggle segment */
+
+  /* ----- Status badges ----- */
+  --badge-draft: oklch(96.7% 0.001 286.375); /* DRAFT badge background */
+  --badge-draft-text: oklch(44.2% 0.017 285.786); /* DRAFT badge text */
+  --badge-open: oklch(95% 0.052 163.051); /* OPEN badge background */
+  --badge-open-text: oklch(50.8% 0.118 165.612); /* OPEN badge text */
+  --badge-closed: oklch(93.6% 0.032 17.717); /* CLOSED badge background */
+  --badge-closed-text: oklch(50.5% 0.213 27.518); /* CLOSED badge text */
+  --badge-gm: oklch(94.3% 0.029 294.588); /* GM chip background */
+  --badge-gm-text: oklch(49.1% 0.27 292.581); /* GM chip text */
+  --status-invited: oklch(70.5% 0.015 286.067); /* INVITED response-status text */
+  --status-submitted: oklch(59.6% 0.145 163.225); /* SUBMITTED status, "Saved ✓" feedback */
+  --status-unlocked: oklch(66.6% 0.179 58.318); /* "Unlocked for editing" text */
+
+  /* ----- Notices (banner panels) ----- */
+  --notice-error: oklch(97.1% 0.013 17.38); /* error banner background */
+  --notice-error-border: oklch(80.8% 0.114 19.571); /* error banner border */
+  --notice-error-text: oklch(50.5% 0.213 27.518); /* error banner text */
+  --notice-warn: oklch(98.7% 0.022 95.277); /* device-zone suggestion background */
+  --notice-warn-border: oklch(87.9% 0.169 91.605); /* device-zone suggestion border */
+  --notice-warn-text: oklch(47.3% 0.137 46.201); /* device-zone suggestion text */
+  --notice-admin: oklch(96.9% 0.016 293.756); /* organizer-override banner background */
+  --notice-admin-border: oklch(89.4% 0.057 293.283); /* organizer-override banner border */
+  --notice-admin-text: oklch(49.1% 0.27 292.581); /* organizer-override banner text */
+
+  /* ----- Availability states ----- */
+  --avail: oklch(69.6% 0.17 162.48); /* available fill */
+  --tentative: oklch(92.4% 0.12 95.746); /* tentative fill */
+  --tentative-border: oklch(55.5% 0.163 48.998); /* dashed tentative outline */
+  --unavail: #ffffff; /* not-available fill */
+  --split-band: var(--tentative-border); /* divider inside the hour-view split cell */
+  --grid-line: oklch(92% 0.004 286.32); /* the 1px lines between grid cells */
+  --grid-label: oklch(70.5% 0.015 286.067); /* time gutter labels */
+
+  /* ----- Heat ramp -----
+   * One hue (the availability emerald, h≈163), varying only in lightness.
+   * --heat-0 is the not-available fill; --heat-text is the count printed on
+   * a heat cell. Not rendered anywhere yet.
+   */
+  --heat-0: var(--unavail);
+  --heat-1: oklch(93% 0.1 163);
+  --heat-2: oklch(85% 0.1 163);
+  --heat-3: oklch(77% 0.1 163);
+  --heat-4: oklch(69% 0.1 163);
+  --heat-5: oklch(61% 0.1 163);
+  --heat-text: var(--foreground);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+/*
+ * Dark values. The two blocks below must stay identical: the first serves an
+ * explicit theme choice, the second the system preference when the user has
+ * expressed none. Tokens missing here keep their :root value in dark mode on
+ * purpose (they had no dark: variant before the refactor).
+ */
+[data-theme="dark"] {
+  --surface: #0a0a0a;
+  --surface-card: oklch(14.1% 0.005 285.823);
+  --surface-muted: oklch(21% 0.006 285.885);
+  --surface-raised: oklch(27.4% 0.006 286.033);
+  --field: oklch(21% 0.006 285.885);
+  --selected: oklch(26.2% 0.051 172.552 / 50%);
+  --foreground: #ededed;
+  --muted: oklch(70.5% 0.015 286.067);
+  --disabled: oklch(37% 0.013 285.805);
+  --edge: oklch(27.4% 0.006 286.033);
+  --edge-strong: oklch(37% 0.013 285.805);
+  --btn-secondary-hover: oklch(21% 0.006 285.885);
+  --btn-danger-text: oklch(70.4% 0.191 22.216);
+  --btn-danger-border: oklch(44.4% 0.177 26.899);
+  --btn-danger-wash: oklch(25.8% 0.092 26.042);
+  --toggle-active: oklch(92% 0.004 286.32);
+  --toggle-active-text: oklch(21% 0.006 285.885);
+  --badge-draft: oklch(27.4% 0.006 286.033);
+  --badge-draft-text: oklch(70.5% 0.015 286.067);
+  --badge-open: oklch(37.8% 0.077 168.94 / 50%);
+  --badge-open-text: oklch(76.5% 0.177 163.223);
+  --badge-closed: oklch(39.6% 0.141 25.723 / 50%);
+  --badge-closed-text: oklch(70.4% 0.191 22.216);
+  --badge-gm: oklch(38% 0.189 293.745 / 50%);
+  --badge-gm-text: oklch(81.1% 0.111 293.571);
+  --status-unlocked: oklch(82.8% 0.189 84.429);
+  --notice-error: oklch(25.8% 0.092 26.042);
+  --notice-error-border: oklch(44.4% 0.177 26.899);
+  --notice-error-text: oklch(70.4% 0.191 22.216);
+  --notice-warn: oklch(27.9% 0.077 45.635 / 50%);
+  --notice-warn-border: oklch(55.5% 0.163 48.998);
+  --notice-warn-text: oklch(87.9% 0.169 91.605);
+  --notice-admin: oklch(28.3% 0.141 291.089 / 50%);
+  --notice-admin-border: oklch(38% 0.189 293.745);
+  --notice-admin-text: oklch(81.1% 0.111 293.571);
+  --tentative: oklch(41.4% 0.112 45.904 / 50%);
+  --tentative-border: oklch(76.9% 0.188 70.08);
+  --unavail: oklch(14.1% 0.005 285.823);
+  --grid-line: oklch(27.4% 0.006 286.033);
+  --grid-label: oklch(55.2% 0.016 285.938);
+  --heat-1: oklch(25% 0.1 163);
+  --heat-2: oklch(33% 0.1 163);
+  --heat-3: oklch(41% 0.1 163);
+  --heat-4: oklch(49% 0.1 163);
+  --heat-5: oklch(57% 0.1 163);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
+  :root:not([data-theme]) {
+    --surface: #0a0a0a;
+    --surface-card: oklch(14.1% 0.005 285.823);
+    --surface-muted: oklch(21% 0.006 285.885);
+    --surface-raised: oklch(27.4% 0.006 286.033);
+    --field: oklch(21% 0.006 285.885);
+    --selected: oklch(26.2% 0.051 172.552 / 50%);
     --foreground: #ededed;
+    --muted: oklch(70.5% 0.015 286.067);
+    --disabled: oklch(37% 0.013 285.805);
+    --edge: oklch(27.4% 0.006 286.033);
+    --edge-strong: oklch(37% 0.013 285.805);
+    --btn-secondary-hover: oklch(21% 0.006 285.885);
+    --btn-danger-text: oklch(70.4% 0.191 22.216);
+    --btn-danger-border: oklch(44.4% 0.177 26.899);
+    --btn-danger-wash: oklch(25.8% 0.092 26.042);
+    --toggle-active: oklch(92% 0.004 286.32);
+    --toggle-active-text: oklch(21% 0.006 285.885);
+    --badge-draft: oklch(27.4% 0.006 286.033);
+    --badge-draft-text: oklch(70.5% 0.015 286.067);
+    --badge-open: oklch(37.8% 0.077 168.94 / 50%);
+    --badge-open-text: oklch(76.5% 0.177 163.223);
+    --badge-closed: oklch(39.6% 0.141 25.723 / 50%);
+    --badge-closed-text: oklch(70.4% 0.191 22.216);
+    --badge-gm: oklch(38% 0.189 293.745 / 50%);
+    --badge-gm-text: oklch(81.1% 0.111 293.571);
+    --status-unlocked: oklch(82.8% 0.189 84.429);
+    --notice-error: oklch(25.8% 0.092 26.042);
+    --notice-error-border: oklch(44.4% 0.177 26.899);
+    --notice-error-text: oklch(70.4% 0.191 22.216);
+    --notice-warn: oklch(27.9% 0.077 45.635 / 50%);
+    --notice-warn-border: oklch(55.5% 0.163 48.998);
+    --notice-warn-text: oklch(87.9% 0.169 91.605);
+    --notice-admin: oklch(28.3% 0.141 291.089 / 50%);
+    --notice-admin-border: oklch(38% 0.189 293.745);
+    --notice-admin-text: oklch(81.1% 0.111 293.571);
+    --tentative: oklch(41.4% 0.112 45.904 / 50%);
+    --tentative-border: oklch(76.9% 0.188 70.08);
+    --unavail: oklch(14.1% 0.005 285.823);
+    --grid-line: oklch(27.4% 0.006 286.033);
+    --grid-label: oklch(55.2% 0.016 285.938);
+    --heat-1: oklch(25% 0.1 163);
+    --heat-2: oklch(33% 0.1 163);
+    --heat-3: oklch(41% 0.1 163);
+    --heat-4: oklch(49% 0.1 163);
+    --heat-5: oklch(57% 0.1 163);
   }
 }
 
+/* Expose every token to Tailwind so components can say bg-surface,
+ * text-muted, border-edge, bg-avail, bg-heat-3, and so on. */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-field: var(--field);
+  --color-selected: var(--selected);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-hint: var(--hint);
+  --color-faint: var(--faint);
+  --color-disabled: var(--disabled);
+  --color-on-primary: var(--on-primary);
+  --color-error: var(--error);
+  --color-edge: var(--edge);
+  --color-edge-strong: var(--edge-strong);
+  --color-ring: var(--ring);
+  --color-btn-primary: var(--btn-primary);
+  --color-btn-primary-hover: var(--btn-primary-hover);
+  --color-btn-secondary: var(--btn-secondary);
+  --color-btn-secondary-hover: var(--btn-secondary-hover);
+  --color-btn-secondary-text: var(--btn-secondary-text);
+  --color-btn-danger: var(--btn-danger);
+  --color-btn-danger-hover: var(--btn-danger-hover);
+  --color-btn-danger-text: var(--btn-danger-text);
+  --color-btn-danger-border: var(--btn-danger-border);
+  --color-btn-danger-wash: var(--btn-danger-wash);
+  --color-toggle-active: var(--toggle-active);
+  --color-toggle-active-text: var(--toggle-active-text);
+  --color-badge-draft: var(--badge-draft);
+  --color-badge-draft-text: var(--badge-draft-text);
+  --color-badge-open: var(--badge-open);
+  --color-badge-open-text: var(--badge-open-text);
+  --color-badge-closed: var(--badge-closed);
+  --color-badge-closed-text: var(--badge-closed-text);
+  --color-badge-gm: var(--badge-gm);
+  --color-badge-gm-text: var(--badge-gm-text);
+  --color-status-invited: var(--status-invited);
+  --color-status-submitted: var(--status-submitted);
+  --color-status-unlocked: var(--status-unlocked);
+  --color-notice-error: var(--notice-error);
+  --color-notice-error-border: var(--notice-error-border);
+  --color-notice-error-text: var(--notice-error-text);
+  --color-notice-warn: var(--notice-warn);
+  --color-notice-warn-border: var(--notice-warn-border);
+  --color-notice-warn-text: var(--notice-warn-text);
+  --color-notice-admin: var(--notice-admin);
+  --color-notice-admin-border: var(--notice-admin-border);
+  --color-notice-admin-text: var(--notice-admin-text);
+  --color-avail: var(--avail);
+  --color-tentative: var(--tentative);
+  --color-tentative-border: var(--tentative-border);
+  --color-unavail: var(--unavail);
+  --color-split-band: var(--split-band);
+  --color-grid-line: var(--grid-line);
+  --color-grid-label: var(--grid-label);
+  --color-heat-0: var(--heat-0);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
+  --color-heat-5: var(--heat-5);
+  --color-heat-text: var(--heat-text);
+}
+
 body {
-  background: var(--background);
+  background: var(--surface);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

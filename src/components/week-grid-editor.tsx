@@ -46,11 +46,11 @@ function stateLabel(status: SlotStatus): string {
 
 // Tentative is distinguished by a dashed border as well as color.
 function bandClass(status: SlotStatus): string {
-  if (status === "AVAILABLE") return "bg-emerald-500";
+  if (status === "AVAILABLE") return "bg-avail";
   if (status === "TENTATIVE") {
-    return "bg-amber-200 border border-dashed border-amber-700 dark:bg-amber-900/50 dark:border-amber-500";
+    return "bg-tentative border border-dashed border-tentative-border";
   }
-  return "bg-white dark:bg-zinc-950";
+  return "bg-unavail";
 }
 
 /**
@@ -232,7 +232,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
   return (
     <div>
       <div
-        className="mb-3 inline-flex overflow-hidden rounded border border-zinc-300 text-sm dark:border-zinc-700"
+        className="mb-3 inline-flex overflow-hidden rounded border border-edge-strong text-sm"
         role="radiogroup"
         aria-label="Grid granularity"
       >
@@ -253,8 +253,8 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
             }}
             className={`px-3 py-1 ${
               granularity === value
-                ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
-                : "hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                ? "bg-toggle-active text-toggle-active-text"
+                : "hover:bg-btn-secondary-hover"
             }`}
           >
             {label}
@@ -262,7 +262,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
         ))}
       </div>
 
-      <ul className="mb-3 list-disc space-y-0.5 pl-5 text-xs text-zinc-600 dark:text-zinc-400">
+      <ul className="mb-3 list-disc space-y-0.5 pl-5 text-xs text-muted">
         <li>
           Click a cell to cycle it between available, tentative, and not
           available.
@@ -275,30 +275,30 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
         </li>
       </ul>
 
-      <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-zinc-600 dark:text-zinc-400">
+      <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-3.5 w-3.5 rounded-sm bg-emerald-500" />
+          <span className="inline-block h-3.5 w-3.5 rounded-sm bg-avail" />
           Available
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-dashed border-amber-700 bg-amber-200 dark:border-amber-500 dark:bg-amber-900/50" />
+          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-dashed border-tentative-border bg-tentative" />
           Tentative
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-950" />
+          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-edge-strong bg-unavail" />
           Not available
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="inline-flex h-3.5 w-3.5 flex-col overflow-hidden rounded-sm border border-zinc-300 dark:border-zinc-700">
-            <span className="h-1/2 bg-emerald-500" />
-            <span className="h-1/2 border-t border-dashed border-amber-700 bg-amber-200 dark:border-amber-500 dark:bg-amber-900/50" />
+          <span className="inline-flex h-3.5 w-3.5 flex-col overflow-hidden rounded-sm border border-edge-strong">
+            <span className="h-1/2 bg-avail" />
+            <span className="h-1/2 border-t border-dashed border-split-band bg-tentative" />
           </span>
           Hour view split cell: top = first half hour, bottom = second half hour
         </li>
       </ul>
 
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-        <label htmlFor="copy-source" className="text-zinc-600 dark:text-zinc-400">
+        <label htmlFor="copy-source" className="text-muted">
           Copy
         </label>
         <select
@@ -311,7 +311,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
               prev.map((on, day) => (day === source ? false : on)),
             );
           }}
-          className="rounded border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded border border-edge-strong bg-field px-2 py-1"
         >
           {WEEKDAY_NAMES.map((name, day) => (
             <option key={name} value={day}>
@@ -319,14 +319,14 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
             </option>
           ))}
         </select>
-        <span className="text-zinc-600 dark:text-zinc-400">to</span>
+        <span className="text-muted">to</span>
         {WEEKDAY_LABELS.map((label, day) => (
           <label
             key={label}
             className={`flex items-center gap-1 ${
               day === copySource
-                ? "text-zinc-300 dark:text-zinc-700"
-                : "text-zinc-600 dark:text-zinc-400"
+                ? "text-disabled"
+                : "text-muted"
             }`}
           >
             <input
@@ -346,7 +346,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
           type="button"
           onClick={applyCopy}
           disabled={!copyTargets.some(Boolean)}
-          className="rounded border border-zinc-300 px-3 py-1 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover disabled:opacity-50"
         >
           Apply
         </button>
@@ -354,20 +354,20 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
         <div className="ml-4 flex items-center gap-2">
           {confirmingClear ? (
             <>
-              <span className="text-zinc-600 dark:text-zinc-400">
+              <span className="text-muted">
                 Clear everything?
               </span>
               <button
                 type="button"
                 onClick={confirmClear}
-                className="rounded border border-red-300 px-3 py-1 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                className="rounded border border-btn-danger-border px-3 py-1 text-btn-danger-text hover:bg-btn-danger-wash"
               >
                 Yes
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmingClear(false)}
-                className="rounded border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                className="rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover"
               >
                 Cancel
               </button>
@@ -377,7 +377,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
               type="button"
               onClick={() => setConfirmingClear(true)}
               disabled={weekIsEmpty}
-              className="rounded border border-zinc-300 px-3 py-1 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              className="rounded border border-edge-strong px-3 py-1 text-muted hover:bg-btn-secondary-hover disabled:opacity-50"
             >
               Clear week
             </button>
@@ -387,21 +387,21 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
       </div>
 
       <div
-        className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-zinc-200 bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-800"
+        className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line"
         style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       >
-        <div className="bg-white dark:bg-zinc-950" />
+        <div className="bg-surface-card" />
         {WEEKDAY_LABELS.map((label, weekday) => (
           <button
             key={label}
             type="button"
             onClick={() => toggleDay(weekday)}
             aria-label={`${WEEKDAY_NAMES[weekday]}: set the whole day to ${stateLabel(nextDayStatus(weekday))}`}
-            className="bg-white py-1 text-center text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900"
+            className="bg-surface-card py-1 text-center text-xs font-medium text-muted hover:bg-btn-secondary-hover"
           >
             {label}
           </button>
@@ -412,7 +412,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
           return (
             <div key={row} className="contents">
               <div
-                className={`flex items-center justify-end bg-white pr-2 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500 ${
+                className={`flex items-center justify-end bg-surface-card pr-2 text-[10px] text-grid-label ${
                   granularity === "half" ? "h-4" : "h-6"
                 }`}
               >

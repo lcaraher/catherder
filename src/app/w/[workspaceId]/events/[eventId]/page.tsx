@@ -33,19 +33,19 @@ const TYPE_LABELS = {
 } as const;
 
 const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-  OPEN: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400",
-  CLOSED: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",
+  DRAFT: "bg-badge-draft text-badge-draft-text",
+  OPEN: "bg-badge-open text-badge-open-text",
+  CLOSED: "bg-badge-closed text-badge-closed-text",
 };
 
 const smallButton =
-  "rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-900";
+  "rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40";
 const inputClass =
-  "rounded border border-zinc-300 bg-transparent px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900";
+  "rounded border border-edge-strong bg-field px-2 py-1 text-sm";
 
 function GmBadge() {
   return (
-    <span className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+    <span className="rounded bg-badge-gm px-1.5 py-0.5 text-xs font-semibold text-badge-gm-text">
       GM
     </span>
   );
@@ -116,7 +116,7 @@ export default async function EventPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <p className="mb-2 text-sm">
-        <Link href={`/w/${workspaceId}`} className="text-zinc-500 hover:underline">
+        <Link href={`/w/${workspaceId}`} className="text-hint hover:underline">
           ← Events
         </Link>
       </p>
@@ -128,7 +128,7 @@ export default async function EventPage({
           {event.status}
         </span>
       </div>
-      <p className="mb-4 text-sm text-zinc-500">
+      <p className="mb-4 text-sm text-hint">
         {MODE_LABELS[event.mode]}
         {event.gmUser && (
           <>
@@ -143,7 +143,7 @@ export default async function EventPage({
       </p>
 
       {adminOverride && event.gmUser && (
-        <p className="mb-4 rounded border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-300">
+        <p className="mb-4 rounded border border-notice-admin-border bg-notice-admin px-3 py-2 text-sm text-notice-admin-text">
           This event is run by{" "}
           <span className="font-medium">{event.gmUser.displayName}</span> — you
           are acting as an admin.
@@ -151,7 +151,7 @@ export default async function EventPage({
       )}
 
       {error && (
-        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+        <p className="mb-4 rounded border border-notice-error-border bg-notice-error px-3 py-2 text-sm text-notice-error-text">
           {error}
         </p>
       )}
@@ -163,7 +163,7 @@ export default async function EventPage({
             <input type="hidden" name="status" value="OPEN" />
             <button
               type="submit"
-              className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+              className="rounded bg-btn-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
             >
               Open event
             </button>
@@ -174,16 +174,16 @@ export default async function EventPage({
             <input type="hidden" name="status" value="CLOSED" />
             <button
               type="submit"
-              className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500"
+              className="rounded bg-btn-danger px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-btn-danger-hover"
             >
               Close event
             </button>
           </form>
         )}
         {event.status === "OPEN" && (
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-hint">
             Participants respond at{" "}
-            <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
+            <code className="rounded bg-surface-raised px-1">
               /e/{event.id}/respond
             </code>
           </span>
@@ -192,15 +192,15 @@ export default async function EventPage({
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Results sharing</h2>
-        <div className="flex flex-col gap-3 rounded border border-zinc-200 p-3 text-sm dark:border-zinc-800">
-          <p className="text-zinc-600 dark:text-zinc-400">
+        <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
+          <p className="text-muted">
             {event.resultsRevealedAt
               ? "Results are shared: participants can see everyone's responses."
               : "Results are hidden: responses, overlap and results are visible to organizers and the GameMaster only."}
           </p>
           {event.status === "OPEN" ? (
             <>
-              <p className="text-zinc-600 dark:text-zinc-400">
+              <p className="text-muted">
                 Participants can still change their responses while the event
                 is open.
               </p>
@@ -209,7 +209,7 @@ export default async function EventPage({
                   <input type="hidden" name="eventId" value={event.id} />
                   <button
                     type="submit"
-                    className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+                    className="rounded bg-btn-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
                   >
                     Close event and share results
                   </button>
@@ -253,12 +253,12 @@ export default async function EventPage({
         <h2 className="mb-3 text-lg font-medium">Edit event</h2>
         <form
           action={updateEvent}
-          className="flex flex-col gap-3 rounded border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+          className="flex flex-col gap-3 rounded border border-edge p-3 text-sm"
         >
           <input type="hidden" name="eventId" value={event.id} />
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-48 flex-1">
-              <label htmlFor="edit-name" className="mb-1 block text-zinc-600 dark:text-zinc-400">
+              <label htmlFor="edit-name" className="mb-1 block text-muted">
                 Name
               </label>
               <input
@@ -272,7 +272,7 @@ export default async function EventPage({
             <div>
               <label
                 htmlFor="edit-targetHours"
-                className="mb-1 block text-zinc-600 dark:text-zinc-400"
+                className="mb-1 block text-muted"
               >
                 Target session length (hours)
               </label>
@@ -290,7 +290,7 @@ export default async function EventPage({
             <div>
               <label
                 htmlFor="edit-minGroupSize"
-                className="mb-1 block text-zinc-600 dark:text-zinc-400"
+                className="mb-1 block text-muted"
               >
                 Min group size
               </label>
@@ -306,7 +306,7 @@ export default async function EventPage({
             <div>
               <label
                 htmlFor="edit-maxGroupSize"
-                className="mb-1 block text-zinc-600 dark:text-zinc-400"
+                className="mb-1 block text-muted"
               >
                 Max group size
               </label>
@@ -323,7 +323,7 @@ export default async function EventPage({
               <div>
                 <label
                   htmlFor="edit-gmUserId"
-                  className="mb-1 block text-zinc-600 dark:text-zinc-400"
+                  className="mb-1 block text-muted"
                 >
                   GameMaster
                 </label>
@@ -342,7 +342,7 @@ export default async function EventPage({
               </div>
             )}
           </div>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-hint">
             Target session length is a starting point for grouping — you can
             change it later, and it does not limit what participants submit.
           </p>
@@ -357,28 +357,28 @@ export default async function EventPage({
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
         {event.participants.length === 0 ? (
-          <p className="mb-3 text-sm text-zinc-500">No participants yet.</p>
+          <p className="mb-3 text-sm text-hint">No participants yet.</p>
         ) : (
           <ul className="mb-3 flex flex-col gap-1">
             {event.participants.map((participant) => (
               <li
                 key={participant.userId}
-                className="flex items-center justify-between rounded border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+                className="flex items-center justify-between rounded border border-edge px-3 py-2 text-sm"
               >
                 <span className="flex items-center gap-2">
                   {participant.user.displayName}
                   {participant.role === "GAMEMASTER" ? (
                     <GmBadge />
                   ) : (
-                    <span className="text-xs text-zinc-400">Player</span>
+                    <span className="text-xs text-faint">Player</span>
                   )}
                 </span>
                 <span className="flex items-center gap-3">
                   <span
                     className={`text-xs ${
                       participant.responseStatus === "SUBMITTED"
-                        ? "text-emerald-600"
-                        : "text-zinc-400"
+                        ? "text-status-submitted"
+                        : "text-status-invited"
                     }`}
                   >
                     {participant.responseStatus}
@@ -387,7 +387,7 @@ export default async function EventPage({
                     // A stale unlock must always be clearable, whatever the
                     // event status.
                     <>
-                      <span className="text-xs text-amber-600 dark:text-amber-400">
+                      <span className="text-xs text-status-unlocked">
                         Unlocked for editing
                       </span>
                       <form action={setParticipantEditLock}>
@@ -471,16 +471,16 @@ export default async function EventPage({
       <section>
         <h2 className="mb-3 text-lg font-medium">Questions</h2>
         {event.questions.length === 0 ? (
-          <p className="mb-4 text-sm text-zinc-500">No questions yet.</p>
+          <p className="mb-4 text-sm text-hint">No questions yet.</p>
         ) : (
           <ul className="mb-6 flex flex-col gap-3">
             {event.questions.map((question, index) => (
               <li
                 key={question.id}
-                className="rounded border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+                className="rounded border border-edge p-3 text-sm"
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-xs text-faint">
                     {TYPE_LABELS[question.type]} · v{question.version} ·{" "}
                     {question._count.answers} answer
                     {question._count.answers === 1 ? "" : "s"}
@@ -527,7 +527,7 @@ export default async function EventPage({
                   </button>
                 </form>
                 {question._count.answers > 0 && (
-                  <p className="mb-2 text-xs text-zinc-400">
+                  <p className="mb-2 text-xs text-faint">
                     Answers exist — edits create version {question.version + 1}{" "}
                     instead of changing v{question.version}.
                   </p>

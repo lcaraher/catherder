@@ -25,7 +25,7 @@ export function EventDestinationSelect({
       id={id}
       value={currentWorkspaceId}
       onChange={(e) => router.push(`/w/${e.target.value}/events/new`)}
-      className="w-full rounded border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+      className="w-full rounded border border-edge-strong bg-field px-3 py-2 text-sm"
     >
       {options.map((option) => (
         <option key={option.workspaceId} value={option.workspaceId}>

@@ -26,11 +26,11 @@ function stateLabel(status: SlotStatus): string {
 // Same visual language as WeekGridEditor: tentative is distinguished by a
 // dashed border as well as color.
 function bandClass(status: SlotStatus): string {
-  if (status === "AVAILABLE") return "bg-emerald-500";
+  if (status === "AVAILABLE") return "bg-avail";
   if (status === "TENTATIVE") {
-    return "bg-amber-200 border border-dashed border-amber-700 dark:bg-amber-900/50 dark:border-amber-500";
+    return "bg-tentative border border-dashed border-tentative-border";
   }
-  return "bg-white dark:bg-zinc-950";
+  return "bg-unavail";
 }
 
 /**
@@ -43,34 +43,34 @@ export function WeekGridDisplay({ ranges }: { ranges: AvailabilityRange[] }) {
 
   return (
     <div>
-      <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-zinc-600 dark:text-zinc-400">
+      <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-3.5 w-3.5 rounded-sm bg-emerald-500" />
+          <span className="inline-block h-3.5 w-3.5 rounded-sm bg-avail" />
           Available
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-dashed border-amber-700 bg-amber-200 dark:border-amber-500 dark:bg-amber-900/50" />
+          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-dashed border-tentative-border bg-tentative" />
           Tentative
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-950" />
+          <span className="inline-block h-3.5 w-3.5 rounded-sm border border-edge-strong bg-unavail" />
           Not available
         </li>
       </ul>
 
-      <div className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-zinc-200 bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-800">
-        <div className="bg-white dark:bg-zinc-950" />
+      <div className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line">
+        <div className="bg-surface-card" />
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="bg-white py-1 text-center text-xs font-medium text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400"
+            className="bg-surface-card py-1 text-center text-xs font-medium text-muted"
           >
             {label}
           </div>
         ))}
         {Array.from({ length: SLOTS_PER_DAY }, (_, slot) => (
           <div key={slot} className="contents">
-            <div className="flex h-4 items-center justify-end bg-white pr-2 text-[10px] text-zinc-400 dark:bg-zinc-950 dark:text-zinc-500">
+            <div className="flex h-4 items-center justify-end bg-surface-card pr-2 text-[10px] text-grid-label">
               {slot % 2 === 0 ? slotLabel(slot) : ""}
             </div>
             {WEEKDAY_LABELS.map((_, weekday) => (

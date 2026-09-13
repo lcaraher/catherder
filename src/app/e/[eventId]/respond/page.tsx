@@ -74,20 +74,20 @@ export default async function RespondPage({
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
-        <p className="mb-6 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+        <p className="mb-6 rounded border border-edge bg-surface-muted px-3 py-2 text-sm text-muted">
           Editing is closed because this event is not open for responses. If
           you need to change your response, ask the organizer to unlock it for
           you.
         </p>
 
         {!hasSubmission ? (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-hint">
             You have not submitted a response for this event.
           </p>
         ) : (
           <>
             <h2 className="mb-3 text-lg font-medium">Your availability</h2>
-            <p className="mb-3 text-sm text-zinc-500">
+            <p className="mb-3 text-sm text-hint">
               Times are based in your time zone ({user.timeZone}).
             </p>
             <WeekGridDisplay ranges={toRanges(eventRows)} />
@@ -124,12 +124,12 @@ export default async function RespondPage({
                     return (
                       <li
                         key={question.id}
-                        className="rounded border border-zinc-200 p-4 dark:border-zinc-800"
+                        className="rounded border border-edge p-4"
                       >
                         <p className="mb-2 text-sm font-medium">
                           {index + 1}. {question.prompt}
                         </p>
-                        <p className="whitespace-pre-wrap text-sm text-zinc-600 dark:text-zinc-400">
+                        <p className="whitespace-pre-wrap text-sm text-muted">
                           {display}
                         </p>
                       </li>
@@ -176,7 +176,7 @@ export default async function RespondPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <p className="mb-6 text-sm text-hint">
         Adjust your availability for this event (If your &lsquo;My
         Availability&rsquo; page is filled in, it will pre-fill those saved
         times here; changes here apply to this event only), then answer the
