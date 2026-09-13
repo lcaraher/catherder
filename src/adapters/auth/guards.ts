@@ -27,7 +27,7 @@ export async function requireUser(): Promise<User> {
 /**
  * Requires a logged-in user whose WorkspaceMember row for the workspace has
  * one of the given roles. Authorization comes from the database, never from
- * identity-provider claims (rule 5).
+* identity-provider claims: the IdP authenticates, these tables authorize.
  */
 export async function requireRole(
   workspaceId: string,

@@ -1,5 +1,5 @@
 // Auth configuration boundary: everything is read from environment variables
-// so the same code works against any OIDC issuer (no cloud SDKs, rule 2).
+// so the same code works against any OIDC issuer, with no cloud SDKs under src/.
 
 export interface AuthConfig {
   /** Expected `iss` claim of incoming ID tokens. */

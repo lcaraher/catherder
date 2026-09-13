@@ -5,7 +5,7 @@ import { createSession } from "./session";
 
 // Default for users whose issuer provides no zoneinfo claim; they can change
 // it in their profile. Availability is always local wall-clock + IANA zone
-// (rule 4), so the zone must be a valid IANA name.
+// so the zone must be a valid IANA name.
 const DEFAULT_TIME_ZONE = "UTC";
 
 /**

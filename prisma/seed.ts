@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 // Local development seed, run via `npm run db:seed` (Node strips the types
 // natively; no build step). Upserts keyed on unique fields so re-running is safe.
-// Per CLAUDE.md rule 6, log counts and opaque IDs only — never emails.
+// Logs counts and opaque IDs only — never email addresses.
 const prisma = new PrismaClient();
 
 const TIME_ZONE = "America/New_York";

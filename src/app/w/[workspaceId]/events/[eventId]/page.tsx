@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/adapters/auth";
+import { ForbiddenError, requireRole, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import {
   addParticipant,
   addQuestion,
   addQuestionOption,
+  closeEventAndShareResults,
   removeParticipant,
   removeQuestionOption,
   reorderQuestion,
   setEventStatus,
+  setParticipantEditLock,
+  setResultsRevealed,
   updateEvent,
   updateQuestionPrompt,
 } from "../actions";
@@ -56,7 +59,17 @@ export default async function EventPage({
 }) {
   const { workspaceId, eventId } = await params;
   const { error } = await searchParams;
-  await requireRole(workspaceId, ["OWNER", "ORGANIZER"]);
+
+  // OWNER/ORGANIZER members manage the event; the event's GameMaster (who may
+  // hold only PARTICIPANT workspace membership) also gets in, for the results
+  // and unlock controls. Every action re-checks on the server regardless.
+  let isOrganizer = true;
+  try {
+    await requireRole(workspaceId, ["OWNER", "ORGANIZER"]);
+  } catch (err) {
+    if (!(err instanceof ForbiddenError)) throw err;
+    isOrganizer = false;
+  }
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -76,6 +89,15 @@ export default async function EventPage({
     },
   });
   if (!event || event.workspaceId !== workspaceId) notFound();
+
+  if (!isOrganizer) {
+    const user = await requireUser();
+    if (event.gmUserId !== user.id) {
+      throw new ForbiddenError(
+        "workspace membership with role OWNER or ORGANIZER, or being the event's GameMaster, required",
+      );
+    }
+  }
 
   const participantIds = new Set(event.participants.map((p) => p.userId));
   const allMembers = await prisma.workspaceMember.findMany({
@@ -123,6 +145,7 @@ export default async function EventPage({
         </p>
       )}
 
+      {isOrganizer && (
       <div className="mb-8 flex items-center gap-2">
         {event.status !== "OPEN" ? (
           <form action={setEventStatus}>
@@ -156,7 +179,68 @@ export default async function EventPage({
           </span>
         )}
       </div>
+      )}
 
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-medium">Results sharing</h2>
+        <div className="flex flex-col gap-3 rounded border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {event.resultsRevealedAt
+              ? "Results are shared: participants can see everyone's responses."
+              : "Results are hidden: responses, overlap and results are visible to organizers and the GameMaster only."}
+          </p>
+          {event.status === "OPEN" ? (
+            <>
+              <p className="text-zinc-600 dark:text-zinc-400">
+                Participants can still change their responses while the event
+                is open.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <form action={closeEventAndShareResults}>
+                  <input type="hidden" name="eventId" value={event.id} />
+                  <button
+                    type="submit"
+                    className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+                  >
+                    Close event and share results
+                  </button>
+                </form>
+                <form action={setResultsRevealed}>
+                  <input type="hidden" name="eventId" value={event.id} />
+                  <input
+                    type="hidden"
+                    name="revealed"
+                    value={event.resultsRevealedAt ? "false" : "true"}
+                  />
+                  <button type="submit" className={smallButton}>
+                    {event.resultsRevealedAt
+                      ? "Hide results again"
+                      : "Share now (participants can still edit)"}
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div>
+              <form action={setResultsRevealed}>
+                <input type="hidden" name="eventId" value={event.id} />
+                <input
+                  type="hidden"
+                  name="revealed"
+                  value={event.resultsRevealedAt ? "false" : "true"}
+                />
+                <button type="submit" className={smallButton}>
+                  {event.resultsRevealedAt
+                    ? "Hide results again"
+                    : "Share results with participants"}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {isOrganizer && (
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Edit event</h2>
         <form
@@ -261,6 +345,7 @@ export default async function EventPage({
           </div>
         </form>
       </section>
+      )}
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
@@ -291,7 +376,53 @@ export default async function EventPage({
                   >
                     {participant.responseStatus}
                   </span>
-                  {participant.userId !== event.gmUserId && (
+                  {participant.editUnlockedAt ? (
+                    // A stale unlock must always be clearable, whatever the
+                    // event status.
+                    <>
+                      <span className="text-xs text-amber-600 dark:text-amber-400">
+                        Unlocked for editing
+                      </span>
+                      <form action={setParticipantEditLock}>
+                        <input type="hidden" name="eventId" value={event.id} />
+                        <input
+                          type="hidden"
+                          name="userId"
+                          value={participant.userId}
+                        />
+                        <input type="hidden" name="unlocked" value="false" />
+                        <button
+                          type="submit"
+                          aria-label={`Re-lock editing for ${participant.user.displayName}`}
+                          className={smallButton}
+                        >
+                          Re-lock
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    // Unlocking only does something while the event is
+                    // CLOSED — OPEN is always editable, DRAFT never is.
+                    event.status === "CLOSED" && (
+                      <form action={setParticipantEditLock}>
+                        <input type="hidden" name="eventId" value={event.id} />
+                        <input
+                          type="hidden"
+                          name="userId"
+                          value={participant.userId}
+                        />
+                        <input type="hidden" name="unlocked" value="true" />
+                        <button
+                          type="submit"
+                          aria-label={`Unlock editing for ${participant.user.displayName}`}
+                          className={smallButton}
+                        >
+                          Unlock for editing
+                        </button>
+                      </form>
+                    )
+                  )}
+                  {isOrganizer && participant.userId !== event.gmUserId && (
                     <form action={removeParticipant}>
                       <input type="hidden" name="eventId" value={event.id} />
                       <input
@@ -313,7 +444,7 @@ export default async function EventPage({
             ))}
           </ul>
         )}
-        {addableMembers.length > 0 && (
+        {isOrganizer && addableMembers.length > 0 && (
           <form action={addParticipant} className="flex items-center gap-2 text-sm">
             <input type="hidden" name="eventId" value={event.id} />
             <select name="userId" className={inputClass}>
@@ -330,6 +461,7 @@ export default async function EventPage({
         )}
       </section>
 
+      {isOrganizer && (
       <section>
         <h2 className="mb-3 text-lg font-medium">Questions</h2>
         {event.questions.length === 0 ? (
@@ -463,6 +595,7 @@ export default async function EventPage({
           </div>
         </form>
       </section>
+      )}
     </main>
   );
 }

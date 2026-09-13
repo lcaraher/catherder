@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { EventMode, QuestionType, WorkspaceRole } from "@prisma/client";
-import { requireRole } from "@/adapters/auth";
+import { ForbiddenError, requireRole, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 
 const ORGANIZER_ROLES: WorkspaceRole[] = ["OWNER", "ORGANIZER"];
@@ -21,6 +21,24 @@ async function requireOrganizerForEvent(eventId: string) {
   if (!event) throw new Error("event not found");
   const { user } = await requireRole(event.workspaceId, ORGANIZER_ROLES);
   return { event, user };
+}
+
+// The results/unlock controls are also open to the event's GameMaster, who
+// may hold only PARTICIPANT workspace membership. Authorization still comes
+// from the database, never from IdP claims: via requireRole, with the
+// GameMaster fallback read from Event.gmUserId.
+async function requireOrganizerOrGmForEvent(eventId: string) {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) throw new Error("event not found");
+  try {
+    const { user } = await requireRole(event.workspaceId, ORGANIZER_ROLES);
+    return { event, user };
+  } catch (error) {
+    if (!(error instanceof ForbiddenError)) throw error;
+    const user = await requireUser();
+    if (event.gmUserId !== user.id) throw error;
+    return { event, user };
+  }
 }
 
 function eventPath(workspaceId: string, eventId: string): string {
@@ -208,6 +226,98 @@ export async function setEventStatus(formData: FormData) {
         entity: "Event",
         entityId: eventId,
         action: status === "OPEN" ? "open" : "close",
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+}
+
+export async function setResultsRevealed(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const revealed = String(formData.get("revealed") ?? "") === "true";
+  const { event, user } = await requireOrganizerOrGmForEvent(eventId);
+  if ((event.resultsRevealedAt !== null) === revealed) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({
+      where: { id: eventId },
+      data: { resultsRevealedAt: revealed ? new Date() : null },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Event",
+        entityId: eventId,
+        action: revealed ? "results_revealed" : "results_hidden",
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+}
+
+// The usual end-of-collection step: stop accepting responses and show
+// everyone the results in one go. One transaction so the status change, the
+// reveal, and their audit trail land together or not at all.
+export async function closeEventAndShareResults(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const { event, user } = await requireOrganizerOrGmForEvent(eventId);
+  if (event.status !== "OPEN") return;
+
+  const alreadyRevealed = event.resultsRevealedAt !== null;
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({
+      where: { id: eventId },
+      data: {
+        status: "CLOSED",
+        ...(alreadyRevealed ? {} : { resultsRevealedAt: new Date() }),
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Event",
+        entityId: eventId,
+        action: "close",
+      },
+    });
+    if (!alreadyRevealed) {
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "Event",
+          entityId: eventId,
+          action: "results_revealed",
+        },
+      });
+    }
+  });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+}
+
+export async function setParticipantEditLock(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const unlocked = String(formData.get("unlocked") ?? "") === "true";
+  const { event, user } = await requireOrganizerOrGmForEvent(eventId);
+
+  const participant = await prisma.eventParticipant.findUnique({
+    where: { eventId_userId: { eventId, userId } },
+  });
+  if (!participant) return;
+  if ((participant.editUnlockedAt !== null) === unlocked) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.eventParticipant.update({
+      where: { eventId_userId: { eventId, userId } },
+      data: { editUnlockedAt: unlocked ? new Date() : null },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "EventParticipant",
+        // Opaque IDs only in audit rows — never email addresses.
+        entityId: `${eventId}:${userId}`,
+        action: unlocked ? "response_unlocked" : "response_relocked",
       },
     });
   });

@@ -147,7 +147,7 @@ infra/aws/terraform.tfvars
 *.tfstate*
 .terraform/
 
-# Claude-authored files not yet rewritten by DW
+# Local agent and editor config
 CLAUDE.md
 AGENTS.md
 .claude/

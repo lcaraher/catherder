@@ -3,6 +3,7 @@ import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { slotToDbTime, validateRanges } from "@/domain/availability";
 import { TEXT_ANSWER_MAX_LENGTH } from "@/domain/questions";
+import { canEditResponse } from "@/domain/response-access";
 
 export const dynamic = "force-dynamic";
 
@@ -44,10 +45,17 @@ export async function POST(
   if (!participant) {
     return NextResponse.json({ error: "not a participant" }, { status: 403 });
   }
-  if (event.status !== "OPEN") {
+  // The page renders read-only when editing is closed, but the server is the
+  // gate: re-check here and refuse regardless of what the client sent.
+  if (
+    !canEditResponse({
+      eventStatus: event.status,
+      editUnlockedAt: participant.editUnlockedAt,
+    })
+  ) {
     return NextResponse.json(
-      { error: "event is not open for responses" },
-      { status: 409 },
+      { error: "editing this response is closed" },
+      { status: 403 },
     );
   }
 
