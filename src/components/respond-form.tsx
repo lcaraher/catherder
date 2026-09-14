@@ -102,7 +102,7 @@ export function RespondForm({
   alreadySubmitted,
   clockFormat,
 }: Props) {
-  const { initialWeek, weekRef, gridProps, replaceWeek } =
+  const { initialWeek, weekRef, gridKey, gridProps, replaceWeek } =
     useWeekGrid(initialRanges);
   const [confirmingReload, setConfirmingReload] = useState(false);
 
@@ -342,6 +342,7 @@ export function RespondForm({
   return (
     <div>
       <WeekGridEditor
+        key={gridKey}
         {...gridProps}
         clockFormat={clockFormat}
         extraControls={

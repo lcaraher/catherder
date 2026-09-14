@@ -33,7 +33,8 @@ export function GmAvailabilityEditor({
   initialRanges,
   clockFormat,
 }: Props) {
-  const { weekRef, gridProps, replaceWeek } = useWeekGrid(initialRanges);
+  const { weekRef, gridKey, gridProps, replaceWeek } =
+    useWeekGrid(initialRanges);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -70,7 +71,7 @@ export function GmAvailabilityEditor({
 
   return (
     <div>
-      <WeekGridEditor {...gridProps} clockFormat={clockFormat} />
+      <WeekGridEditor key={gridKey} {...gridProps} clockFormat={clockFormat} />
       <div className="mt-4 flex items-center gap-3">
         <button
           type="button"

@@ -26,9 +26,13 @@ export function useWeekGrid(initialRanges: AvailabilityRange[]) {
     initialWeek,
     /** Always the latest painted week; read it at save/submit time. */
     weekRef,
-    /** Spread onto WeekGridEditor: key remounts, seed week, onChange mirror. */
+    /**
+     * Pass as WeekGridEditor's `key` so bumps remount it. React does not
+     * accept `key` via prop spread, so it stays separate from gridProps.
+     */
+    gridKey,
+    /** Spread onto WeekGridEditor: seed week and the onChange mirror. */
     gridProps: {
-      key: gridKey,
       initialWeek: seedWeek,
       onChange: (week: SlotStatus[][]) => {
         weekRef.current = week;
