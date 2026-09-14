@@ -4,6 +4,7 @@ import type { AvailabilityRange } from "./availability.ts";
 import {
   collapseOverlapToHours,
   computeOverlapGrid,
+  splitGm,
   type OverlapParticipant,
 } from "./overlap.ts";
 
@@ -164,6 +165,61 @@ describe("computeOverlapGrid", () => {
   });
 });
 
+describe("splitGm", () => {
+  it("removes the GM from the counts and reports them separately", () => {
+    const { grid } = computeOverlapGrid(
+      [
+        participant({ userId: "gm", ranges: [range(0, 36, 37), range(0, 37, 38, "TENTATIVE")] }),
+        participant({ userId: "a", ranges: [range(0, 36, 38)] }),
+      ],
+      "UTC",
+      NOW,
+    );
+    const split = splitGm(grid, "gm");
+    assert.deepEqual(split[0][36], {
+      players: { available: ["a"], tentative: [] },
+      gm: "AVAILABLE",
+    });
+    assert.deepEqual(split[0][37], {
+      players: { available: ["a"], tentative: [] },
+      gm: "TENTATIVE",
+    });
+    // A cell the GM is not painted in reports gm null.
+    assert.deepEqual(split[0][35], {
+      players: { available: [], tentative: [] },
+      gm: null,
+    });
+  });
+
+  it("with gmUserId null, players equal the input cells and gm is null", () => {
+    const { grid } = computeOverlapGrid(
+      [
+        participant({ userId: "a", ranges: [range(3, 20, 22)] }),
+        participant({ userId: "b", ranges: [range(3, 20, 22, "TENTATIVE")] }),
+      ],
+      "UTC",
+      NOW,
+    );
+    const split = splitGm(grid, null);
+    for (let weekday = 0; weekday < grid.length; weekday++) {
+      for (let slot = 0; slot < grid[weekday].length; slot++) {
+        assert.deepEqual(split[weekday][slot].players, grid[weekday][slot]);
+        assert.equal(split[weekday][slot].gm, null);
+      }
+    }
+  });
+
+  it("does not mutate the input grid", () => {
+    const { grid } = computeOverlapGrid(
+      [participant({ userId: "gm", ranges: [range(0, 36, 38)] })],
+      "UTC",
+      NOW,
+    );
+    splitGm(grid, "gm");
+    assert.deepEqual(grid[0][36], { available: ["gm"], tentative: [] });
+  });
+});
+
 describe("collapseOverlapToHours", () => {
   it("applies the hour-collapse rule per participant", () => {
     // In 18:00–19:00 (slots 36 and 37):
@@ -187,5 +243,36 @@ describe("collapseOverlapToHours", () => {
     const hours = collapseOverlapToHours(grid);
     assert.equal(hours[0].length, 24);
     assert.deepEqual(hours[0][18], { available: ["a"], tentative: ["c", "d"] });
+  });
+
+  it("applies the same both-halves rule to the GM on a split grid", () => {
+    // GM: 18:00–19:00 both halves AVAILABLE; 19:00–20:00 AVAILABLE then
+    // TENTATIVE; 20:00–21:00 first half only. Player a spans 18:00–21:00.
+    const { grid } = computeOverlapGrid(
+      [
+        participant({
+          userId: "gm",
+          ranges: [range(0, 36, 39), range(0, 39, 40, "TENTATIVE"), range(0, 40, 41)],
+        }),
+        participant({ userId: "a", ranges: [range(0, 36, 42)] }),
+      ],
+      "UTC",
+      NOW,
+    );
+    const hours = collapseOverlapToHours(splitGm(grid, "gm"));
+    assert.equal(hours[0].length, 24);
+    assert.deepEqual(hours[0][18], {
+      players: { available: ["a"], tentative: [] },
+      gm: "AVAILABLE",
+    });
+    assert.deepEqual(hours[0][19], {
+      players: { available: ["a"], tentative: [] },
+      gm: "TENTATIVE",
+    });
+    // One painted half-hour out of two: the GM does not count for the hour.
+    assert.deepEqual(hours[0][20], {
+      players: { available: ["a"], tentative: [] },
+      gm: null,
+    });
   });
 });

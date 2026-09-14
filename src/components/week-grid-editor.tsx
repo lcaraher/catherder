@@ -7,10 +7,11 @@ import {
   collapseHourCell,
   copyDaySlots,
   cycleStatus,
+  formatSlotLabel,
   setDaySlots,
   SLOTS_PER_DAY,
-  slotLabel,
   WEEKDAY_COUNT,
+  type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
 
@@ -29,6 +30,8 @@ interface Props {
   initialWeek: SlotStatus[][];
   /** Called with the full week after every on-screen edit. */
   onChange: (week: SlotStatus[][]) => void;
+  /** The viewer's clock format, passed down from the page — never read here. */
+  clockFormat: ClockFormat;
   /**
    * Extra parent-owned controls rendered in the bulk-edit row, to the right
    * of "Clear week" (e.g. the respond form's reload-from-saved button).
@@ -58,7 +61,12 @@ function bandClass(status: SlotStatus): string {
  * instructions, legend, and bulk-edit (copy day / clear week) controls.
  * Owns the week state; parents receive every change through onChange.
  */
-export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) {
+export function WeekGridEditor({
+  initialWeek,
+  onChange,
+  clockFormat,
+  extraControls,
+}: Props) {
   const [week, setWeek] = useState<SlotStatus[][]>(initialWeek);
   const [copySource, setCopySource] = useState(0);
   const [copyTargets, setCopyTargets] = useState<boolean[]>(() =>
@@ -187,7 +195,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
     const first = week[weekday][slotIdxs[0]];
     const startSlot = slotIdxs[0];
     const endSlot = slotIdxs[slotIdxs.length - 1] + 1;
-    const timeSpan = `${slotLabel(startSlot)}–${slotLabel(endSlot)}`;
+    const timeSpan = `${formatSlotLabel(startSlot, clockFormat)}–${formatSlotLabel(endSlot, clockFormat)}`;
 
     if (slotIdxs.length === 1) {
       return (
@@ -416,7 +424,7 @@ export function WeekGridEditor({ initialWeek, onChange, extraControls }: Props) 
                   granularity === "half" ? "h-4" : "h-6"
                 }`}
               >
-                {showLabel ? slotLabel(startSlot) : ""}
+                {showLabel ? formatSlotLabel(startSlot, clockFormat) : ""}
               </div>
               {WEEKDAY_LABELS.map((_, weekday) => renderCell(weekday, row))}
             </div>

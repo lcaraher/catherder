@@ -160,33 +160,109 @@ export function computeOverlapGrid(
 }
 
 /**
+ * The GM's slice of a cell after splitGm: pulled out of the counts and
+ * reported as a single status (null = the GM is not painted there, or the
+ * event has no GM).
+ */
+export type GmSlotStatus = "AVAILABLE" | "TENTATIVE" | null;
+
+/** One cell with the GM separated from the player counts. */
+export interface SplitOverlapCell {
+  players: OverlapCell;
+  gm: GmSlotStatus;
+}
+
+/** grid[weekday][slot] with the GM split out of every cell. */
+export type SplitOverlapGrid = SplitOverlapCell[][];
+
+/**
+ * Splits the GM out of every cell: the GM's userId is removed from the
+ * available/tentative lists and reported as the cell's `gm` status instead.
+ * With gmUserId null (SINGLE_ACTIVITY) every cell's players equal the input
+ * cell and gm is null. Pure — the input grid is never mutated.
+ */
+export function splitGm(
+  grid: OverlapGrid,
+  gmUserId: string | null,
+): SplitOverlapGrid {
+  return grid.map((day) =>
+    day.map((cell) => {
+      const gm: GmSlotStatus =
+        gmUserId === null
+          ? null
+          : cell.available.includes(gmUserId)
+            ? "AVAILABLE"
+            : cell.tentative.includes(gmUserId)
+              ? "TENTATIVE"
+              : null;
+      return {
+        players: {
+          available: cell.available.filter((id) => id !== gmUserId),
+          tentative: cell.tentative.filter((id) => id !== gmUserId),
+        },
+        gm,
+      };
+    }),
+  );
+}
+
+/** The hour-collapse rule for one pair of half-hour cells (see below). */
+function collapseCellPair(first: OverlapCell, second: OverlapCell): OverlapCell {
+  const firstAvailable = new Set(first.available);
+  const secondAvailable = new Set(second.available);
+  const secondPainted = new Set([...second.available, ...second.tentative]);
+
+  const available: string[] = [];
+  const tentative: string[] = [];
+  for (const userId of [...first.available, ...first.tentative]) {
+    if (!secondPainted.has(userId)) continue;
+    if (firstAvailable.has(userId) && secondAvailable.has(userId)) {
+      available.push(userId);
+    } else {
+      tentative.push(userId);
+    }
+  }
+  return { available, tentative };
+}
+
+/** The same both-halves rule applied to the GM's single status. */
+function collapseGmPair(first: GmSlotStatus, second: GmSlotStatus): GmSlotStatus {
+  if (first === null || second === null) return null;
+  return first === "AVAILABLE" && second === "AVAILABLE"
+    ? "AVAILABLE"
+    : "TENTATIVE";
+}
+
+/**
  * Collapses a half-hour overlap grid to 7 × 24 for Hour mode. Within an
  * hour a participant counts as available only when both half-hours are
  * AVAILABLE, tentative when both halves are painted and at least one is
- * TENTATIVE, and not at all when either half is unpainted.
+ * TENTATIVE, and not at all when either half is unpainted. On a split grid
+ * the GM's status follows the same both-halves rule.
  */
-export function collapseOverlapToHours(grid: OverlapGrid): OverlapGrid {
+export function collapseOverlapToHours(grid: OverlapGrid): OverlapGrid;
+export function collapseOverlapToHours(grid: SplitOverlapGrid): SplitOverlapGrid;
+export function collapseOverlapToHours(
+  grid: OverlapGrid | SplitOverlapGrid,
+): OverlapGrid | SplitOverlapGrid {
+  const isSplit = (
+    cell: OverlapCell | SplitOverlapCell,
+  ): cell is SplitOverlapCell => "players" in cell;
+
   return grid.map((day) => {
-    const hours: OverlapCell[] = [];
+    const hours: (OverlapCell | SplitOverlapCell)[] = [];
     for (let hour = 0; hour < day.length / 2; hour++) {
       const first = day[hour * 2];
       const second = day[hour * 2 + 1];
-      const firstAvailable = new Set(first.available);
-      const secondAvailable = new Set(second.available);
-      const secondPainted = new Set([...second.available, ...second.tentative]);
-
-      const available: string[] = [];
-      const tentative: string[] = [];
-      for (const userId of [...first.available, ...first.tentative]) {
-        if (!secondPainted.has(userId)) continue;
-        if (firstAvailable.has(userId) && secondAvailable.has(userId)) {
-          available.push(userId);
-        } else {
-          tentative.push(userId);
-        }
+      if (isSplit(first) && isSplit(second)) {
+        hours.push({
+          players: collapseCellPair(first.players, second.players),
+          gm: collapseGmPair(first.gm, second.gm),
+        });
+      } else if (!isSplit(first) && !isSplit(second)) {
+        hours.push(collapseCellPair(first, second));
       }
-      hours.push({ available, tentative });
     }
     return hours;
-  });
+  }) as OverlapGrid | SplitOverlapGrid;
 }

@@ -7,9 +7,10 @@ import {
   weeksEqual,
   weekToCells,
   type AvailabilityRange,
-  type SlotStatus,
+  type ClockFormat,
 } from "@/domain/availability";
 import { WeekGridEditor } from "@/components/week-grid-editor";
+import { useWeekGrid } from "@/components/use-week-grid";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import { TEXT_ANSWER_MAX_LENGTH } from "@/domain/questions";
 
@@ -17,6 +18,7 @@ export interface QuestionDto {
   id: string;
   type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TEXT" | "RANKING";
   prompt: string;
+  required: boolean;
   options: { id: string; label: string }[];
 }
 
@@ -34,6 +36,8 @@ interface Props {
   questions: QuestionDto[];
   initialAnswers: Record<string, AnswerState>;
   alreadySubmitted: boolean;
+  /** The viewer's clock format, passed down from the page — never read here. */
+  clockFormat: ClockFormat;
 }
 
 type SubmitStatus = "idle" | "submitting" | "submitted" | "error";
@@ -76,6 +80,19 @@ function answerEqual(a: AnswerState, b: AnswerState): boolean {
   );
 }
 
+// Courtesy mirror of the server's required check — the server is the gate.
+function isAnswered(question: QuestionDto, answer: AnswerState): boolean {
+  switch (question.type) {
+    case "TEXT":
+      return answer.text.trim() !== "";
+    case "SINGLE_CHOICE":
+    case "MULTI_CHOICE":
+      return answer.optionIds.length > 0;
+    case "RANKING":
+      return Object.keys(answer.ranks).length > 0;
+  }
+}
+
 export function RespondForm({
   eventId,
   initialRanges,
@@ -83,14 +100,10 @@ export function RespondForm({
   questions,
   initialAnswers,
   alreadySubmitted,
+  clockFormat,
 }: Props) {
-  const [initialWeek] = useState(() => weekFromRanges(initialRanges));
-  const weekRef = useRef<SlotStatus[][]>(initialWeek);
-  // Bumping the epoch remounts the editor with a new seed week; that is how
-  // "Reload from my saved availability" replaces the grid, since the editor
-  // owns its week state after mount.
-  const [gridEpoch, setGridEpoch] = useState(0);
-  const [gridSeedWeek, setGridSeedWeek] = useState(initialWeek);
+  const { initialWeek, weekRef, gridProps, replaceWeek } =
+    useWeekGrid(initialRanges);
   const [confirmingReload, setConfirmingReload] = useState(false);
 
   const [initialAnswerState] = useState(() =>
@@ -127,16 +140,27 @@ export function RespondForm({
   // Browser-side only: the form now shows the standing week, but nothing is
   // stored until the user submits as normal.
   function reloadFromStanding() {
-    const standingWeek = weekFromRanges(standingRanges);
-    weekRef.current = standingWeek;
-    setGridSeedWeek(standingWeek);
-    setGridEpoch((epoch) => epoch + 1);
+    replaceWeek(weekFromRanges(standingRanges));
     setConfirmingReload(false);
   }
 
   async function submit() {
     const sentWeek = weekRef.current;
     const sentAnswers = answers;
+
+    // Client-side courtesy check; the server enforces the same rule.
+    const missingRequired = questions.find(
+      (question) =>
+        question.required && !isAnswered(question, sentAnswers[question.id]),
+    );
+    if (missingRequired) {
+      setErrorMessage(
+        `Please answer the required question "${missingRequired.prompt}".`,
+      );
+      setStatus("error");
+      return;
+    }
+
     setStatus("submitting");
     setErrorMessage("");
     try {
@@ -213,6 +237,9 @@ export function RespondForm({
       >
         <p className="mb-3 text-sm font-medium">
           {index + 1}. {question.prompt}
+          {question.required && (
+            <span className="ml-2 text-xs font-normal text-hint">required</span>
+          )}
         </p>
 
         {question.type === "SINGLE_CHOICE" && (
@@ -315,11 +342,8 @@ export function RespondForm({
   return (
     <div>
       <WeekGridEditor
-        key={gridEpoch}
-        initialWeek={gridSeedWeek}
-        onChange={(week) => {
-          weekRef.current = week;
-        }}
+        {...gridProps}
+        clockFormat={clockFormat}
         extraControls={
           <div className="flex flex-wrap items-center gap-2">
             {confirmingReload ? (

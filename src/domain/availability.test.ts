@@ -9,6 +9,7 @@ import {
   cycleStatus,
   dbTimeToSlot,
   emptyWeek,
+  formatSlotLabel,
   isValidIanaTimeZone,
   rangesToCells,
   setDaySlots,
@@ -371,6 +372,29 @@ describe("slotLabel", () => {
     assert.equal(slotLabel(19), "09:30");
     assert.equal(slotLabel(47), "23:30");
     assert.equal(slotLabel(48), "24:00");
+  });
+});
+
+describe("formatSlotLabel", () => {
+  it("formats 12-hour labels, with both midnight boundaries as 12:00 AM", () => {
+    assert.equal(formatSlotLabel(0, "TWELVE_HOUR"), "12:00 AM");
+    assert.equal(formatSlotLabel(1, "TWELVE_HOUR"), "12:30 AM");
+    assert.equal(formatSlotLabel(24, "TWELVE_HOUR"), "12:00 PM");
+    assert.equal(formatSlotLabel(25, "TWELVE_HOUR"), "12:30 PM");
+    assert.equal(formatSlotLabel(47, "TWELVE_HOUR"), "11:30 PM");
+    assert.equal(formatSlotLabel(48, "TWELVE_HOUR"), "12:00 AM");
+  });
+
+  it("formats 24-hour labels exactly as slotLabel", () => {
+    for (const slot of [0, 1, 24, 25, 47, 48]) {
+      assert.equal(formatSlotLabel(slot, "TWENTY_FOUR_HOUR"), slotLabel(slot));
+    }
+    assert.equal(formatSlotLabel(0, "TWENTY_FOUR_HOUR"), "00:00");
+    assert.equal(formatSlotLabel(1, "TWENTY_FOUR_HOUR"), "00:30");
+    assert.equal(formatSlotLabel(24, "TWENTY_FOUR_HOUR"), "12:00");
+    assert.equal(formatSlotLabel(25, "TWENTY_FOUR_HOUR"), "12:30");
+    assert.equal(formatSlotLabel(47, "TWENTY_FOUR_HOUR"), "23:30");
+    assert.equal(formatSlotLabel(48, "TWENTY_FOUR_HOUR"), "24:00");
   });
 });
 

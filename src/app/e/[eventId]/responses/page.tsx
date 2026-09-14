@@ -28,7 +28,7 @@ export default async function ResponsesPage({
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
-      gmUser: { select: { displayName: true } },
+      gmUser: { select: { displayName: true, timeZone: true } },
       participants: {
         // displayName and timeZone only — email addresses never reach this page.
         include: {
@@ -102,6 +102,17 @@ export default async function ResponsesPage({
     rangesByUser.set(row.userId, list);
   }
 
+  // The GameMaster is not a participant (D-013): their EventParticipant row
+  // is storage only. They still feed the overlap grid (as the anchor, split
+  // out client-side) and the selected-cell panel, but never the participants
+  // table, question lists, or tallies.
+  const players = event.participants.filter(
+    (participant) => participant.role !== "GAMEMASTER",
+  );
+  const gmHasAvailability =
+    event.gmUserId !== null &&
+    (rangesByUser.get(event.gmUserId)?.length ?? 0) > 0;
+
   const people = event.participants.map((participant) => ({
     userId: participant.userId,
     displayName: participant.user.displayName,
@@ -117,6 +128,7 @@ export default async function ResponsesPage({
     user.timeZone,
   );
   const approximatedIds = new Set(approximated);
+  const playerIds = new Set(players.map((participant) => participant.userId));
 
   // Latest answer save per user, shown as the submission time when present.
   const submittedAt = new Map<string, Date>();
@@ -130,6 +142,7 @@ export default async function ResponsesPage({
     timeZone: user.timeZone,
     dateStyle: "medium",
     timeStyle: "short",
+    hour12: user.clockFormat === "TWELVE_HOUR",
   });
 
   const answersByQuestion = new Map<string, Map<string, (typeof answers)[number]>>();
@@ -160,6 +173,18 @@ export default async function ResponsesPage({
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
+        {event.gmUser && (
+          <p className="mb-3 flex items-center gap-2 text-sm">
+            Run by <span className="font-medium">{event.gmUser.displayName}</span>
+            <GmBadge />
+            <span className="text-muted">
+              — {event.gmUser.timeZone} —{" "}
+              {gmHasAvailability
+                ? "availability set for this event"
+                : "availability not set for this event"}
+            </span>
+          </p>
+        )}
         <table className="w-full text-left text-sm">
           <thead>
             <tr>
@@ -171,19 +196,14 @@ export default async function ResponsesPage({
             </tr>
           </thead>
           <tbody>
-            {event.participants.map((participant) => {
+            {players.map((participant) => {
               const at =
                 participant.responseStatus === "SUBMITTED"
                   ? submittedAt.get(participant.userId)
                   : undefined;
               return (
                 <tr key={participant.userId}>
-                  <td className={td}>
-                    <span className="flex items-center gap-2">
-                      {participant.user.displayName}
-                      {participant.role === "GAMEMASTER" && <GmBadge />}
-                    </span>
-                  </td>
+                  <td className={td}>{participant.user.displayName}</td>
                   <td className={`${td} text-muted`}>
                     {participant.user.timeZone}
                     {approximatedIds.has(participant.userId) &&
@@ -219,7 +239,13 @@ export default async function ResponsesPage({
           Each cell shows available · tentative. Select a cell to see who is
           in it.
         </p>
-        <OverlapGridView grid={grid} people={people} />
+        <OverlapGridView
+          grid={grid}
+          people={people}
+          gmUserId={event.gmUserId}
+          gmHasAvailability={gmHasAvailability}
+          clockFormat={user.clockFormat}
+        />
       </section>
 
       {event.questions.length > 0 && (
@@ -254,15 +280,14 @@ export default async function ResponsesPage({
                     </p>
                   ) : question.type === "TEXT" ? (
                     <ul className="flex flex-col gap-2">
-                      {event.participants.map((participant) => {
+                      {players.map((participant) => {
                         const text = byUser
                           .get(participant.userId)
                           ?.text?.text.trim();
                         return (
                           <li key={participant.userId}>
-                            <span className="flex items-center gap-2 text-xs text-muted">
+                            <span className="text-xs text-muted">
                               {participant.user.displayName}
-                              {participant.role === "GAMEMASTER" && <GmBadge />}
                             </span>
                             {text ? (
                               <p className="whitespace-pre-wrap">{text}</p>
@@ -287,7 +312,7 @@ export default async function ResponsesPage({
                           </tr>
                         </thead>
                         <tbody>
-                          {event.participants.map((participant) => {
+                          {players.map((participant) => {
                             const answer = byUser.get(participant.userId);
                             let display: string | null = null;
                             if (answer) {
@@ -318,12 +343,7 @@ export default async function ResponsesPage({
                             return (
                               <tr key={participant.userId}>
                                 <td className={td}>
-                                  <span className="flex items-center gap-2">
-                                    {participant.user.displayName}
-                                    {participant.role === "GAMEMASTER" && (
-                                      <GmBadge />
-                                    )}
-                                  </span>
+                                  {participant.user.displayName}
                                 </td>
                                 <td className={td}>
                                   {display ?? (
@@ -342,14 +362,18 @@ export default async function ResponsesPage({
                           </li>
                         )}
                         {question.options.map((option) => {
+                          // Tallies count players only — the GM's stored
+                          // answers, if any, never feed them.
+                          const playerAnswers = [...byUser.values()].filter(
+                            (answer) => playerIds.has(answer.userId),
+                          );
                           if (question.type === "RANKING") {
-                            const entries = [...byUser.values()].flatMap(
-                              (answer) =>
-                                answer.choices.filter(
-                                  (choice) =>
-                                    choice.optionId === option.id &&
-                                    choice.rank !== null,
-                                ),
+                            const entries = playerAnswers.flatMap((answer) =>
+                              answer.choices.filter(
+                                (choice) =>
+                                  choice.optionId === option.id &&
+                                  choice.rank !== null,
+                              ),
                             );
                             const sum = entries.reduce(
                               (total, choice) => total + (choice.rank ?? 0),
@@ -359,12 +383,12 @@ export default async function ResponsesPage({
                               <li key={option.id}>
                                 {option.label} —{" "}
                                 {entries.length > 0
-                                  ? `${sum} (${entries.length} of ${event.participants.length} ranked)`
+                                  ? `${sum} (${entries.length} of ${players.length} ranked)`
                                   : "not ranked"}
                               </li>
                             );
                           }
-                          const count = [...byUser.values()].filter((answer) =>
+                          const count = playerAnswers.filter((answer) =>
                             answer.choices.some(
                               (choice) => choice.optionId === option.id,
                             ),

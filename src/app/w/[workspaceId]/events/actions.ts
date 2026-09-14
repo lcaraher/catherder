@@ -140,7 +140,8 @@ export async function createEvent(formData: FormData) {
         ...parsed.fields,
       },
     });
-    // The GameMaster is always a participant of their own event.
+    // The GameMaster keeps a participant row as storage, though they are
+    // never shown as a participant (D-013).
     if (created.gmUserId) {
       await tx.eventParticipant.create({
         data: {
@@ -150,6 +151,29 @@ export async function createEvent(formData: FormData) {
           responseStatus: "INVITED",
         },
       });
+      // The GM's availability is gathered up front, without a prompt: copy
+      // their standing week into event rows (the same copy the respond
+      // page's pre-fill does). An empty standing week copies nothing; the
+      // GM can adjust either way from the event page later.
+      const standingRows = await tx.standingAvailability.findMany({
+        where: { userId: created.gmUserId },
+      });
+      if (standingRows.length > 0) {
+        const standingVersion = Math.max(
+          ...standingRows.map((row) => row.version),
+        );
+        await tx.eventAvailability.createMany({
+          data: standingRows.map((row) => ({
+            eventId: created.id,
+            userId: created.gmUserId!,
+            weekday: row.weekday,
+            startLocal: row.startLocal,
+            endLocal: row.endLocal,
+            status: row.status,
+            copiedFromStandingVersion: standingVersion,
+          })),
+        });
+      }
     }
     await tx.auditEvent.create({
       data: {
@@ -393,6 +417,35 @@ export async function setQuestionAnswersRevealed(formData: FormData) {
         action: revealed
           ? "question_answers_revealed"
           : "question_answers_hidden",
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, question.eventId));
+}
+
+// Whether participants can submit without answering this question. Applies
+// to future submissions only — existing answers are never re-validated.
+export async function setQuestionRequired(formData: FormData) {
+  const questionId = String(formData.get("questionId") ?? "");
+  const required = String(formData.get("required") ?? "") === "true";
+  const question = await prisma.question.findUnique({
+    where: { id: questionId },
+  });
+  if (!question) return;
+  const { event, user } = await requireEventManager(question.eventId);
+  if (question.required === required) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.question.update({
+      where: { id: questionId },
+      data: { required },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Question",
+        entityId: questionId,
+        action: required ? "question_required_set" : "question_required_cleared",
       },
     });
   });

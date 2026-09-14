@@ -284,6 +284,24 @@ export function slotLabel(slot: number): string {
   return `${String(hours).padStart(2, "0")}:${minutes}`;
 }
 
+/** How a user reads times; mirrors the ClockFormat enum in the schema. */
+export type ClockFormat = "TWELVE_HOUR" | "TWENTY_FOUR_HOUR";
+
+/**
+ * Slot boundary (0–48) as a label in the user's clock format. 24-hour is
+ * slotLabel unchanged ("19:30", and "24:00" for slot 48); 12-hour reads
+ * "7:30 PM", with both midnight boundaries (slot 0 and slot 48) as
+ * "12:00 AM".
+ */
+export function formatSlotLabel(slot: number, clockFormat: ClockFormat): string {
+  if (clockFormat === "TWENTY_FOUR_HOUR") return slotLabel(slot);
+  const hours = Math.floor(slot / 2) % 24;
+  const minutes = slot % 2 === 0 ? "00" : "30";
+  const suffix = hours < 12 ? "AM" : "PM";
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${hour12}:${minutes} ${suffix}`;
+}
+
 // SQL TIME columns cannot hold 24:00, so a range ending at midnight (slot 48)
 // is stored with endLocal 00:00. Because startSlot < endSlot always holds, an
 // end time of 00:00 can only mean midnight-at-end-of-day, so the mapping is

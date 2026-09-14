@@ -6,6 +6,7 @@ import {
   groupTimeZoneOptions,
 } from "@/domain/time-zones";
 import { AvailabilityGrid } from "@/components/availability-grid";
+import { ClockFormatPicker } from "@/components/clock-format-picker";
 import { TimeZonePicker } from "@/components/time-zone-picker";
 
 export const dynamic = "force-dynamic";
@@ -37,9 +38,11 @@ export default async function AvailabilityPage() {
         initialZoneId={user.timeZone}
         hint="Hours in the grid below are based on your personal time. Please ensure the correct time zone for you is set so that the schedule is interpreted to the event organizer's own time zone correctly."
       />
+      <ClockFormatPicker initialFormat={user.clockFormat} />
       <AvailabilityGrid
         initialRanges={ranges}
         initialNote={user.availabilityNote ?? ""}
+        clockFormat={user.clockFormat}
       />
     </main>
   );

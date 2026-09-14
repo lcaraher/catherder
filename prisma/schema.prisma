@@ -47,6 +47,11 @@ enum QuestionType {
   RANKING
 }
 
+enum ClockFormat {
+  TWELVE_HOUR
+  TWENTY_FOUR_HOUR
+}
+
 model User {
   id          String   @id @default(cuid())
   displayName String
@@ -54,6 +59,9 @@ model User {
   // IANA time-zone name (e.g. "America/New_York"); availability times are
   // local wall-clock in this zone, never UTC.
   timeZone         String
+  // How this user reads times everywhere: 7:30 PM vs 19:30. Display only —
+  // storage stays slot-based local wall-clock regardless.
+  clockFormat ClockFormat @default(TWELVE_HOUR)
   // Free-text note shown alongside standing availability. Sensitive: never log.
   availabilityNote String?
   createdAt        DateTime @default(now())
@@ -197,6 +205,9 @@ model Question {
   // Per-question participant visibility: even once event results are shared,
   // a question's answers stay organizer/GM-only until this is true.
   answersRevealed Boolean @default(false)
+  // Participants cannot submit a response without answering this question.
+  // Enforced at submit time only; existing answers are never re-validated.
+  required Boolean @default(false)
 
   event   Event            @relation(fields: [eventId], references: [id])
   options QuestionOption[]

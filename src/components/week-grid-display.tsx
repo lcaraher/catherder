@@ -1,8 +1,9 @@
 import {
+  formatSlotLabel,
   SLOTS_PER_DAY,
-  slotLabel,
   weekFromRanges,
   type AvailabilityRange,
+  type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
 
@@ -38,7 +39,14 @@ function bandClass(status: SlotStatus): string {
  * editor would show them, but with no pointer handlers or edit controls.
  * A server component — displaying a locked response ships no client JS.
  */
-export function WeekGridDisplay({ ranges }: { ranges: AvailabilityRange[] }) {
+export function WeekGridDisplay({
+  ranges,
+  clockFormat,
+}: {
+  ranges: AvailabilityRange[];
+  /** The viewer's clock format, passed down from the page — never read here. */
+  clockFormat: ClockFormat;
+}) {
   const week = weekFromRanges(ranges);
 
   return (
@@ -71,12 +79,12 @@ export function WeekGridDisplay({ ranges }: { ranges: AvailabilityRange[] }) {
         {Array.from({ length: SLOTS_PER_DAY }, (_, slot) => (
           <div key={slot} className="contents">
             <div className="flex h-4 items-center justify-end bg-surface-card pr-2 text-[10px] text-grid-label">
-              {slot % 2 === 0 ? slotLabel(slot) : ""}
+              {slot % 2 === 0 ? formatSlotLabel(slot, clockFormat) : ""}
             </div>
             {WEEKDAY_LABELS.map((_, weekday) => (
               <div
                 key={weekday}
-                aria-label={`${WEEKDAY_NAMES[weekday]} ${slotLabel(slot)}–${slotLabel(slot + 1)}, ${stateLabel(week[weekday][slot])}`}
+                aria-label={`${WEEKDAY_NAMES[weekday]} ${formatSlotLabel(slot, clockFormat)}–${formatSlotLabel(slot + 1, clockFormat)}, ${stateLabel(week[weekday][slot])}`}
                 className={`h-4 ${bandClass(week[weekday][slot])}`}
               />
             ))}

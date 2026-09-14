@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ForbiddenError, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { dbTimeToSlot } from "@/domain/availability";
 import { canManageEvent, isAdminOverride } from "@/domain/event-access";
 import {
   addParticipant,
@@ -14,10 +15,12 @@ import {
   setEventStatus,
   setParticipantEditLock,
   setQuestionAnswersRevealed,
+  setQuestionRequired,
   setResultsRevealed,
   updateEvent,
   updateQuestionPrompt,
 } from "../actions";
+import { GmAvailabilityEditor } from "@/components/gm-availability-editor";
 import { GmBadge } from "@/components/gm-badge";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +119,28 @@ export default async function EventPage({
     );
   }
   const adminOverride = isAdminOverride(access);
+
+  // The GameMaster is not a participant (D-013): their row stays in storage
+  // but never renders in the participant list.
+  const playerParticipants = event.participants.filter(
+    (participant) => participant.role !== "GAMEMASTER",
+  );
+
+  // The GM's own availability for this event, edited in a dedicated section
+  // (only for the GM themselves — an admin override does not see it).
+  const viewerIsGm = event.gmUserId !== null && event.gmUserId === user.id;
+  const gmAvailabilityRows = viewerIsGm
+    ? await prisma.eventAvailability.findMany({
+        where: { eventId, userId: user.id },
+        orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
+      })
+    : [];
+  const gmAvailabilityRanges = gmAvailabilityRows.map((row) => ({
+    weekday: row.weekday,
+    startSlot: dbTimeToSlot(row.startLocal, "start"),
+    endSlot: dbTimeToSlot(row.endLocal, "end"),
+    status: row.status,
+  }));
 
   const participantIds = new Set(event.participants.map((p) => p.userId));
   const allMembers = await prisma.workspaceMember.findMany({
@@ -377,22 +402,24 @@ export default async function EventPage({
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
-        {event.participants.length === 0 ? (
+        {event.gmUser && (
+          <p className="mb-3 flex items-center gap-2 text-sm">
+            Run by <span className="font-medium">{event.gmUser.displayName}</span>
+            <GmBadge />
+          </p>
+        )}
+        {playerParticipants.length === 0 ? (
           <p className="mb-3 text-sm text-hint">No participants yet.</p>
         ) : (
           <ul className="mb-3 flex flex-col gap-1">
-            {event.participants.map((participant) => (
+            {playerParticipants.map((participant) => (
               <li
                 key={participant.userId}
                 className="flex items-center justify-between rounded border border-edge px-3 py-2 text-sm"
               >
                 <span className="flex items-center gap-2">
                   {participant.user.displayName}
-                  {participant.role === "GAMEMASTER" ? (
-                    <GmBadge />
-                  ) : (
-                    <span className="text-xs text-faint">Player</span>
-                  )}
+                  <span className="text-xs text-faint">Player</span>
                 </span>
                 <span className="flex items-center gap-3">
                   <span
@@ -489,6 +516,25 @@ export default async function EventPage({
         )}
       </section>
 
+      {viewerIsGm && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-lg font-medium">
+            Your availability for this event
+          </h2>
+          {gmAvailabilityRanges.length === 0 && (
+            <p className="mb-3 text-sm text-muted">
+              Players are matched against your availability. Set it here, or
+              leave it empty to see everyone&rsquo;s overlap on its own.
+            </p>
+          )}
+          <GmAvailabilityEditor
+            eventId={event.id}
+            initialRanges={gmAvailabilityRanges}
+            clockFormat={user.clockFormat}
+          />
+        </section>
+      )}
+
       <section>
         <h2 className="mb-3 text-lg font-medium">Questions</h2>
         {event.questions.length === 0 ? (
@@ -552,29 +598,51 @@ export default async function EventPage({
                     Save prompt
                   </button>
                 </form>
-                <form action={setQuestionAnswersRevealed} className="mb-2">
-                  <input type="hidden" name="questionId" value={question.id} />
-                  <input
-                    type="hidden"
-                    name="revealed"
-                    value={question.answersRevealed ? "false" : "true"}
-                  />
-                  <button
-                    type="submit"
-                    aria-pressed={question.answersRevealed}
-                    title={
-                      question.answersRevealed
-                        ? "Participants can see everyone's answers to this question once results are shared. Click to hide them."
-                        : "Participants cannot see answers to this question even once results are shared. Click to show them."
-                    }
-                    className={`${smallButton} inline-flex items-center gap-1.5`}
-                  >
-                    <EyeIcon open={question.answersRevealed} />
-                    {question.answersRevealed
-                      ? "Answers visible to participants"
-                      : "Answers hidden from participants"}
-                  </button>
-                </form>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <form action={setQuestionAnswersRevealed}>
+                    <input type="hidden" name="questionId" value={question.id} />
+                    <input
+                      type="hidden"
+                      name="revealed"
+                      value={question.answersRevealed ? "false" : "true"}
+                    />
+                    <button
+                      type="submit"
+                      aria-pressed={question.answersRevealed}
+                      title={
+                        question.answersRevealed
+                          ? "Participants can see everyone's answers to this question once results are shared. Click to hide them."
+                          : "Participants cannot see answers to this question even once results are shared. Click to show them."
+                      }
+                      className={`${smallButton} inline-flex items-center gap-1.5`}
+                    >
+                      <EyeIcon open={question.answersRevealed} />
+                      {question.answersRevealed
+                        ? "Answers visible to participants"
+                        : "Answers hidden from participants"}
+                    </button>
+                  </form>
+                  <form action={setQuestionRequired}>
+                    <input type="hidden" name="questionId" value={question.id} />
+                    <input
+                      type="hidden"
+                      name="required"
+                      value={question.required ? "false" : "true"}
+                    />
+                    <button
+                      type="submit"
+                      aria-pressed={question.required}
+                      title={
+                        question.required
+                          ? "Participants cannot submit a response without answering this question. Click to make it optional."
+                          : "Participants may leave this question unanswered. Click to make it required — they cannot submit without answering it."
+                      }
+                      className={smallButton}
+                    >
+                      {question.required ? "Required" : "Optional"}
+                    </button>
+                  </form>
+                </div>
                 {question._count.answers > 0 && (
                   <p className="mb-2 text-xs text-faint">
                     Answers exist — edits create version {question.version + 1}{" "}

@@ -7,6 +7,7 @@ import {
   weeksEqual,
   weekToCells,
   type AvailabilityRange,
+  type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
 import { WeekGridEditor } from "@/components/week-grid-editor";
@@ -15,11 +16,17 @@ import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 interface Props {
   initialRanges: AvailabilityRange[];
   initialNote: string;
+  /** The viewer's clock format, passed down from the page — never read here. */
+  clockFormat: ClockFormat;
 }
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
+export function AvailabilityGrid({
+  initialRanges,
+  initialNote,
+  clockFormat,
+}: Props) {
   const [initialWeek] = useState(() => weekFromRanges(initialRanges));
   // The editor owns the on-screen week; we only need the latest value at save.
   const weekRef = useRef<SlotStatus[][]>(initialWeek);
@@ -94,6 +101,7 @@ export function AvailabilityGrid({ initialRanges, initialNote }: Props) {
         onChange={(week) => {
           weekRef.current = week;
         }}
+        clockFormat={clockFormat}
       />
 
       <div className="mt-5">

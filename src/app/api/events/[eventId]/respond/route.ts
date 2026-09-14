@@ -45,6 +45,12 @@ export async function POST(
   if (!participant) {
     return NextResponse.json({ error: "not a participant" }, { status: 403 });
   }
+  // The GameMaster is not a participant (D-013): they adjust availability
+  // through the event page, never through the respond flow. Mirrors the
+  // respond page's notFound() so the client cannot bypass it.
+  if (participant.role === "GAMEMASTER") {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
   // The page renders read-only when editing is closed, but the server is the
   // gate: re-check here and refuse regardless of what the client sent.
   if (
@@ -114,9 +120,11 @@ export async function POST(
     const optionIds = new Set(question.options.map((option) => option.id));
     switch (question.type) {
       case "SINGLE_CHOICE": {
+        // No choice is allowed here; the required check below rejects it
+        // when the question demands an answer.
         if (
-          answer.optionIds.length !== 1 ||
-          !optionIds.has(answer.optionIds[0])
+          answer.optionIds.length > 1 ||
+          answer.optionIds.some((id) => !optionIds.has(id))
         ) {
           return badRequest(`choose one option for "${question.prompt}"`);
         }
@@ -137,6 +145,10 @@ export async function POST(
         break;
       }
       case "RANKING": {
+        // No ranks at all is allowed here; the required check below rejects
+        // it when the question demands an answer. A partial ranking is never
+        // valid.
+        if (answer.ranks.length === 0) break;
         const rankedIds = answer.ranks.map((r) => r.optionId);
         const rankValues = answer.ranks.map((r) => r.rank);
         const complete =
@@ -155,6 +167,33 @@ export async function POST(
         break;
       }
     }
+  }
+
+  // Required questions must carry an answer: whitespace-only TEXT, no chosen
+  // option, or no ranks count as missing. Only this submission is checked —
+  // existing submissions are never re-validated.
+  const missingRequired = event.questions.filter((question) => {
+    if (!question.required) return false;
+    const answer = answersById.get(question.id)!;
+    switch (question.type) {
+      case "TEXT":
+        return answer.text.trim() === "";
+      case "SINGLE_CHOICE":
+      case "MULTI_CHOICE":
+        return answer.optionIds.length === 0;
+      case "RANKING":
+        return answer.ranks.length === 0;
+    }
+  });
+  if (missingRequired.length > 0) {
+    const names = missingRequired
+      .map((question) => `"${question.prompt}"`)
+      .join(", ");
+    return badRequest(
+      missingRequired.length === 1
+        ? `Please answer the required question ${names}.`
+        : `Please answer the required questions ${names}.`,
+    );
   }
 
   const standingVersion =

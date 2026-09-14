@@ -92,6 +92,11 @@
   --heat-4: oklch(69% 0.1 163);
   --heat-5: oklch(61% 0.1 163);
   --heat-text: var(--foreground);
+
+  /* Border marking overlap cells where the GM is available (solid) or
+   * tentative (dashed) — the GM badge text colour, so the mark and the GM
+   * chip read as the same thing. */
+  --gm-mark: var(--badge-gm-text);
 }
 
 /*
@@ -146,6 +151,7 @@
   --heat-3: oklch(41% 0.1 163);
   --heat-4: oklch(49% 0.1 163);
   --heat-5: oklch(57% 0.1 163);
+  --gm-mark: var(--badge-gm-text);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -195,6 +201,7 @@
     --heat-3: oklch(41% 0.1 163);
     --heat-4: oklch(49% 0.1 163);
     --heat-5: oklch(57% 0.1 163);
+    --gm-mark: var(--badge-gm-text);
   }
 }
 
@@ -263,6 +270,7 @@
   --color-heat-4: var(--heat-4);
   --color-heat-5: var(--heat-5);
   --color-heat-text: var(--heat-text);
+  --color-gm-mark: var(--gm-mark);
 }
 
 body {

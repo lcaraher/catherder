@@ -104,7 +104,13 @@ export default async function Home() {
     }),
   ]);
 
-  const needsResponse = participations.filter(
+  // The GameMaster is not a participant (D-013): their participant row is
+  // storage only, so it never appears in the response lists — their events
+  // are under "Events you run" instead.
+  const playerParticipations = participations.filter(
+    (p) => p.role !== "GAMEMASTER",
+  );
+  const needsResponse = playerParticipations.filter(
     (p) =>
       p.event.status !== "DRAFT" &&
       p.responseStatus === "INVITED" &&
@@ -113,7 +119,7 @@ export default async function Home() {
         editUnlockedAt: p.editUnlockedAt,
       }),
   );
-  const submitted = participations.filter(
+  const submitted = playerParticipations.filter(
     (p) => p.responseStatus === "SUBMITTED",
   );
 

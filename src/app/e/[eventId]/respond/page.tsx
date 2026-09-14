@@ -11,6 +11,7 @@ import {
   buildTimeZoneOptions,
   groupTimeZoneOptions,
 } from "@/domain/time-zones";
+import { ClockFormatPicker } from "@/components/clock-format-picker";
 import { RespondForm } from "@/components/respond-form";
 import { TimeZonePicker } from "@/components/time-zone-picker";
 import { WeekGridDisplay } from "@/components/week-grid-display";
@@ -41,6 +42,9 @@ export default async function RespondPage({
   });
   // Non-participants get a 404 rather than confirmation the event exists.
   if (!participant) notFound();
+  // The GameMaster is not a participant (D-013): they manage their
+  // availability from the event page instead of responding.
+  if (participant.role === "GAMEMASTER") notFound();
 
   const canEdit = canEditResponse({
     eventStatus: event.status,
@@ -117,7 +121,10 @@ export default async function RespondPage({
             <p className="mb-3 text-sm text-hint">
               Times are based in your time zone ({user.timeZone}).
             </p>
-            <WeekGridDisplay ranges={toRanges(eventRows)} />
+            <WeekGridDisplay
+              ranges={toRanges(eventRows)}
+              clockFormat={user.clockFormat}
+            />
 
             {event.questions.length > 0 && (
               <section className="mt-6">
@@ -215,6 +222,7 @@ export default async function RespondPage({
         initialZoneId={user.timeZone}
         hint="Every hour in the grid below is read in this zone. It's your personal setting — if it isn't where you actually are, fix it before filling in your week."
       />
+      <ClockFormatPicker initialFormat={user.clockFormat} />
       <RespondForm
         eventId={eventId}
         initialRanges={initialRanges}
@@ -223,6 +231,7 @@ export default async function RespondPage({
           id: question.id,
           type: question.type,
           prompt: question.prompt,
+          required: question.required,
           options: question.options.map((option) => ({
             id: option.id,
             label: option.label,
@@ -230,6 +239,7 @@ export default async function RespondPage({
         }))}
         initialAnswers={initialAnswers}
         alreadySubmitted={participant.responseStatus === "SUBMITTED"}
+        clockFormat={user.clockFormat}
       />
     </main>
   );
