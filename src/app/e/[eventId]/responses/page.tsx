@@ -102,16 +102,20 @@ export default async function ResponsesPage({
     rangesByUser.set(row.userId, list);
   }
 
-  // The GameMaster is not a participant (D-013): their EventParticipant row
-  // is storage only. They still feed the overlap grid (as the anchor, split
-  // out client-side) and the selected-cell panel, but never the participants
-  // table, question lists, or tallies.
+  // GM_GROUPS only: the GameMaster is not a participant (D-013) — their
+  // EventParticipant row is storage only. They still feed the overlap grid
+  // (as the anchor, split out client-side) and the selected-cell panel, but
+  // never the participants table, question lists, or tallies. A single
+  // activity's Organizer takes part like everyone else (D-014): no anchor,
+  // no mark, counted in the numbers.
+  const anchorGmUserId =
+    event.mode === "GM_GROUPS" ? event.gmUserId : null;
   const players = event.participants.filter(
     (participant) => participant.role !== "GAMEMASTER",
   );
   const gmHasAvailability =
-    event.gmUserId !== null &&
-    (rangesByUser.get(event.gmUserId)?.length ?? 0) > 0;
+    anchorGmUserId !== null &&
+    (rangesByUser.get(anchorGmUserId)?.length ?? 0) > 0;
 
   const people = event.participants.map((participant) => ({
     userId: participant.userId,
@@ -165,7 +169,7 @@ export default async function ResponsesPage({
 
       {isAdminOverride(access) && event.gmUser && (
         <p className="mb-4 rounded border border-notice-admin-border bg-notice-admin px-3 py-2 text-sm text-notice-admin-text">
-          This event is run by{" "}
+          This event is organized by{" "}
           <span className="font-medium">{event.gmUser.displayName}</span> — you
           are acting as an admin.
         </p>
@@ -175,14 +179,19 @@ export default async function ResponsesPage({
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
         {event.gmUser && (
           <p className="mb-3 flex items-center gap-2 text-sm">
-            Run by <span className="font-medium">{event.gmUser.displayName}</span>
-            <GmBadge />
-            <span className="text-muted">
-              — {event.gmUser.timeZone} —{" "}
-              {gmHasAvailability
-                ? "availability set for this event"
-                : "availability not set for this event"}
-            </span>
+            Organized by{" "}
+            <span className="font-medium">{event.gmUser.displayName}</span>
+            {event.mode === "GM_GROUPS" && (
+              <>
+                <GmBadge />
+                <span className="text-muted">
+                  — {event.gmUser.timeZone} —{" "}
+                  {gmHasAvailability
+                    ? "availability set for this event"
+                    : "availability not set for this event"}
+                </span>
+              </>
+            )}
           </p>
         )}
         <table className="w-full text-left text-sm">
@@ -242,7 +251,7 @@ export default async function ResponsesPage({
         <OverlapGridView
           grid={grid}
           people={people}
-          gmUserId={event.gmUserId}
+          gmUserId={anchorGmUserId}
           gmHasAvailability={gmHasAvailability}
           clockFormat={user.clockFormat}
         />

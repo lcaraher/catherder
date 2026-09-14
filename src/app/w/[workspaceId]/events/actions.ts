@@ -111,8 +111,6 @@ export async function createEvent(formData: FormData) {
   }
 
   const mode = String(formData.get("mode") ?? "") as EventMode;
-  // The creator runs their own game unless they picked someone else.
-  const gmUserId = String(formData.get("gmUserId") ?? "").trim() || user.id;
 
   function fail(message: string): never {
     redirect(
@@ -123,40 +121,43 @@ export async function createEvent(formData: FormData) {
   const parsed = parseEventFields(formData);
   if ("error" in parsed) fail(parsed.error);
   if (!EVENT_MODES.includes(mode)) fail("Choose a mode.");
-  if (mode === "GM_GROUPS" && gmUserId !== user.id) {
-    const gmMembership = await prisma.workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId: gmUserId } },
-    });
-    if (!gmMembership) fail("The GameMaster must be a member.");
-  }
 
   const event = await prisma.$transaction(async (tx) => {
+    // Creating an event makes the creator its owner in both modes (D-010,
+    // D-014); reassigning happens later from Edit event, roster-only. Single
+    // activity has no groups, so its size bounds are always null whatever
+    // the form sent.
     const created = await tx.event.create({
       data: {
         workspaceId,
         mode,
-        gmUserId: mode === "GM_GROUPS" ? gmUserId : null,
+        gmUserId: user.id,
         status: "DRAFT",
         ...parsed.fields,
+        ...(mode === "SINGLE_ACTIVITY"
+          ? { minGroupSize: null, maxGroupSize: null }
+          : {}),
       },
     });
-    // The GameMaster keeps a participant row as storage, though they are
-    // never shown as a participant (D-013).
-    if (created.gmUserId) {
-      await tx.eventParticipant.create({
-        data: {
-          eventId: created.id,
-          userId: created.gmUserId,
-          role: "GAMEMASTER",
-          responseStatus: "INVITED",
-        },
-      });
-      // The GM's availability is gathered up front, without a prompt: copy
-      // their standing week into event rows (the same copy the respond
-      // page's pre-fill does). An empty standing week copies nothing; the
-      // GM can adjust either way from the event page later.
+    // GM_GROUPS: the GameMaster's row is storage only, never shown as a
+    // participant (D-013). SINGLE_ACTIVITY: the Organizer takes part like
+    // everyone else (D-014), so they join as a PLAYER.
+    await tx.eventParticipant.create({
+      data: {
+        eventId: created.id,
+        userId: user.id,
+        role: mode === "GM_GROUPS" ? "GAMEMASTER" : "PLAYER",
+        responseStatus: "INVITED",
+      },
+    });
+    // The GM's availability is gathered up front, without a prompt: copy
+    // their standing week into event rows (the same copy the respond
+    // page's pre-fill does). An empty standing week copies nothing; the
+    // GM can adjust either way from the event page later. The Organizer of
+    // a single activity responds through the respond page instead.
+    if (mode === "GM_GROUPS") {
       const standingRows = await tx.standingAvailability.findMany({
-        where: { userId: created.gmUserId },
+        where: { userId: user.id },
       });
       if (standingRows.length > 0) {
         const standingVersion = Math.max(
@@ -165,7 +166,7 @@ export async function createEvent(formData: FormData) {
         await tx.eventAvailability.createMany({
           data: standingRows.map((row) => ({
             eventId: created.id,
-            userId: created.gmUserId!,
+            userId: user.id,
             weekday: row.weekday,
             startLocal: row.startLocal,
             endLocal: row.endLocal,
@@ -202,14 +203,15 @@ export async function updateEvent(formData: FormData) {
 
   const parsed = parseEventFields(formData);
   if ("error" in parsed) fail(parsed.error);
-  if (event.mode === "GM_GROUPS") {
-    if (!gmUserId) fail("GameMaster groups mode needs a GameMaster.");
-    const gmMembership = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: { workspaceId: event.workspaceId, userId: gmUserId },
-      },
-    });
-    if (!gmMembership) fail("The GameMaster must be a member.");
+  // The owner is reassignable in both modes, but only to someone already on
+  // this event's roster (D-015: no directory).
+  const ownerWord = event.mode === "GM_GROUPS" ? "GameMaster" : "Organizer";
+  if (!gmUserId) fail(`This event needs ${event.mode === "GM_GROUPS" ? "a" : "an"} ${ownerWord}.`);
+  const gmParticipant = await prisma.eventParticipant.findUnique({
+    where: { eventId_userId: { eventId, userId: gmUserId } },
+  });
+  if (!gmParticipant) {
+    fail(`The ${ownerWord} must already be on this event.`);
   }
 
   await prisma.$transaction(async (tx) => {
@@ -217,7 +219,11 @@ export async function updateEvent(formData: FormData) {
       where: { id: eventId },
       data: {
         ...parsed.fields,
-        ...(event.mode === "GM_GROUPS" ? { gmUserId } : {}),
+        gmUserId,
+        // Single activity has no groups; its size bounds stay null.
+        ...(event.mode === "SINGLE_ACTIVITY"
+          ? { minGroupSize: null, maxGroupSize: null }
+          : {}),
       },
     });
     // Moving the GameMaster moves the GAMEMASTER participant row: the new GM

@@ -22,6 +22,7 @@ import {
 } from "../actions";
 import { GmAvailabilityEditor } from "@/components/gm-availability-editor";
 import { GmBadge } from "@/components/gm-badge";
+import { QuestionPromptForm } from "@/components/question-prompt-form";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,17 @@ const smallButton =
   "rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40";
 const inputClass =
   "rounded border border-edge-strong bg-field px-2 py-1 text-sm";
+
+// One segment of a two-segment control, in the style of the Half hour / Hour
+// toggle; the selected segment uses the toggle-active tokens.
+const segmentClass = (active: boolean) =>
+  `inline-flex items-center gap-1.5 px-2 py-1 ${
+    active
+      ? "bg-toggle-active text-toggle-active-text"
+      : "hover:bg-btn-secondary-hover"
+  }`;
+const segmentGroupClass =
+  "inline-flex overflow-hidden rounded border border-edge-strong text-xs";
 
 // Line-drawn eye / crossed-out eye for the per-question answer visibility
 // toggle. Stroke follows the button's text colour; no literal colours.
@@ -127,20 +139,40 @@ export default async function EventPage({
   );
 
   // The GM's own availability for this event, edited in a dedicated section
-  // (only for the GM themselves — an admin override does not see it).
-  const viewerIsGm = event.gmUserId !== null && event.gmUserId === user.id;
-  const gmAvailabilityRows = viewerIsGm
-    ? await prisma.eventAvailability.findMany({
-        where: { eventId, userId: user.id },
-        orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
-      })
-    : [];
-  const gmAvailabilityRanges = gmAvailabilityRows.map((row) => ({
-    weekday: row.weekday,
-    startSlot: dbTimeToSlot(row.startLocal, "start"),
-    endSlot: dbTimeToSlot(row.endLocal, "end"),
-    status: row.status,
-  }));
+  // (only for the GM themselves — an admin override does not see it, and a
+  // single activity's Organizer responds through the respond page instead).
+  const viewerIsGm =
+    event.mode === "GM_GROUPS" &&
+    event.gmUserId !== null &&
+    event.gmUserId === user.id;
+  const toRanges = (
+    rows: {
+      weekday: number;
+      startLocal: Date;
+      endLocal: Date;
+      status: "AVAILABLE" | "TENTATIVE";
+    }[],
+  ) =>
+    rows.map((row) => ({
+      weekday: row.weekday,
+      startSlot: dbTimeToSlot(row.startLocal, "start"),
+      endSlot: dbTimeToSlot(row.endLocal, "end"),
+      status: row.status,
+    }));
+  const [gmAvailabilityRows, gmStandingRows] = viewerIsGm
+    ? await Promise.all([
+        prisma.eventAvailability.findMany({
+          where: { eventId, userId: user.id },
+          orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
+        }),
+        prisma.standingAvailability.findMany({
+          where: { userId: user.id },
+          orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
+        }),
+      ])
+    : [[], []];
+  const gmAvailabilityRanges = toRanges(gmAvailabilityRows);
+  const gmStandingRanges = toRanges(gmStandingRows);
 
   const participantIds = new Set(event.participants.map((p) => p.userId));
   const allMembers = await prisma.workspaceMember.findMany({
@@ -172,9 +204,14 @@ export default async function EventPage({
         {MODE_LABELS[event.mode]}
         {event.gmUser && (
           <>
-            {" · GameMaster: "}
-            <span className="font-medium">{event.gmUser.displayName}</span>{" "}
-            <GmBadge />
+            {event.mode === "GM_GROUPS" ? " · GameMaster: " : " · Organizer: "}
+            <span className="font-medium">{event.gmUser.displayName}</span>
+            {event.mode === "GM_GROUPS" && (
+              <>
+                {" "}
+                <GmBadge />
+              </>
+            )}
           </>
         )}
         {` · target ${event.requiredSlots / 2}h`}
@@ -184,7 +221,7 @@ export default async function EventPage({
 
       {adminOverride && event.gmUser && (
         <p className="mb-4 rounded border border-notice-admin-border bg-notice-admin px-3 py-2 text-sm text-notice-admin-text">
-          This event is run by{" "}
+          This event is organized by{" "}
           <span className="font-medium">{event.gmUser.displayName}</span> — you
           are acting as an admin.
         </p>
@@ -333,60 +370,64 @@ export default async function EventPage({
                 className={inputClass}
               />
             </div>
-            <div>
-              <label
-                htmlFor="edit-minGroupSize"
-                className="mb-1 block text-muted"
-              >
-                Min group size
-              </label>
-              <input
-                id="edit-minGroupSize"
-                name="minGroupSize"
-                type="number"
-                min={1}
-                defaultValue={event.minGroupSize ?? ""}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="edit-maxGroupSize"
-                className="mb-1 block text-muted"
-              >
-                Max group size
-              </label>
-              <input
-                id="edit-maxGroupSize"
-                name="maxGroupSize"
-                type="number"
-                min={1}
-                defaultValue={event.maxGroupSize ?? ""}
-                className={inputClass}
-              />
-            </div>
             {event.mode === "GM_GROUPS" && (
-              <div>
-                <label
-                  htmlFor="edit-gmUserId"
-                  className="mb-1 block text-muted"
-                >
-                  GameMaster
-                </label>
-                <select
-                  id="edit-gmUserId"
-                  name="gmUserId"
-                  defaultValue={event.gmUserId ?? ""}
-                  className={inputClass}
-                >
-                  {allMembers.map((member) => (
-                    <option key={member.user.id} value={member.user.id}>
-                      {member.user.displayName}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div>
+                  <label
+                    htmlFor="edit-minGroupSize"
+                    className="mb-1 block text-muted"
+                  >
+                    Min group size
+                  </label>
+                  <input
+                    id="edit-minGroupSize"
+                    name="minGroupSize"
+                    type="number"
+                    min={1}
+                    defaultValue={event.minGroupSize ?? ""}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="edit-maxGroupSize"
+                    className="mb-1 block text-muted"
+                  >
+                    Max group size
+                  </label>
+                  <input
+                    id="edit-maxGroupSize"
+                    name="maxGroupSize"
+                    type="number"
+                    min={1}
+                    defaultValue={event.maxGroupSize ?? ""}
+                    className={inputClass}
+                  />
+                </div>
+              </>
             )}
+            <div>
+              <label
+                htmlFor="edit-gmUserId"
+                className="mb-1 block text-muted"
+              >
+                {event.mode === "GM_GROUPS" ? "GameMaster" : "Organizer"}
+              </label>
+              {/* Reassignment is roster-only (D-015): the options are this
+                  event's participants, and updateEvent rejects anyone else. */}
+              <select
+                id="edit-gmUserId"
+                name="gmUserId"
+                defaultValue={event.gmUserId ?? ""}
+                className={inputClass}
+              >
+                {event.participants.map((participant) => (
+                  <option key={participant.userId} value={participant.userId}>
+                    {participant.user.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <p className="text-xs text-hint">
             Target session length is a starting point for grouping — you can
@@ -404,8 +445,9 @@ export default async function EventPage({
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
         {event.gmUser && (
           <p className="mb-3 flex items-center gap-2 text-sm">
-            Run by <span className="font-medium">{event.gmUser.displayName}</span>
-            <GmBadge />
+            Organized by{" "}
+            <span className="font-medium">{event.gmUser.displayName}</span>
+            {event.mode === "GM_GROUPS" && <GmBadge />}
           </p>
         )}
         {playerParticipants.length === 0 ? (
@@ -500,19 +542,29 @@ export default async function EventPage({
           </ul>
         )}
         {addableMembers.length > 0 && (
-          <form action={addParticipant} className="flex items-center gap-2 text-sm">
-            <input type="hidden" name="eventId" value={event.id} />
-            <select name="userId" className={inputClass}>
-              {addableMembers.map((member) => (
-                <option key={member.user.id} value={member.user.id}>
-                  {member.user.displayName}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className={smallButton}>
-              Add participant
-            </button>
-          </form>
+          <>
+            {/* D-015: the member directory is dev scaffolding, not a feature. */}
+            <p className="mb-1 text-xs text-hint">
+              Development only — in the live app people join by link or
+              invitation.
+            </p>
+            <form
+              action={addParticipant}
+              className="flex items-center gap-2 text-sm"
+            >
+              <input type="hidden" name="eventId" value={event.id} />
+              <select name="userId" className={inputClass}>
+                {addableMembers.map((member) => (
+                  <option key={member.user.id} value={member.user.id}>
+                    {member.user.displayName}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className={smallButton}>
+                Add participant
+              </button>
+            </form>
+          </>
         )}
       </section>
 
@@ -530,6 +582,7 @@ export default async function EventPage({
           <GmAvailabilityEditor
             eventId={event.id}
             initialRanges={gmAvailabilityRanges}
+            standingRanges={gmStandingRanges}
             clockFormat={user.clockFormat}
           />
         </section>
@@ -553,11 +606,21 @@ export default async function EventPage({
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-xs text-faint">
-                    {TYPE_LABELS[question.type]} · v{question.version} ·{" "}
+                    {TYPE_LABELS[question.type]} ·{" "}
                     {question._count.answers} answer
                     {question._count.answers === 1 ? "" : "s"}
                   </span>
-                  <span className="flex gap-1">
+                  <span className="flex items-center gap-1">
+                    {!question.answersRevealed && (
+                      <span className="rounded bg-badge-draft px-2 py-0.5 text-xs font-medium text-badge-draft-text">
+                        Hidden
+                      </span>
+                    )}
+                    {question.required && (
+                      <span className="rounded bg-badge-open px-2 py-0.5 text-xs font-medium text-badge-open-text">
+                        Required
+                      </span>
+                    )}
                     <form action={reorderQuestion}>
                       <input type="hidden" name="questionId" value={question.id} />
                       <input type="hidden" name="direction" value="up" />
@@ -584,71 +647,72 @@ export default async function EventPage({
                     </form>
                   </span>
                 </div>
-                <form
+                <QuestionPromptForm
                   action={updateQuestionPrompt}
-                  className="mb-2 flex items-center gap-2"
-                >
-                  <input type="hidden" name="questionId" value={question.id} />
-                  <input
-                    name="prompt"
-                    defaultValue={question.prompt}
-                    className={`flex-1 ${inputClass}`}
-                  />
-                  <button type="submit" className={smallButton}>
-                    Save prompt
-                  </button>
-                </form>
+                  questionId={question.id}
+                  initialPrompt={question.prompt}
+                  hasAnswers={question._count.answers > 0}
+                />
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <form action={setQuestionAnswersRevealed}>
+                  {/* The clicked segment carries the value; the action is a
+                      no-op when it is already the current state. */}
+                  <form
+                    action={setQuestionAnswersRevealed}
+                    className={segmentGroupClass}
+                    aria-label="Answer visibility"
+                  >
                     <input type="hidden" name="questionId" value={question.id} />
-                    <input
-                      type="hidden"
-                      name="revealed"
-                      value={question.answersRevealed ? "false" : "true"}
-                    />
                     <button
                       type="submit"
-                      aria-pressed={question.answersRevealed}
-                      title={
-                        question.answersRevealed
-                          ? "Participants can see everyone's answers to this question once results are shared. Click to hide them."
-                          : "Participants cannot see answers to this question even once results are shared. Click to show them."
-                      }
-                      className={`${smallButton} inline-flex items-center gap-1.5`}
+                      name="revealed"
+                      value="false"
+                      aria-pressed={!question.answersRevealed}
+                      title="Participants cannot see answers to this question even once results are shared."
+                      className={segmentClass(!question.answersRevealed)}
                     >
-                      <EyeIcon open={question.answersRevealed} />
-                      {question.answersRevealed
-                        ? "Answers visible to participants"
-                        : "Answers hidden from participants"}
+                      <EyeIcon open={false} />
+                      Hidden from participants
+                    </button>
+                    <button
+                      type="submit"
+                      name="revealed"
+                      value="true"
+                      aria-pressed={question.answersRevealed}
+                      title="Participants can see everyone's answers to this question once results are shared."
+                      className={segmentClass(question.answersRevealed)}
+                    >
+                      <EyeIcon open={true} />
+                      Visible to participants
                     </button>
                   </form>
-                  <form action={setQuestionRequired}>
+                  <form
+                    action={setQuestionRequired}
+                    className={segmentGroupClass}
+                    aria-label="Answer requirement"
+                  >
                     <input type="hidden" name="questionId" value={question.id} />
-                    <input
-                      type="hidden"
-                      name="required"
-                      value={question.required ? "false" : "true"}
-                    />
                     <button
                       type="submit"
-                      aria-pressed={question.required}
-                      title={
-                        question.required
-                          ? "Participants cannot submit a response without answering this question. Click to make it optional."
-                          : "Participants may leave this question unanswered. Click to make it required — they cannot submit without answering it."
-                      }
-                      className={smallButton}
+                      name="required"
+                      value="false"
+                      aria-pressed={!question.required}
+                      title="Participants may leave this question unanswered."
+                      className={segmentClass(!question.required)}
                     >
-                      {question.required ? "Required" : "Optional"}
+                      Optional
+                    </button>
+                    <button
+                      type="submit"
+                      name="required"
+                      value="true"
+                      aria-pressed={question.required}
+                      title="Participants cannot submit a response without answering this question."
+                      className={segmentClass(question.required)}
+                    >
+                      Required
                     </button>
                   </form>
                 </div>
-                {question._count.answers > 0 && (
-                  <p className="mb-2 text-xs text-faint">
-                    Answers exist — edits create version {question.version + 1}{" "}
-                    instead of changing v{question.version}.
-                  </p>
-                )}
                 {question.type !== "TEXT" && (
                   <div>
                     <ul className="mb-2 flex flex-col gap-1">

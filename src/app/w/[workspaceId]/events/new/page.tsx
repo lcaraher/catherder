@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { EventDestinationSelect } from "@/components/event-destination-select";
+import { NewEventFields } from "@/components/new-event-fields";
 import { createEvent } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -20,18 +21,11 @@ export default async function NewEventPage({
   const { error } = await searchParams;
   const user = await requireUser();
 
-  const [viewerMemberships, members] = await Promise.all([
-    prisma.workspaceMember.findMany({
-      where: { userId: user.id },
-      include: { workspace: { select: { name: true } } },
-      orderBy: { workspace: { name: "asc" } },
-    }),
-    prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      include: { user: { select: { id: true, displayName: true } } },
-      orderBy: { user: { displayName: "asc" } },
-    }),
-  ]);
+  const viewerMemberships = await prisma.workspaceMember.findMany({
+    where: { userId: user.id },
+    include: { workspace: { select: { name: true } } },
+    orderBy: { workspace: { name: "asc" } },
+  });
   // Any member may create an event here; a non-member gets a 404 so the page
   // never confirms the workspace exists.
   if (!viewerMemberships.some((m) => m.workspaceId === workspaceId)) {
@@ -72,86 +66,7 @@ export default async function NewEventPage({
           </label>
           <input id="name" name="name" required className={inputClass} />
         </div>
-        <div>
-          <label htmlFor="mode" className="mb-1 block text-muted">
-            Mode
-          </label>
-          <select id="mode" name="mode" className={inputClass}>
-            <option value="GM_GROUPS">GameMaster groups</option>
-            <option value="SINGLE_ACTIVITY">Single activity</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="gmUserId" className="mb-1 block text-muted">
-            GameMaster (GameMaster groups mode only — you, unless you pick
-            someone else)
-          </label>
-          <select
-            id="gmUserId"
-            name="gmUserId"
-            defaultValue={user.id}
-            className={inputClass}
-          >
-            {members.map((member) => (
-              <option key={member.user.id} value={member.user.id}>
-                {member.user.displayName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label
-            htmlFor="targetHours"
-            className="mb-1 block text-muted"
-          >
-            Target session length (hours)
-          </label>
-          <input
-            id="targetHours"
-            name="targetHours"
-            type="number"
-            min={0.5}
-            step={0.5}
-            required
-            className={inputClass}
-          />
-          <p className="mt-1 text-xs text-hint">
-            A starting point for grouping — you can change it later, and it
-            does not limit what participants submit.
-          </p>
-        </div>
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label
-              htmlFor="minGroupSize"
-              className="mb-1 block text-muted"
-            >
-              Min group size (optional)
-            </label>
-            <input
-              id="minGroupSize"
-              name="minGroupSize"
-              type="number"
-              min={1}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex-1">
-            <label
-              htmlFor="maxGroupSize"
-              className="mb-1 block text-muted"
-            >
-              Max group size (optional)
-            </label>
-            <input
-              id="maxGroupSize"
-              name="maxGroupSize"
-              type="number"
-              min={1}
-              className={inputClass}
-            />
-          </div>
-        </div>
+        <NewEventFields />
         <div>
           <button
             type="submit"

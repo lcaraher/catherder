@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   cellsToRanges,
   emptyWeek,
+  weekFromRanges,
   weekToCells,
   type AvailabilityRange,
   type ClockFormat,
@@ -16,9 +17,14 @@ interface Props {
   eventId: string;
   /** The GM's current EventAvailability rows, as ranges. */
   initialRanges: AvailabilityRange[];
+  /** The GM's standing week, for "Reload from my saved availability". */
+  standingRanges: AvailabilityRange[];
   /** The viewer's clock format, passed down from the page — never read here. */
   clockFormat: ClockFormat;
 }
+
+const smallButton =
+  "rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover disabled:opacity-50";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -31,12 +37,21 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 export function GmAvailabilityEditor({
   eventId,
   initialRanges,
+  standingRanges,
   clockFormat,
 }: Props) {
   const { weekRef, gridKey, gridProps, replaceWeek } =
     useWeekGrid(initialRanges);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [confirmingReload, setConfirmingReload] = useState(false);
+
+  // Browser-side only, like the respond form's button: the grid now shows
+  // the standing week, but nothing is stored until Save is clicked.
+  function reloadFromStanding() {
+    replaceWeek(weekFromRanges(standingRanges));
+    setConfirmingReload(false);
+  }
 
   async function put(week: SlotStatus[][]) {
     setStatus("saving");
@@ -71,7 +86,45 @@ export function GmAvailabilityEditor({
 
   return (
     <div>
-      <WeekGridEditor key={gridKey} {...gridProps} clockFormat={clockFormat} />
+      <WeekGridEditor
+        key={gridKey}
+        {...gridProps}
+        clockFormat={clockFormat}
+        extraControls={
+          <div className="flex flex-wrap items-center gap-2">
+            {confirmingReload ? (
+              <>
+                <span className="text-muted">
+                  Replace this grid with your saved week? Edits made here for
+                  this event will be lost.
+                </span>
+                <button
+                  type="button"
+                  onClick={reloadFromStanding}
+                  className="rounded border border-btn-danger-border px-3 py-1 text-btn-danger-text hover:bg-btn-danger-wash"
+                >
+                  Yes, replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingReload(false)}
+                  className={smallButton}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingReload(true)}
+                className={`${smallButton} text-muted`}
+              >
+                Reload from my saved availability
+              </button>
+            )}
+          </div>
+        }
+      />
       <div className="mt-4 flex items-center gap-3">
         <button
           type="button"

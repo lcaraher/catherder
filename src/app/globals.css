@@ -31,7 +31,7 @@
   /* ----- Borders ----- */
   --edge: oklch(92% 0.004 286.32); /* default borders: cards, rows, sections */
   --edge-strong: oklch(87.1% 0.006 286.286); /* stronger borders: inputs, small buttons */
-  --ring: oklch(59.6% 0.145 163.225); /* focus ring (reserved — nothing renders it yet) */
+  --ring: oklch(59.6% 0.145 163.225); /* focus ring: overlap-grid cells (selected outline and focus-visible) */
 
   /* ----- Buttons ----- */
   --btn-primary: oklch(59.6% 0.145 163.225); /* primary action background */
@@ -83,7 +83,7 @@
   /* ----- Heat ramp -----
    * One hue (the availability emerald, h≈163), varying only in lightness.
    * --heat-0 is the not-available fill; --heat-text is the count printed on
-   * a heat cell. Not rendered anywhere yet.
+   * a heat cell. Rendered by the overlap grid on the responses page.
    */
   --heat-0: var(--unavail);
   --heat-1: oklch(93% 0.1 163);
