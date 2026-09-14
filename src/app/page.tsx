@@ -17,12 +17,15 @@ function EventRow({
   workspaceName,
   status,
   note,
+  resultsHref,
 }: {
   href: string;
   name: string;
   workspaceName: string;
   status: string;
   note?: string;
+  /** Link to shared results; only passed when results are actually shared. */
+  resultsHref?: string;
 }) {
   return (
     <li>
@@ -45,6 +48,14 @@ function EventRow({
           </span>
         </span>
       </Link>
+      {resultsHref && (
+        <Link
+          href={resultsHref}
+          className="mt-1 inline-block text-xs text-hint underline"
+        >
+          See shared results
+        </Link>
+      )}
     </li>
   );
 }
@@ -73,6 +84,7 @@ export default async function Home() {
             id: true,
             name: true,
             status: true,
+            resultsRevealedAt: true,
             workspace: { select: { name: true } },
           },
         },
@@ -158,6 +170,11 @@ export default async function Home() {
                     name={p.event.name}
                     workspaceName={p.event.workspace.name}
                     status={p.event.status}
+                    resultsHref={
+                      p.event.resultsRevealedAt !== null
+                        ? `/e/${p.eventId}/responses`
+                        : undefined
+                    }
                     note={
                       canEditResponse({
                         eventStatus: p.event.status,

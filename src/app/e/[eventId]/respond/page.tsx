@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot, type AvailabilityRange } from "@/domain/availability";
-import { canEditResponse } from "@/domain/response-access";
+import {
+  canEditResponse,
+  canViewOthersResponses,
+} from "@/domain/response-access";
 import {
   buildTimeZoneOptions,
   groupTimeZoneOptions,
@@ -43,6 +47,28 @@ export default async function RespondPage({
     editUnlockedAt: participant.editUnlockedAt,
   });
 
+  // The shared-results link only exists when this viewer could actually see
+  // the responses page; the page re-checks the same rule server-side.
+  const membership = await prisma.workspaceMember.findUnique({
+    where: {
+      workspaceId_userId: { workspaceId: event.workspaceId, userId: user.id },
+    },
+  });
+  const showResultsLink = canViewOthersResponses({
+    viewerIsOrganizerOrGm:
+      event.gmUserId === user.id ||
+      membership?.role === "OWNER" ||
+      membership?.role === "ORGANIZER",
+    resultsRevealedAt: event.resultsRevealedAt,
+  });
+  const resultsLink = showResultsLink && (
+    <p className="mb-4 text-sm">
+      <Link href={`/e/${eventId}/responses`} className="underline">
+        See shared results
+      </Link>
+    </p>
+  );
+
   const toRanges = (
     rows: { weekday: number; startLocal: Date; endLocal: Date; status: "AVAILABLE" | "TENTATIVE" }[],
   ): AvailabilityRange[] =>
@@ -79,6 +105,7 @@ export default async function RespondPage({
           you need to change your response, ask the organizer to unlock it for
           you.
         </p>
+        {resultsLink}
 
         {!hasSubmission ? (
           <p className="text-sm text-hint">
@@ -182,6 +209,7 @@ export default async function RespondPage({
         times here; changes here apply to this event only), then answer the
         questions below.
       </p>
+      {resultsLink}
       <TimeZonePicker
         groups={zoneGroups}
         initialZoneId={user.timeZone}

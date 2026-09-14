@@ -368,6 +368,37 @@ export async function removeParticipant(formData: FormData) {
   revalidatePath(eventPath(event.workspaceId, eventId));
 }
 
+// Per-question participant visibility. Only takes effect once the event's
+// results are shared — canViewQuestionAnswers needs both gates open.
+export async function setQuestionAnswersRevealed(formData: FormData) {
+  const questionId = String(formData.get("questionId") ?? "");
+  const revealed = String(formData.get("revealed") ?? "") === "true";
+  const question = await prisma.question.findUnique({
+    where: { id: questionId },
+  });
+  if (!question) return;
+  const { event, user } = await requireEventManager(question.eventId);
+  if (question.answersRevealed === revealed) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.question.update({
+      where: { id: questionId },
+      data: { answersRevealed: revealed },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Question",
+        entityId: questionId,
+        action: revealed
+          ? "question_answers_revealed"
+          : "question_answers_hidden",
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, question.eventId));
+}
+
 export async function addQuestion(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const type = String(formData.get("type") ?? "") as QuestionType;

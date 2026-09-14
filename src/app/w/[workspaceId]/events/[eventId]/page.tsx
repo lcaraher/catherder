@@ -13,10 +13,12 @@ import {
   reorderQuestion,
   setEventStatus,
   setParticipantEditLock,
+  setQuestionAnswersRevealed,
   setResultsRevealed,
   updateEvent,
   updateQuestionPrompt,
 } from "../actions";
+import { GmBadge } from "@/components/gm-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +45,24 @@ const smallButton =
 const inputClass =
   "rounded border border-edge-strong bg-field px-2 py-1 text-sm";
 
-function GmBadge() {
+// Line-drawn eye / crossed-out eye for the per-question answer visibility
+// toggle. Stroke follows the button's text colour; no literal colours.
+function EyeIcon({ open }: { open: boolean }) {
   return (
-    <span className="rounded bg-badge-gm px-1.5 py-0.5 text-xs font-semibold text-badge-gm-text">
-      GM
-    </span>
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-3.5 w-3.5"
+      aria-hidden="true"
+    >
+      <path d="M2 8s2.5-4.5 6-4.5S14 8 14 8s-2.5 4.5-6 4.5S2 8 2 8z" />
+      <circle cx="8" cy="8" r="2" />
+      {!open && <line x1="3" y1="13.5" x2="13" y2="2.5" />}
+    </svg>
   );
 }
 
@@ -180,6 +195,12 @@ export default async function EventPage({
             </button>
           </form>
         )}
+        <Link
+          href={`/e/${event.id}/responses`}
+          className="rounded border border-edge-strong px-3 py-1.5 text-sm hover:bg-btn-secondary-hover"
+        >
+          View responses
+        </Link>
         {event.status === "OPEN" && (
           <span className="text-sm text-hint">
             Participants respond at{" "}
@@ -473,7 +494,12 @@ export default async function EventPage({
         {event.questions.length === 0 ? (
           <p className="mb-4 text-sm text-hint">No questions yet.</p>
         ) : (
-          <ul className="mb-6 flex flex-col gap-3">
+          <>
+            <p className="mb-3 text-xs text-hint">
+              Answer visibility toggles only take effect once results are
+              shared — until then participants see no answers at all.
+            </p>
+            <ul className="mb-6 flex flex-col gap-3">
             {event.questions.map((question, index) => (
               <li
                 key={question.id}
@@ -526,6 +552,29 @@ export default async function EventPage({
                     Save prompt
                   </button>
                 </form>
+                <form action={setQuestionAnswersRevealed} className="mb-2">
+                  <input type="hidden" name="questionId" value={question.id} />
+                  <input
+                    type="hidden"
+                    name="revealed"
+                    value={question.answersRevealed ? "false" : "true"}
+                  />
+                  <button
+                    type="submit"
+                    aria-pressed={question.answersRevealed}
+                    title={
+                      question.answersRevealed
+                        ? "Participants can see everyone's answers to this question once results are shared. Click to hide them."
+                        : "Participants cannot see answers to this question even once results are shared. Click to show them."
+                    }
+                    className={`${smallButton} inline-flex items-center gap-1.5`}
+                  >
+                    <EyeIcon open={question.answersRevealed} />
+                    {question.answersRevealed
+                      ? "Answers visible to participants"
+                      : "Answers hidden from participants"}
+                  </button>
+                </form>
                 {question._count.answers > 0 && (
                   <p className="mb-2 text-xs text-faint">
                     Answers exist — edits create version {question.version + 1}{" "}
@@ -575,7 +624,8 @@ export default async function EventPage({
                 )}
               </li>
             ))}
-          </ul>
+            </ul>
+          </>
         )}
 
         <h3 className="mb-2 text-sm font-medium">Add a question</h3>

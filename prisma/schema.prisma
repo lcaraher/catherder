@@ -194,6 +194,9 @@ model Question {
   prompt       String
   version      Int
   displayOrder Int
+  // Per-question participant visibility: even once event results are shared,
+  // a question's answers stay organizer/GM-only until this is true.
+  answersRevealed Boolean @default(false)
 
   event   Event            @relation(fields: [eventId], references: [id])
   options QuestionOption[]

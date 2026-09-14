@@ -44,3 +44,23 @@ export function canViewOthersResponses({
 export function canViewOwnResponse(): boolean {
   return true;
 }
+
+/**
+ * Whether a viewer may see everyone's answers to one question. Organizers
+ * and the event's GameMaster always can. A plain participant needs both
+ * gates open: the event's results must be revealed (canViewOthersResponses
+ * gates the whole responses page) and the organizer must have revealed this
+ * particular question's answers.
+ */
+export function canViewQuestionAnswers({
+  viewerIsOrganizerOrGm,
+  resultsRevealedAt,
+  answersRevealed,
+}: {
+  viewerIsOrganizerOrGm: boolean;
+  resultsRevealedAt: Date | null;
+  answersRevealed: boolean;
+}): boolean {
+  if (viewerIsOrganizerOrGm) return true;
+  return resultsRevealedAt !== null && answersRevealed;
+}

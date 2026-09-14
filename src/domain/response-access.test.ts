@@ -4,6 +4,7 @@ import {
   canEditResponse,
   canViewOthersResponses,
   canViewOwnResponse,
+  canViewQuestionAnswers,
   type EventStatus,
 } from "./response-access.ts";
 
@@ -80,4 +81,39 @@ describe("canViewOwnResponse", () => {
   it("is always true", () => {
     assert.equal(canViewOwnResponse(), true);
   });
+});
+
+describe("canViewQuestionAnswers", () => {
+  // Every combination of viewer × event reveal × question reveal. An
+  // organizer/GM always sees answers; a participant needs both gates open.
+  const cases: [boolean, Date | null, boolean, boolean][] = [
+    [true, null, false, true],
+    [true, null, true, true],
+    [true, REVEALED, false, true],
+    [true, REVEALED, true, true],
+    [false, null, false, false],
+    [false, null, true, false],
+    [false, REVEALED, false, false],
+    [false, REVEALED, true, true],
+  ];
+
+  for (const [
+    viewerIsOrganizerOrGm,
+    resultsRevealedAt,
+    answersRevealed,
+    expected,
+  ] of cases) {
+    it(`${viewerIsOrganizerOrGm ? "organizer/GM" : "participant"}, results ${
+      resultsRevealedAt ? "revealed" : "hidden"
+    }, question ${answersRevealed ? "revealed" : "hidden"} -> ${expected}`, () => {
+      assert.equal(
+        canViewQuestionAnswers({
+          viewerIsOrganizerOrGm,
+          resultsRevealedAt,
+          answersRevealed,
+        }),
+        expected,
+      );
+    });
+  }
 });
