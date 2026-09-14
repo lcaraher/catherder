@@ -220,6 +220,7 @@ export default async function RespondPage({
       <TimeZonePicker
         groups={zoneGroups}
         initialZoneId={user.timeZone}
+        initialDismissedZone={user.dismissedDeviceZone}
         hint="Every hour in the grid below is read in this zone. It's your personal setting — if it isn't where you actually are, fix it before filling in your week."
       />
       <ClockFormatPicker initialFormat={user.clockFormat} />

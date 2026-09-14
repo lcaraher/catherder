@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "node prisma/seed.ts",
+    "db:seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON prisma/seed.mts",
     "test": "node --test \"src/**/*.test.ts\""
   },
   "dependencies": {

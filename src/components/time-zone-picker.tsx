@@ -11,6 +11,12 @@ interface Props {
   /** Server-prepared groups (Common first, then regions). */
   groups: TimeZoneGroup[];
   initialZoneId: string;
+  /**
+   * The device zone the user chose to ignore earlier (User.
+   * dismissedDeviceZone); the mismatch banner stays hidden while the
+   * detected zone equals it.
+   */
+  initialDismissedZone: string | null;
   /** One line under the zone, telling the reader why it matters here. */
   hint?: string;
 }
@@ -33,13 +39,18 @@ const getServerDeviceZone = () => null;
  * sibling components (like a half-painted week grid) are never re-rendered
  * or reset by a zone change.
  */
-export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
+export function TimeZonePicker({
+  groups,
+  initialZoneId,
+  initialDismissedZone,
+  hint,
+}: Props) {
   const [zoneId, setZoneId] = useState(initialZoneId);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const [dismissedZone, setDismissedZone] = useState(initialDismissedZone);
   const deviceZone = useSyncExternalStore(
     subscribeNever,
     getDeviceZone,
@@ -74,6 +85,9 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
         throw new Error(body?.error ?? `save failed (${response.status})`);
       }
       setZoneId(id);
+      // The server clears the stored dismissal with any zone change; mirror
+      // that so the banner re-evaluates against the new zone right away.
+      setDismissedZone(null);
       setOpen(false);
       setQuery("");
     } catch (err) {
@@ -82,6 +96,22 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
       );
     }
     setSaving(false);
+  }
+
+  // "Keep <profile zone>": remember the detected zone server-side so the
+  // banner stays gone on future loads, until the device zone changes again.
+  async function dismissDeviceZone(detected: string) {
+    setDismissedZone(detected);
+    try {
+      await fetch("/api/me/dismissed-device-zone", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ deviceZone: detected }),
+      });
+    } catch {
+      // The banner is already hidden for this visit; if the save failed it
+      // simply reappears on the next page load.
+    }
   }
 
   const visibleGroups = groups
@@ -94,7 +124,7 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
     .filter((group) => group.options.length > 0);
 
   const showSuggestion =
-    deviceZone !== null && deviceZone !== zoneId && !suggestionDismissed;
+    deviceZone !== null && deviceZone !== zoneId && deviceZone !== dismissedZone;
 
   return (
     <div className="mb-6 rounded border border-edge p-3 text-sm">
@@ -133,7 +163,7 @@ export function TimeZonePicker({ groups, initialZoneId, hint }: Props) {
           </button>
           <button
             type="button"
-            onClick={() => setSuggestionDismissed(true)}
+            onClick={() => dismissDeviceZone(deviceZone)}
             className={smallButton}
           >
             Keep {cityOf(zoneId)}

@@ -36,6 +36,7 @@ export default async function AvailabilityPage() {
       <TimeZonePicker
         groups={zoneGroups}
         initialZoneId={user.timeZone}
+        initialDismissedZone={user.dismissedDeviceZone}
         hint="Hours in the grid below are based on your personal time. Please ensure the correct time zone for you is set so that the schedule is interpreted to the event organizer's own time zone correctly."
       />
       <ClockFormatPicker initialFormat={user.clockFormat} />

@@ -82,7 +82,8 @@ export function OverlapGridView({
   gmHasAvailability,
   clockFormat,
 }: Props) {
-  const [granularity, setGranularity] = useState<Granularity>("half");
+  // Hour mode everywhere by default, matching the editors.
+  const [granularity, setGranularity] = useState<Granularity>("hour");
   const [gmOnly, setGmOnly] = useState(false);
   const [selected, setSelected] = useState<{
     weekday: number;
@@ -103,6 +104,10 @@ export function OverlapGridView({
     [people],
   );
   const gm = gmUserId === null ? null : (personById.get(gmUserId) ?? null);
+  const players = useMemo(
+    () => people.filter((person) => !person.isGameMaster),
+    [people],
+  );
 
   const rowSpan = (row: number): string =>
     `${formatSlotLabel(row * slotsPerRow, clockFormat)}–${formatSlotLabel((row + 1) * slotsPerRow, clockFormat)}`;
@@ -216,7 +221,7 @@ export function OverlapGridView({
         </ul>
       )}
 
-      <div className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line">
+      <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line">
         <div className="bg-surface-card" />
         {WEEKDAY_LABELS.map((label) => (
           <div
@@ -231,7 +236,7 @@ export function OverlapGridView({
           return (
             <div key={row} className="contents">
               <div
-                className={`flex items-center justify-end bg-surface-card pr-2 text-[10px] text-grid-label ${
+                className={`flex items-center justify-end whitespace-nowrap bg-surface-card pr-2 text-[10px] text-grid-label ${
                   granularity === "half" ? "h-4" : "h-6"
                 }`}
               >
@@ -277,7 +282,7 @@ export function OverlapGridView({
                     }
                     aria-pressed={isSelected}
                     aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, ${availableCount} available, ${tentativeCount} tentative${gmLabel}`}
-                    className={`flex items-center justify-center text-[10px] leading-none text-heat-text ${heat} ${gmMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
+                    className={`flex cursor-pointer items-center justify-center text-[10px] leading-none text-heat-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${heat} ${gmMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
                   >
                     {availableCount === 0 && tentativeCount === 0
                       ? ""
@@ -313,6 +318,26 @@ export function OverlapGridView({
                 selectedCell.players.tentative,
                 selectedCell.gm === "TENTATIVE" ? "TENTATIVE" : undefined,
               )}
+            </div>
+            <div>
+              {(() => {
+                // Every player who is in neither list for this cell.
+                const painted = new Set([
+                  ...selectedCell.players.available,
+                  ...selectedCell.players.tentative,
+                ]);
+                const notAvailable = players
+                  .filter((person) => !painted.has(person.userId))
+                  .map((person) => person.userId);
+                return (
+                  <>
+                    <p className="mb-1 text-xs text-muted">
+                      Not available ({notAvailable.length})
+                    </p>
+                    {renderNames(notAvailable)}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

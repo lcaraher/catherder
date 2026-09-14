@@ -73,19 +73,9 @@ export function WeekGridEditor({
     Array(WEEKDAY_COUNT).fill(false),
   );
   const [confirmingClear, setConfirmingClear] = useState(false);
-  // Server and client both render half-hour mode (no hydration mismatch);
-  // after mount, narrow viewports fall back to hour mode unless the user
-  // has already chosen a granularity themselves.
-  const [granularity, setGranularity] = useState<Granularity>("half");
-  const toggleTouched = useRef(false);
-  useEffect(() => {
-    if (
-      !toggleTouched.current &&
-      window.matchMedia("(max-width: 640px)").matches
-    ) {
-      setGranularity("hour");
-    }
-  }, []);
+  // Hour mode everywhere by default — desktop and mobile alike; Half hour
+  // is the opt-in fine-grained view.
+  const [granularity, setGranularity] = useState<Granularity>("hour");
 
   // Latest-ref pattern so the change-mirror effect never re-fires just
   // because the parent re-rendered with a new callback identity.
@@ -255,10 +245,7 @@ export function WeekGridEditor({
             type="button"
             role="radio"
             aria-checked={granularity === value}
-            onClick={() => {
-              toggleTouched.current = true;
-              setGranularity(value);
-            }}
+            onClick={() => setGranularity(value)}
             className={`px-3 py-1 ${
               granularity === value
                 ? "bg-toggle-active text-toggle-active-text"
@@ -395,7 +382,7 @@ export function WeekGridEditor({
       </div>
 
       <div
-        className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line"
+        className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line"
         style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -420,7 +407,7 @@ export function WeekGridEditor({
           return (
             <div key={row} className="contents">
               <div
-                className={`flex items-center justify-end bg-surface-card pr-2 text-[10px] text-grid-label ${
+                className={`flex items-center justify-end whitespace-nowrap bg-surface-card pr-2 text-[10px] text-grid-label ${
                   granularity === "half" ? "h-4" : "h-6"
                 }`}
               >

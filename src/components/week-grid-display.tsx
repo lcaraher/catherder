@@ -66,7 +66,7 @@ export function WeekGridDisplay({
         </li>
       </ul>
 
-      <div className="grid select-none grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line">
+      <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line">
         <div className="bg-surface-card" />
         {WEEKDAY_LABELS.map((label) => (
           <div
@@ -78,7 +78,7 @@ export function WeekGridDisplay({
         ))}
         {Array.from({ length: SLOTS_PER_DAY }, (_, slot) => (
           <div key={slot} className="contents">
-            <div className="flex h-4 items-center justify-end bg-surface-card pr-2 text-[10px] text-grid-label">
+            <div className="flex h-4 items-center justify-end whitespace-nowrap bg-surface-card pr-2 text-[10px] text-grid-label">
               {slot % 2 === 0 ? formatSlotLabel(slot, clockFormat) : ""}
             </div>
             {WEEKDAY_LABELS.map((_, weekday) => (

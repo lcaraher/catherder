@@ -9,19 +9,21 @@ const STATUS_STYLES: Record<string, string> = {
   CLOSED: "bg-badge-closed text-badge-closed-text",
 };
 
-// One inbox row: the event, which workspace it belongs to, its status, and
-// optionally the viewer's own state. Never anything about other people.
+// One inbox row: the event, who runs it, its status, and optionally the
+// viewer's own state. Never anything about other people. (D-011: the word
+// "workspace" and its name stay out of the UI.)
 function EventRow({
   href,
   name,
-  workspaceName,
+  organizerName,
   status,
   note,
   resultsHref,
 }: {
   href: string;
   name: string;
-  workspaceName: string;
+  /** The event's GameMaster; events without one show no second line. */
+  organizerName?: string;
   status: string;
   note?: string;
   /** Link to shared results; only passed when results are actually shared. */
@@ -35,9 +37,11 @@ function EventRow({
       >
         <span className="min-w-0">
           <span className="block truncate font-medium">{name}</span>
-          <span className="block truncate text-xs text-hint">
-            {workspaceName}
-          </span>
+          {organizerName && (
+            <span className="block truncate text-xs text-hint">
+              Organized by {organizerName}
+            </span>
+          )}
         </span>
         <span className="flex shrink-0 items-center gap-3 text-sm text-hint">
           {note && <span className="text-xs">{note}</span>}
@@ -85,7 +89,7 @@ export default async function Home() {
             name: true,
             status: true,
             resultsRevealedAt: true,
-            workspace: { select: { name: true } },
+            gmUser: { select: { displayName: true } },
           },
         },
       },
@@ -98,7 +102,7 @@ export default async function Home() {
         name: true,
         status: true,
         workspaceId: true,
-        workspace: { select: { name: true } },
+        gmUser: { select: { displayName: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -157,7 +161,7 @@ export default async function Home() {
                     key={p.eventId}
                     href={`/e/${p.eventId}/respond`}
                     name={p.event.name}
-                    workspaceName={p.event.workspace.name}
+                    organizerName={p.event.gmUser?.displayName}
                     status={p.event.status}
                   />
                 ))}
@@ -174,7 +178,7 @@ export default async function Home() {
                     key={p.eventId}
                     href={`/e/${p.eventId}/respond`}
                     name={p.event.name}
-                    workspaceName={p.event.workspace.name}
+                    organizerName={p.event.gmUser?.displayName}
                     status={p.event.status}
                     resultsHref={
                       p.event.resultsRevealedAt !== null
@@ -204,7 +208,7 @@ export default async function Home() {
                     key={event.id}
                     href={`/w/${event.workspaceId}/events/${event.id}`}
                     name={event.name}
-                    workspaceName={event.workspace.name}
+                    organizerName={event.gmUser?.displayName}
                     status={event.status}
                   />
                 ))}

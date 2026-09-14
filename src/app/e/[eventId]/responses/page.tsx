@@ -71,7 +71,7 @@ export default async function ResponsesPage({
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <h1 className="mb-4 text-2xl font-semibold">{event.name}</h1>
-        <p className="text-sm text-hint">
+        <p className="rounded border border-notice-warn-border bg-notice-warn px-3 py-2 text-sm text-notice-warn-text">
           Results have not been shared yet. The organizer will share them when
           response collection is done.
         </p>

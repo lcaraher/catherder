@@ -62,6 +62,10 @@ model User {
   // How this user reads times everywhere: 7:30 PM vs 19:30. Display only —
   // storage stays slot-based local wall-clock regardless.
   clockFormat ClockFormat @default(TWELVE_HOUR)
+  // The device zone the user chose to ignore ("Keep <profile zone>"): the
+  // mismatch banner stays hidden while the detected zone equals this. Cleared
+  // whenever the profile zone changes.
+  dismissedDeviceZone String?
   // Free-text note shown alongside standing availability. Sensitive: never log.
   availabilityNote String?
   createdAt        DateTime @default(now())

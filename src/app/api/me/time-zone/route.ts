@@ -29,7 +29,12 @@ export async function POST(request: Request) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: user.id }, data: { timeZone } });
+    // Any zone change invalidates an earlier "keep my profile zone" choice:
+    // the mismatch banner should re-evaluate against the new zone.
+    await tx.user.update({
+      where: { id: user.id },
+      data: { timeZone, dismissedDeviceZone: null },
+    });
     // Opaque ids only — the audit row records that the zone changed, not
     // what it changed to.
     await tx.auditEvent.create({

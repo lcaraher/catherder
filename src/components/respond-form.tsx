@@ -255,6 +255,16 @@ export function RespondForm({
                 {option.label}
               </label>
             ))}
+            {/* A radio cannot be unticked, so clearing needs its own control. */}
+            {answer.optionIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => update(question.id, { optionIds: [] })}
+                className="self-start text-xs text-hint hover:underline"
+              >
+                Clear answer
+              </button>
+            )}
           </div>
         )}
 
@@ -333,6 +343,15 @@ export function RespondForm({
                 </select>
               </label>
             ))}
+            {Object.keys(answer.ranks).length > 0 && (
+              <button
+                type="button"
+                onClick={() => update(question.id, { ranks: {} })}
+                className="self-start text-xs text-hint hover:underline"
+              >
+                Clear answer
+              </button>
+            )}
           </div>
         )}
       </li>
