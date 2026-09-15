@@ -1,14 +1,10 @@
-// Pure response-visibility and edit-lock rules: no framework, adapter, or
-// I/O imports. Callers (pages, route handlers, server actions) must all go
-// through these functions so the policy cannot drift between them.
+// Pure response-visibility and edit-lock rules.
 
 export type EventStatus = "DRAFT" | "OPEN" | "CLOSED";
 
 /**
- * Whether a participant may (re)submit their response. Editing follows the
- * event lifecycle only — never whether results are shared. An OPEN event is
- * always editable; a CLOSED event only with an organizer-granted unlock; a
- * DRAFT event never, unlock or not.
+ * Whether a participant may (re)submit: OPEN always, CLOSED only with an
+ * unlock, DRAFT never. Sharing results never affects editing.
  */
 export function canEditResponse({
   eventStatus,
@@ -23,44 +19,37 @@ export function canEditResponse({
 }
 
 /**
- * Whether a viewer may see other participants' responses, the overlap, and
- * the results. Organizers and the event's GameMaster always can; a plain
- * participant only once the organizer has revealed results.
+ * Managers always see others' responses, the overlap, and the results; a
+ * plain participant only once results are revealed.
  */
 export function canViewOthersResponses({
-  viewerIsOrganizerOrGm,
+  viewerIsManager,
   resultsRevealedAt,
 }: {
-  viewerIsOrganizerOrGm: boolean;
+  viewerIsManager: boolean;
   resultsRevealedAt: Date | null;
 }): boolean {
-  return viewerIsOrganizerOrGm || resultsRevealedAt !== null;
+  return viewerIsManager || resultsRevealedAt !== null;
 }
 
-/**
- * A participant may always view their own submission, whatever the event
- * status or reveal state.
- */
+/** A participant may always view their own submission. */
 export function canViewOwnResponse(): boolean {
   return true;
 }
 
 /**
- * Whether a viewer may see everyone's answers to one question. Organizers
- * and the event's GameMaster always can. A plain participant needs both
- * gates open: the event's results must be revealed (canViewOthersResponses
- * gates the whole responses page) and the organizer must have revealed this
- * particular question's answers.
+ * Managers always see a question's answers; a participant needs both the
+ * event's results and this question's answers revealed.
  */
 export function canViewQuestionAnswers({
-  viewerIsOrganizerOrGm,
+  viewerIsManager,
   resultsRevealedAt,
   answersRevealed,
 }: {
-  viewerIsOrganizerOrGm: boolean;
+  viewerIsManager: boolean;
   resultsRevealedAt: Date | null;
   answersRevealed: boolean;
 }): boolean {
-  if (viewerIsOrganizerOrGm) return true;
+  if (viewerIsManager) return true;
   return resultsRevealedAt !== null && answersRevealed;
 }

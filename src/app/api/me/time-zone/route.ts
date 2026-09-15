@@ -4,10 +4,8 @@ import { prisma } from "@/adapters/db/client";
 
 export const dynamic = "force-dynamic";
 
-// Changes the caller's time zone and nothing else. Availability is stored as
-// local wall-clock plus this zone, so a zone change reinterprets the stored
-// times — StandingAvailability and EventAvailability rows are deliberately
-// left untouched, never shifted.
+// Changes the caller's time zone only; stored availability rows are local
+// wall-clock and are never shifted.
 export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) {
@@ -29,8 +27,7 @@ export async function POST(request: Request) {
   }
 
   await prisma.$transaction(async (tx) => {
-    // Any zone change invalidates an earlier "keep my profile zone" choice:
-    // the mismatch banner should re-evaluate against the new zone.
+    // A zone change clears the stored device-zone dismissal.
     await tx.user.update({
       where: { id: user.id },
       data: { timeZone, dismissedDeviceZone: null },

@@ -15,9 +15,9 @@ import { useWeekGrid } from "@/components/use-week-grid";
 
 interface Props {
   eventId: string;
-  /** The GM's current EventAvailability rows, as ranges. */
+  /** The organizer's current EventAvailability rows, as ranges. */
   initialRanges: AvailabilityRange[];
-  /** The GM's standing week, for "Reload from my saved availability". */
+  /** The organizer's standing week, for "Reload from my saved availability". */
   standingRanges: AvailabilityRange[];
   /** The viewer's clock format, passed down from the page — never read here. */
   clockFormat: ClockFormat;
@@ -29,12 +29,10 @@ const smallButton =
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 /**
- * The GM's week editor for one event: the same grid handling as the respond
- * form, but saving writes only the GM's EventAvailability rows — no answers,
- * no response status, no submit language. Clear removes the stored rows so
- * the overlap shows the players on their own.
+ * Week editor for the organizer's own event availability: Save writes only
+ * their EventAvailability rows; Clear removes them.
  */
-export function GmAvailabilityEditor({
+export function OrganizerAvailabilityEditor({
   eventId,
   initialRanges,
   standingRanges,
@@ -57,7 +55,7 @@ export function GmAvailabilityEditor({
     setStatus("saving");
     setErrorMessage("");
     try {
-      const response = await fetch(`/api/events/${eventId}/gm-availability`, {
+      const response = await fetch(`/api/events/${eventId}/organizer-availability`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ranges: cellsToRanges(weekToCells(week)) }),

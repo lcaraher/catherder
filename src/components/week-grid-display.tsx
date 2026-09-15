@@ -35,9 +35,8 @@ function bandClass(status: SlotStatus): string {
 }
 
 /**
- * Non-interactive weekly availability grid: renders ranges exactly as the
- * editor would show them, but with no pointer handlers or edit controls.
- * A server component — displaying a locked response ships no client JS.
+ * Non-interactive weekly grid rendering ranges as the editor shows them.
+ * A server component — ships no client JS.
  */
 export function WeekGridDisplay({
   ranges,

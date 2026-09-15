@@ -4,9 +4,8 @@ import {
   type AvailabilityRange,
 } from "../src/domain/availability.ts";
 
-// Local development seed, run via `npm run db:seed` (Node strips the types
-// natively; no build step). Upserts keyed on unique fields so re-running is
-// safe. Logs counts and opaque IDs only — never email addresses.
+// Local development seed, run via `npm run db:seed`. Upserts keyed on
+// unique fields so re-running is safe; logs counts and opaque IDs only.
 const prisma = new PrismaClient();
 
 // Weekday convention matches the schema: 0 = Monday … 6 = Sunday.
@@ -23,11 +22,8 @@ const range = (
   status: "AVAILABLE" | "TENTATIVE" = "AVAILABLE",
 ): AvailabilityRange => ({ weekday, startSlot, endSlot, status });
 
-// The weeks are designed so that, read in New York time:
-//  - Wednesday evening (19:00–21:00 NY) has all three players AND the GM;
-//  - Saturday afternoon (14:00–17:00 NY) has Pat and Quinn but not the GM;
-//  - Sunday has Robin tentative only (London 14:00–17:00 = NY morning);
-//  - Quinn's Friday block (Chicago 22:00–24:00) crosses midnight in NY terms.
+// In NY time these weeks give: Wed evening everyone, Sat afternoon without
+// Greta, Sun Robin-tentative only, and a Quinn block crossing NY midnight.
 const USERS: {
   displayName: string;
   email: string;
@@ -36,7 +32,7 @@ const USERS: {
 }[] = [
   {
     displayName: "Greta Master",
-    email: "gm@example.com",
+    email: "organizer@example.com",
     timeZone: "America/New_York",
     standing: [range(WED, 36, 44)],
   },
@@ -65,7 +61,7 @@ const USERS: {
 ];
 
 async function main() {
-  const [gm, ...players] = await Promise.all(
+  const [organizer, ...players] = await Promise.all(
     USERS.map((u) =>
       prisma.user.upsert({
         where: { email: u.email },
@@ -81,7 +77,7 @@ async function main() {
     ),
   );
   const userByEmail = new Map(
-    [gm, ...players].map((user) => [user.email, user]),
+    [organizer, ...players].map((user) => [user.email, user]),
   );
 
   // Standing availability: created only when the user has none, so hand
@@ -107,16 +103,16 @@ async function main() {
 
   const workspaceName = "Seed Workspace";
   const existingWorkspace = await prisma.workspace.findFirst({
-    where: { name: workspaceName, ownerUserId: gm.id },
+    where: { name: workspaceName, ownerUserId: organizer.id },
   });
   const workspace =
     existingWorkspace ??
     (await prisma.workspace.create({
-      data: { name: workspaceName, ownerUserId: gm.id },
+      data: { name: workspaceName, ownerUserId: organizer.id },
     }));
 
   await Promise.all(
-    [gm, ...players].map((user, i) =>
+    [organizer, ...players].map((user, i) =>
       prisma.workspaceMember.upsert({
         where: {
           workspaceId_userId: { workspaceId: workspace.id, userId: user.id },
@@ -142,24 +138,28 @@ async function main() {
       data: {
         workspaceId: workspace.id,
         name: eventName,
-        mode: "GM_GROUPS",
-        gmUserId: gm.id,
+        mode: "MULTI_GROUP",
+        organizerUserId: organizer.id,
+        organizerParticipates: false,
         requiredSlots: 6,
         status: "DRAFT",
       },
     }));
 
-  // Pat, Quinn and Robin have submitted; Greta's row is storage only — her
-  // status is never displayed anywhere.
+  // Pat, Quinn and Robin have submitted; Greta does not participate, so
+  // her ORGANIZER row is storage only — its status is never displayed.
   await Promise.all(
-    [gm, ...players].map((user, i) =>
+    [organizer, ...players].map((user, i) =>
       prisma.eventParticipant.upsert({
         where: { eventId_userId: { eventId: event.id, userId: user.id } },
-        update: i === 0 ? {} : { responseStatus: "SUBMITTED" },
+        update:
+          i === 0
+            ? { role: "ORGANIZER" }
+            : { responseStatus: "SUBMITTED" },
         create: {
           eventId: event.id,
           userId: user.id,
-          role: i === 0 ? "GAMEMASTER" : "PLAYER",
+          role: i === 0 ? "ORGANIZER" : "PLAYER",
           responseStatus: i === 0 ? "INVITED" : "SUBMITTED",
         },
       }),
@@ -167,7 +167,7 @@ async function main() {
   );
 
   // Event availability copied from the standing weeks — including Greta's,
-  // so the GM mark and the GM-only filter have data to show.
+  // so the organizer mark and the organizer-only filter have data to show.
   for (const u of USERS) {
     const user = userByEmail.get(u.email)!;
     const existing = await prisma.eventAvailability.count({
@@ -213,7 +213,7 @@ async function main() {
       data: {
         eventId: event.id,
         type: "TEXT",
-        prompt: "Anything the GM should know?",
+        prompt: "Anything the organizer should know?",
         version: 1,
         displayOrder: 1,
       },
@@ -228,7 +228,7 @@ async function main() {
     (q) => q.prompt === "Preferred system?",
   );
   const textQuestion = questions.find(
-    (q) => q.prompt === "Anything the GM should know?",
+    (q) => q.prompt === "Anything the organizer should know?",
   );
 
   const [pat, quinn, robin] = players;
@@ -291,8 +291,8 @@ async function main() {
   }
 
   console.log(
-    `db:seed: workspace ${workspace.id}, event ${event.id}, 4 users (1 GM), ` +
-      `${questions.length} questions`,
+    `db:seed: workspace ${workspace.id}, event ${event.id}, ` +
+      `4 users (1 organizer), ${questions.length} questions`,
   );
 }
 

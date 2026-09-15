@@ -32,9 +32,8 @@ export interface AvailabilityRange {
 }
 
 /**
- * Merges cells into per-weekday ranges. Only contiguous slots with the same
- * status merge; an AVAILABLE block next to a TENTATIVE block stays two
- * ranges. For duplicate slots the last status wins.
+ * Merges cells into per-weekday ranges; only contiguous same-status slots
+ * merge. For duplicate slots the last status wins.
  */
 export function cellsToRanges(
   cells: Iterable<AvailabilityCell>,
@@ -87,9 +86,8 @@ export function rangesToCells(ranges: AvailabilityRange[]): AvailabilityCell[] {
 }
 
 /**
- * Validates untrusted input as a list of availability ranges. Throws with a
- * human-readable message on the first problem found. Overlaps within a
- * weekday are rejected regardless of status: a slot cannot hold two states.
+ * Validates untrusted input as availability ranges; throws on the first
+ * problem. Overlaps within a weekday are rejected regardless of status.
  */
 export function validateRanges(value: unknown): AvailabilityRange[] {
   if (!Array.isArray(value)) {
@@ -146,7 +144,7 @@ export function validateRanges(value: unknown): AvailabilityRange[] {
 }
 
 // ---------------------------------------------------------------------------
-// Cell state transitions (shared by the grid UI, React-free so it's testable).
+// Cell state transitions shared by the grid UI.
 
 /** A slot's state in the editor; null means not available / unpainted. */
 export type SlotStatus = AvailabilityStatus | null;
@@ -159,10 +157,8 @@ export function cycleStatus(status: SlotStatus): SlotStatus {
 }
 
 /**
- * Hour-mode collapse rule: an hour cell shows one state when both of its
- * half-hour slots agree, and "MIXED" otherwise. Clicking treats MIXED as
- * empty, so cycleStatus(collapse === "MIXED" ? null : collapse) makes the
- * next click set both slots to AVAILABLE.
+ * Hour-mode collapse: one state when both half-hour slots agree, otherwise
+ * "MIXED". Cycling treats MIXED as empty, so the next click sets AVAILABLE.
  */
 export function collapseHourCell(
   first: SlotStatus,
@@ -258,9 +254,8 @@ export function clearWeek(
 }
 
 /**
- * Returns a new week where each target day's slots are replaced entirely by
- * the source day's slots (statuses included) — no merging. The source day is
- * never treated as a target.
+ * Replaces each target day's slots entirely with the source day's — no
+ * merging. The source day is never treated as a target.
  */
 export function copyDaySlots(
   week: readonly (readonly SlotStatus[])[],
@@ -288,10 +283,8 @@ export function slotLabel(slot: number): string {
 export type ClockFormat = "TWELVE_HOUR" | "TWENTY_FOUR_HOUR";
 
 /**
- * Slot boundary (0–48) as a label in the user's clock format. 24-hour is
- * slotLabel unchanged ("19:30", and "24:00" for slot 48); 12-hour reads
- * "7:30 PM", with both midnight boundaries (slot 0 and slot 48) as
- * "12:00 AM".
+ * Slot boundary (0–48) in the given clock format: 24-hour matches slotLabel
+ * ("24:00" for slot 48); 12-hour reads "7:30 PM", slots 0 and 48 "12:00 AM".
  */
 export function formatSlotLabel(slot: number, clockFormat: ClockFormat): string {
   if (clockFormat === "TWENTY_FOUR_HOUR") return slotLabel(slot);
@@ -302,10 +295,8 @@ export function formatSlotLabel(slot: number, clockFormat: ClockFormat): string 
   return `${hour12}:${minutes} ${suffix}`;
 }
 
-// SQL TIME columns cannot hold 24:00, so a range ending at midnight (slot 48)
-// is stored with endLocal 00:00. Because startSlot < endSlot always holds, an
-// end time of 00:00 can only mean midnight-at-end-of-day, so the mapping is
-// unambiguous.
+// TIME columns cannot hold 24:00: a range ending at slot 48 stores endLocal
+// 00:00. startSlot < endSlot always holds, so the mapping is unambiguous.
 
 /** Slot boundary (0–48) to the Date value Prisma stores in a @db.Time column. */
 export function slotToDbTime(slot: number): Date {

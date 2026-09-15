@@ -31,13 +31,15 @@ export default async function WorkspacePage({
   const viewerIsWorkspaceOrganizer =
     membership.role === "OWNER" || membership.role === "ORGANIZER";
 
-  // A row leads wherever the viewer can act: managers (organizers, or the
-  // event's GameMaster whatever their membership role) go to the event page,
+  // Rows lead where the viewer can act: managers to the event page,
   // everyone else to their own respond page.
-  const rowHref = (event: { id: string; gmUserId: string | null }): string =>
+  const rowHref = (event: {
+    id: string;
+    organizerUserId: string | null;
+  }): string =>
     canManageEvent({
       viewerUserId: user.id,
-      gmUserId: event.gmUserId,
+      organizerUserId: event.organizerUserId,
       viewerIsWorkspaceOrganizer,
     })
       ? `/w/${workspaceId}/events/${event.id}`

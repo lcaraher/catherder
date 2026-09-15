@@ -12,32 +12,27 @@ interface Props {
   groups: TimeZoneGroup[];
   initialZoneId: string;
   /**
-   * The device zone the user chose to ignore earlier (User.
-   * dismissedDeviceZone); the mismatch banner stays hidden while the
-   * detected zone equals it.
+   * The device zone the user chose to ignore; the mismatch banner stays
+   * hidden while the detected zone equals it.
    */
   initialDismissedZone: string | null;
-  /** One line under the zone, telling the reader why it matters here. */
+  /** One line shown under the zone. */
   hint?: string;
 }
 
 const smallButton =
   "rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40";
 
-// The device zone never changes within a page visit, so the store never
-// notifies; the server snapshot is null so server HTML and the hydration
-// render agree, and the real value appears on the first client render after.
+// The device zone never changes within a visit; the server snapshot is
+// null so server HTML and the hydration render agree.
 const subscribeNever = () => () => {};
 const getDeviceZone = () =>
   Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
 const getServerDeviceZone = () => null;
 
 /**
- * Shows the saved time zone, offers a searchable grouped picker, and — when
- * the device's zone differs — suggests both without ever changing anything
- * uninvited. Saving POSTs to /api/me/time-zone; all state is local, so
- * sibling components (like a half-painted week grid) are never re-rendered
- * or reset by a zone change.
+ * Saved time zone with a searchable picker and a device-mismatch banner.
+ * All state is local; sibling components never re-render on a zone change.
  */
 export function TimeZonePicker({
   groups,
@@ -85,8 +80,7 @@ export function TimeZonePicker({
         throw new Error(body?.error ?? `save failed (${response.status})`);
       }
       setZoneId(id);
-      // The server clears the stored dismissal with any zone change; mirror
-      // that so the banner re-evaluates against the new zone right away.
+      // The server clears the stored dismissal with any zone change; mirror it.
       setDismissedZone(null);
       setOpen(false);
       setQuery("");
@@ -98,8 +92,8 @@ export function TimeZonePicker({
     setSaving(false);
   }
 
-  // "Keep <profile zone>": remember the detected zone server-side so the
-  // banner stays gone on future loads, until the device zone changes again.
+  // Stores the detected zone server-side; the banner stays gone until the
+  // device zone changes again.
   async function dismissDeviceZone(detected: string) {
     setDismissedZone(detected);
     try {
@@ -109,8 +103,7 @@ export function TimeZonePicker({
         body: JSON.stringify({ deviceZone: detected }),
       });
     } catch {
-      // The banner is already hidden for this visit; if the save failed it
-      // simply reappears on the next page load.
+      // Already hidden this visit; a failed save just resurfaces it next load.
     }
   }
 

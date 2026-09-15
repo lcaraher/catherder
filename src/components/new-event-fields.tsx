@@ -6,13 +6,11 @@ const inputClass =
   "w-full rounded border border-edge-strong bg-field px-3 py-2 text-sm";
 
 /**
- * The mode-dependent middle of the New event form: mode, target length, and
- * — in GameMaster groups mode only — the group-size bounds. Single activity
- * has no groups, so those inputs disappear (and the server ignores them in
- * that mode regardless).
+ * Mode, organizer participation, target length, and (multi-group only) the
+ * group-size bounds; the server also ignores group sizes in single activity.
  */
 export function NewEventFields() {
-  const [mode, setMode] = useState("GM_GROUPS");
+  const [mode, setMode] = useState("MULTI_GROUP");
 
   return (
     <>
@@ -27,9 +25,23 @@ export function NewEventFields() {
           onChange={(e) => setMode(e.target.value)}
           className={inputClass}
         >
-          <option value="GM_GROUPS">GameMaster groups</option>
+          <option value="MULTI_GROUP">Multi-group activity</option>
           <option value="SINGLE_ACTIVITY">Single activity</option>
         </select>
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 text-muted">
+          <input type="checkbox" name="organizerParticipates" />
+          Organizer also participates
+        </label>
+        <button
+          type="button"
+          aria-label="What does this do?"
+          title="When on, the organizer takes part like any other member: they answer the questions and submit their availability for this event. When off, only their availability is used, and they are never asked to respond."
+          className="rounded border border-edge-strong px-2 py-0.5 text-xs hover:bg-btn-secondary-hover"
+        >
+          ?
+        </button>
       </div>
       <div>
         <label htmlFor="targetHours" className="mb-1 block text-muted">
@@ -49,7 +61,7 @@ export function NewEventFields() {
           does not limit what participants submit.
         </p>
       </div>
-      {mode === "GM_GROUPS" && (
+      {mode === "MULTI_GROUP" && (
         <div className="flex gap-4">
           <div className="flex-1">
             <label htmlFor="minGroupSize" className="mb-1 block text-muted">

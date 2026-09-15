@@ -9,10 +9,8 @@ interface Props {
 }
 
 /**
- * Picks where a new event is created, for users who belong to more than one
- * workspace. Choosing an entry navigates to that workspace's new-event route,
- * so the whole form (GameMaster list included) is re-rendered server-side for
- * the chosen destination.
+ * Picks where a new event is created; choosing an entry navigates to that
+ * destination's new-event route.
  */
 export function EventDestinationSelect({
   id,

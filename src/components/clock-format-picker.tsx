@@ -9,10 +9,8 @@ const OPTIONS: { value: ClockFormat; label: string }[] = [
 ];
 
 /**
- * Two radio buttons for the user's clock format, saving on change with the
- * same feedback pattern as the time-zone picker. State is local: the grids
- * on the page keep showing the format the page was rendered with until the
- * next load — like a zone change, nothing on screen is re-rendered or reset.
+ * Two radio buttons for the clock format, saving on change. State is local:
+ * grids on the page keep the server-rendered format until the next load.
  */
 export function ClockFormatPicker({
   initialFormat,

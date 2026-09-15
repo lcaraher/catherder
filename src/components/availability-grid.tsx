@@ -33,9 +33,8 @@ export function AvailabilityGrid({
   const [note, setNote] = useState(initialNote);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
-  // What the server currently holds, updated after each successful save.
-  // Dirtiness is a comparison against this, not an "edited" flag, so painting
-  // a cell and painting it back leaves the form clean.
+  // The last successful save; dirtiness compares against it, so painting a
+  // cell and painting it back leaves the form clean.
   const savedRef = useRef({ week: initialWeek, note: initialNote });
   useUnsavedChangesGuard(
     () =>
@@ -67,8 +66,7 @@ export function AvailabilityGrid({
     }
   }
 
-  // Rendered twice — above the grid (the grid is taller than most viewports)
-  // and below the note — so both buttons always share one status.
+  // Rendered above the grid and below the note; both buttons share one status.
   function saveControls(margin: string) {
     return (
       <div className={`${margin} flex items-center gap-3`}>

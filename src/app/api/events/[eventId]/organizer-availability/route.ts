@@ -5,10 +5,8 @@ import { slotToDbTime, validateRanges } from "@/domain/availability";
 
 export const dynamic = "force-dynamic";
 
-// Replaces the GameMaster's availability for one event. Strictly the event's
-// GM — not an organizer override — and strictly EventAvailability rows: no
-// answers, no response status. An empty ranges list clears the rows, which
-// is a valid state (the overlap then shows the players on their own).
+// Replaces the Organizer's availability rows for one event — no answers, no
+// response status. Empty ranges clear the rows; a participating organizer is refused.
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> },
@@ -20,9 +18,15 @@ export async function PUT(
   }
 
   const event = await prisma.event.findUnique({ where: { id: eventId } });
-  // Non-GMs get a 404 rather than confirmation the event exists.
-  if (!event || event.gmUserId !== user.id) {
+  // Non-organizers get a 404 rather than confirmation the event exists.
+  if (!event || event.organizerUserId !== user.id) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+  if (event.organizerParticipates) {
+    return NextResponse.json(
+      { error: "you respond to this event like any other participant" },
+      { status: 403 },
+    );
   }
 
   const body = (await request.json().catch(() => null)) as {
@@ -68,7 +72,10 @@ export async function PUT(
         actorUserId: user.id,
         entity: "Event",
         entityId: eventId,
-        action: ranges.length > 0 ? "gm_availability_set" : "gm_availability_cleared",
+        action:
+          ranges.length > 0
+            ? "organizer_availability_set"
+            : "organizer_availability_cleared",
       },
     });
   });

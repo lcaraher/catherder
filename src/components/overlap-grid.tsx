@@ -8,11 +8,11 @@ import {
 } from "@/domain/availability";
 import {
   collapseOverlapToHours,
-  splitGm,
+  splitOrganizer,
   type OverlapGrid,
   type SplitOverlapCell,
 } from "@/domain/overlap";
-import { GmBadge } from "@/components/gm-badge";
+import { OrganizerBadge } from "@/components/organizer-badge";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_NAMES = [
@@ -25,8 +25,8 @@ const WEEKDAY_NAMES = [
   "Sunday",
 ];
 
-// The heat scale colours by available count only (clamped to 5); tentative
-// never colours a cell. Static list so Tailwind sees every class.
+// Heat colours by available count only, clamped to 5. Static list so
+// Tailwind sees every class.
 const HEAT_CLASSES = [
   "bg-heat-0",
   "bg-heat-1",
@@ -36,17 +36,17 @@ const HEAT_CLASSES = [
   "bg-heat-5",
 ];
 
-// The GM mark is a border, not colour alone: solid for available, dashed for
-// tentative. Static strings so Tailwind sees every class.
-const GM_MARK_CLASSES = {
-  AVAILABLE: "border-2 border-solid border-gm-mark",
-  TENTATIVE: "border-2 border-dashed border-gm-mark",
+// Organizer mark: solid border for available, dashed for tentative. Static
+// strings so Tailwind sees every class.
+const ORGANIZER_MARK_CLASSES = {
+  AVAILABLE: "border-2 border-solid border-organizer-mark",
+  TENTATIVE: "border-2 border-dashed border-organizer-mark",
 } as const;
 
 export interface OverlapPerson {
   userId: string;
   displayName: string;
-  isGameMaster: boolean;
+  isOrganizer: boolean;
   timeZone: string;
 }
 
@@ -54,13 +54,15 @@ interface Props {
   /** 7 × 48 half-hour grid in the viewer's zone, from computeOverlapGrid. */
   grid: OverlapGrid;
   people: OverlapPerson[];
+  /** The event's Organizer, or null on legacy rows without one. */
+  organizerUserId: string | null;
+  /** Whether the organizer has any availability rows for this event. */
+  organizerHasAvailability: boolean;
   /**
-   * The event's GameMaster, or null (SINGLE_ACTIVITY). With a GM the printed
-   * numbers are players only and the GM is shown as a cell mark instead.
+   * When true the numbers include the organizer; when false they appear
+   * only as the anchor mark.
    */
-  gmUserId: string | null;
-  /** Whether the GM has any availability rows for this event. */
-  gmHasAvailability: boolean;
+  countOrganizer: boolean;
   /** The viewer's clock format, passed down from the page — never read here. */
   clockFormat: ClockFormat;
 }
@@ -68,29 +70,29 @@ interface Props {
 type Granularity = "half" | "hour";
 
 /**
- * Read-only overlap heat map: the availability grid's 7-column layout and
- * Half hour / Hour toggle, with counts printed in each cell. Cells are
- * buttons; selecting one lists who is available and tentative in it below
- * the grid — no hover-only information. In GM_GROUPS events the GM is the
- * anchor: split out of the counts, marked with a border, and filterable via
- * "Only times the GM can make".
+ * Read-only overlap heat map with per-cell counts; selecting a cell lists
+ * who is available, tentative, and not available in it.
  */
 export function OverlapGridView({
   grid,
   people,
-  gmUserId,
-  gmHasAvailability,
+  organizerUserId,
+  organizerHasAvailability,
+  countOrganizer,
   clockFormat,
 }: Props) {
   // Hour mode everywhere by default, matching the editors.
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [gmOnly, setGmOnly] = useState(false);
+  const [organizerOnly, setOrganizerOnly] = useState(false);
   const [selected, setSelected] = useState<{
     weekday: number;
     row: number;
   } | null>(null);
 
-  const splitGrid = useMemo(() => splitGm(grid, gmUserId), [grid, gmUserId]);
+  const splitGrid = useMemo(
+    () => splitOrganizer(grid, organizerUserId, countOrganizer),
+    [grid, organizerUserId, countOrganizer],
+  );
   const hourGrid = useMemo(
     () => collapseOverlapToHours(splitGrid),
     [splitGrid],
@@ -103,10 +105,14 @@ export function OverlapGridView({
     () => new Map(people.map((person) => [person.userId, person])),
     [people],
   );
-  const gm = gmUserId === null ? null : (personById.get(gmUserId) ?? null);
-  const players = useMemo(
-    () => people.filter((person) => !person.isGameMaster),
-    [people],
+  const organizer =
+    organizerUserId === null ? null : (personById.get(organizerUserId) ?? null);
+  // Who belongs in the selected-cell panel's groups: everyone when the
+  // organizer is counted, participants only when they are just the anchor.
+  const panelPeople = useMemo(
+    () =>
+      countOrganizer ? people : people.filter((person) => !person.isOrganizer),
+    [people, countOrganizer],
   );
 
   const rowSpan = (row: number): string =>
@@ -115,32 +121,38 @@ export function OverlapGridView({
   const selectedCell: SplitOverlapCell | null =
     selected === null ? null : shownGrid[selected.weekday][selected.row];
 
-  function renderNames(userIds: string[], gmStatus?: "AVAILABLE" | "TENTATIVE") {
+  function renderNames(
+    userIds: string[],
+    organizerStatus?: "AVAILABLE" | "TENTATIVE",
+  ) {
+    // The organizer is rendered first with their mark; keep them out of the
+    // plain list so a counted organizer is not shown twice.
+    const rest = userIds.filter((id) => id !== organizerUserId);
     return (
       <ul className="flex flex-col gap-0.5">
-        {gmStatus && gm && (
+        {organizerStatus && organizer && (
           <li className="flex items-center gap-2">
             <span
-              className={`inline-block h-3 w-3 shrink-0 rounded-sm ${GM_MARK_CLASSES[gmStatus]}`}
+              className={`inline-block h-3 w-3 shrink-0 rounded-sm ${ORGANIZER_MARK_CLASSES[organizerStatus]}`}
               aria-hidden="true"
             />
-            <span>{gm.displayName}</span>
-            <GmBadge />
-            <span className="text-xs text-hint">{gm.timeZone}</span>
+            <span>{organizer.displayName}</span>
+            <OrganizerBadge />
+            <span className="text-xs text-hint">{organizer.timeZone}</span>
           </li>
         )}
-        {userIds.map((userId) => {
+        {rest.map((userId) => {
           const person = personById.get(userId);
           if (!person) return null;
           return (
             <li key={userId} className="flex items-center gap-2">
               <span>{person.displayName}</span>
-              {person.isGameMaster && <GmBadge />}
+              {person.isOrganizer && <OrganizerBadge />}
               <span className="text-xs text-hint">{person.timeZone}</span>
             </li>
           );
         })}
-        {userIds.length === 0 && !gmStatus && (
+        {rest.length === 0 && !organizerStatus && (
           <li className="text-hint">Nobody.</li>
         )}
       </ul>
@@ -181,42 +193,46 @@ export function OverlapGridView({
           ))}
         </div>
 
-        {gmUserId !== null && (
+        {organizerUserId !== null && (
           <div className="flex items-center gap-2 text-sm">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={gmOnly}
-                disabled={!gmHasAvailability}
+                checked={organizerOnly}
+                disabled={!organizerHasAvailability}
                 onChange={(e) => {
-                  setGmOnly(e.target.checked);
+                  setOrganizerOnly(e.target.checked);
                   setSelected(null);
                 }}
               />
-              Only times the GM can make
+              Only times the organizer can make
             </label>
-            {!gmHasAvailability && (
+            {!organizerHasAvailability && (
               <span className="text-xs text-hint">
-                The GM has not set their availability for this event
+                The organizer has not set their availability for this event
               </span>
             )}
           </div>
         )}
       </div>
 
-      {gmUserId !== null && (
+      {organizerUserId !== null && (
         <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
           <li className="flex items-center gap-1.5">
             <span
-              className={`inline-block h-3.5 w-3.5 rounded-sm ${GM_MARK_CLASSES.AVAILABLE}`}
+              className={`inline-block h-3.5 w-3.5 rounded-sm ${ORGANIZER_MARK_CLASSES.AVAILABLE}`}
             />
-            GM available (numbers count players only)
+            Organizer available (
+            {countOrganizer
+              ? "numbers include the organizer"
+              : "numbers count participants only"}
+            )
           </li>
           <li className="flex items-center gap-1.5">
             <span
-              className={`inline-block h-3.5 w-3.5 rounded-sm ${GM_MARK_CLASSES.TENTATIVE}`}
+              className={`inline-block h-3.5 w-3.5 rounded-sm ${ORGANIZER_MARK_CLASSES.TENTATIVE}`}
             />
-            GM tentative
+            Organizer tentative
           </li>
         </ul>
       )}
@@ -248,13 +264,13 @@ export function OverlapGridView({
                 const cell = shownGrid[weekday][row];
                 const height = granularity === "half" ? "h-4" : "h-6";
 
-                // GM filter: cells outside the GM's availability go blank.
-                if (gmOnly && cell.gm === null) {
+                // Organizer filter: cells outside their availability go blank.
+                if (organizerOnly && cell.organizer === null) {
                   return (
                     <div
                       key={weekday}
                       role="img"
-                      aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, outside GM availability`}
+                      aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, outside organizer availability`}
                       className={`bg-heat-0 ${height}`}
                     />
                   );
@@ -264,12 +280,14 @@ export function OverlapGridView({
                 const tentativeCount = cell.players.tentative.length;
                 const heat =
                   HEAT_CLASSES[Math.min(availableCount, HEAT_CLASSES.length - 1)];
-                const gmMark = cell.gm ? GM_MARK_CLASSES[cell.gm] : "";
-                const gmLabel =
-                  cell.gm === "AVAILABLE"
-                    ? ", GM available"
-                    : cell.gm === "TENTATIVE"
-                      ? ", GM tentative"
+                const organizerMark = cell.organizer
+                  ? ORGANIZER_MARK_CLASSES[cell.organizer]
+                  : "";
+                const organizerLabel =
+                  cell.organizer === "AVAILABLE"
+                    ? ", organizer available"
+                    : cell.organizer === "TENTATIVE"
+                      ? ", organizer tentative"
                       : "";
                 const isSelected =
                   selected?.weekday === weekday && selected.row === row;
@@ -281,8 +299,8 @@ export function OverlapGridView({
                       setSelected(isSelected ? null : { weekday, row })
                     }
                     aria-pressed={isSelected}
-                    aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, ${availableCount} available, ${tentativeCount} tentative${gmLabel}`}
-                    className={`flex cursor-pointer items-center justify-center text-[10px] leading-none text-heat-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${heat} ${gmMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
+                    aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, ${availableCount} available, ${tentativeCount} tentative${organizerLabel}`}
+                    className={`flex cursor-pointer items-center justify-center text-[10px] leading-none text-heat-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${heat} ${organizerMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
                   >
                     {availableCount === 0 && tentativeCount === 0
                       ? ""
@@ -307,7 +325,7 @@ export function OverlapGridView({
               </p>
               {renderNames(
                 selectedCell.players.available,
-                selectedCell.gm === "AVAILABLE" ? "AVAILABLE" : undefined,
+                selectedCell.organizer === "AVAILABLE" ? "AVAILABLE" : undefined,
               )}
             </div>
             <div>
@@ -316,17 +334,20 @@ export function OverlapGridView({
               </p>
               {renderNames(
                 selectedCell.players.tentative,
-                selectedCell.gm === "TENTATIVE" ? "TENTATIVE" : undefined,
+                selectedCell.organizer === "TENTATIVE" ? "TENTATIVE" : undefined,
               )}
             </div>
             <div>
               {(() => {
-                // Every player who is in neither list for this cell.
+                // Everyone in the panel's population who is in neither list.
                 const painted = new Set([
                   ...selectedCell.players.available,
                   ...selectedCell.players.tentative,
                 ]);
-                const notAvailable = players
+                if (selectedCell.organizer !== null && organizerUserId) {
+                  painted.add(organizerUserId);
+                }
+                const notAvailable = panelPeople
                   .filter((person) => !painted.has(person.userId))
                   .map((person) => person.userId);
                 return (

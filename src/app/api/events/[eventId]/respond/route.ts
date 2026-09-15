@@ -18,10 +18,8 @@ function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
-// Submits a participant's response: copies the (event-editable) week into
-// EventAvailability tagged with the standing version it was based on, stores
-// answers against the questions' current versions, and marks the participant
-// SUBMITTED — all in one transaction.
+// Submits a response: replaces the caller's EventAvailability, stores
+// answers, and marks them SUBMITTED — all in one transaction.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> },
@@ -45,10 +43,9 @@ export async function POST(
   if (!participant) {
     return NextResponse.json({ error: "not a participant" }, { status: 403 });
   }
-  // The GameMaster is not a participant (D-013): they adjust availability
-  // through the event page, never through the respond flow. Mirrors the
-  // respond page's notFound() so the client cannot bypass it.
-  if (participant.role === "GAMEMASTER") {
+  // A non-participating organizer never responds; they adjust availability
+  // through the event page instead.
+  if (participant.role === "ORGANIZER" && !event.organizerParticipates) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
   // The page renders read-only when editing is closed, but the server is the
@@ -82,7 +79,7 @@ export async function POST(
   // than the target is still a valid submission.
   if (ranges.length === 0) {
     return badRequest(
-      "Add at least one available or tentative block. If you truly have no availability, tell the GameMaster directly.",
+      "Add at least one available or tentative block. If you truly have no availability, tell the organizer directly.",
     );
   }
 
@@ -145,9 +142,8 @@ export async function POST(
         break;
       }
       case "RANKING": {
-        // No ranks at all is allowed here; the required check below rejects
-        // it when the question demands an answer. A partial ranking is never
-        // valid.
+        // No ranks at all is allowed here (the required check handles it);
+        // a partial ranking is never valid.
         if (answer.ranks.length === 0) break;
         const rankedIds = answer.ranks.map((r) => r.optionId);
         const rankValues = answer.ranks.map((r) => r.rank);
@@ -169,9 +165,8 @@ export async function POST(
     }
   }
 
-  // Required questions must carry an answer: whitespace-only TEXT, no chosen
-  // option, or no ranks count as missing. Only this submission is checked —
-  // existing submissions are never re-validated.
+  // Required questions must carry an answer: whitespace-only TEXT, no
+  // option, or no ranks count as missing. Only this submission is checked.
   const missingRequired = event.questions.filter((question) => {
     if (!question.required) return false;
     const answer = answersById.get(question.id)!;

@@ -57,9 +57,8 @@ function bandClass(status: SlotStatus): string {
 }
 
 /**
- * The paintable 7-day availability grid with its granularity toggle,
- * instructions, legend, and bulk-edit (copy day / clear week) controls.
- * Owns the week state; parents receive every change through onChange.
+ * Paintable 7-day grid with granularity toggle, legend, and bulk-edit
+ * controls. Owns the week state; parents get every change via onChange.
  */
 export function WeekGridEditor({
   initialWeek,
@@ -73,12 +72,10 @@ export function WeekGridEditor({
     Array(WEEKDAY_COUNT).fill(false),
   );
   const [confirmingClear, setConfirmingClear] = useState(false);
-  // Hour mode everywhere by default — desktop and mobile alike; Half hour
-  // is the opt-in fine-grained view.
+  // Hour mode by default; Half hour is the opt-in fine-grained view.
   const [granularity, setGranularity] = useState<Granularity>("hour");
 
-  // Latest-ref pattern so the change-mirror effect never re-fires just
-  // because the parent re-rendered with a new callback identity.
+  // Latest ref: a new onChange identity never re-fires the mirror effect.
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;

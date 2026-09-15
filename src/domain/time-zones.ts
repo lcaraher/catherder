@@ -1,6 +1,4 @@
-// Pure time-zone presentation logic: no framework, adapter, or I/O imports.
-// Availability is stored as local wall-clock plus an IANA zone name; these
-// helpers only present and filter zone choices, never convert stored times.
+// Pure time-zone presentation logic; never converts stored times.
 
 /** Zones pinned to the top of the picker, in this exact order. */
 export const COMMON_ZONE_IDS: readonly string[] = [
@@ -19,9 +17,8 @@ export const COMMON_ZONE_IDS: readonly string[] = [
 ];
 
 /**
- * Region groups for every zone not in COMMON_ZONE_IDS, keyed by IANA prefix
- * and shown in this order. `prefix: null` is the catch-all for ids that
- * match no listed prefix (Antarctica, Etc, UTC, …).
+ * Region groups for zones not in COMMON_ZONE_IDS, shown in this order;
+ * `prefix: null` catches ids matching no listed prefix.
  */
 export const REGION_ORDER: readonly { prefix: string | null; heading: string }[] =
   [
@@ -44,10 +41,8 @@ export interface TimeZoneOption {
   /** Current abbreviation, e.g. "EDT" (or "GMT+2" where ICU has no name). */
   abbreviation: string;
   /**
-   * Every abbreviation the zone uses over a year, de-duplicated — standard
-   * and daylight forms, e.g. ["EST", "EDT"]; one entry for zones without
-   * DST. A plain array (not a Set) so the option survives the server →
-   * client props boundary as JSON.
+   * Every abbreviation the zone uses over a year, e.g. ["EST", "EDT"]. A
+   * plain array so it survives the server → client props boundary as JSON.
    */
   abbreviations: string[];
   /** Current offset, e.g. "UTC−4" or "UTC+5:30". */
@@ -62,10 +57,8 @@ export interface TimeZoneGroup {
 }
 
 /**
- * Case-insensitive match against the zone id, the id with underscores as
- * spaces, the city, the label, and every abbreviation the zone uses over a
- * year — so "EST" finds New York even in September, when its label says
- * "EDT". An empty query matches everything.
+ * Case-insensitive match against id, city, label, and every year-round
+ * abbreviation, so "EST" finds New York in September. Empty matches all.
  */
 export function matchesZoneQuery(option: TimeZoneOption, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -100,11 +93,8 @@ function timeZoneNamePart(
 }
 
 /**
- * The zone's short abbreviation sampled at fixed mid-January and mid-July
- * instants of `now`'s year, de-duplicated. Sampling both solstice-ish points
- * catches the standard and daylight forms in either hemisphere; a zone
- * without DST yields a single entry. Mid-month noon UTC keeps both samples
- * safely clear of every real-world DST transition date.
+ * Short abbreviations sampled at mid-January and mid-July noon UTC of
+ * `now`'s year, de-duplicated; catches both hemispheres' DST forms.
  */
 function yearRoundAbbreviations(zoneId: string, now: Date): string[] {
   const year = now.getUTCFullYear();
@@ -130,10 +120,8 @@ function formatOffset(gmtOffset: string): string {
 }
 
 /**
- * Prepares picker options for the given zone ids at the given instant. The
- * abbreviation and offset always come from Intl.DateTimeFormat — never from
- * a hard-coded table — so DST is right for "now". Callers pass
- * Intl.supportedValuesOf("timeZone"); tests pass fixed ids and dates.
+ * Prepares picker options at the given instant; abbreviation and offset come
+ * from Intl.DateTimeFormat, so DST is right for "now".
  */
 export function buildTimeZoneOptions(
   zoneIds: readonly string[],
@@ -155,9 +143,8 @@ export function buildTimeZoneOptions(
 }
 
 /**
- * Splits prepared options into the Common group (in COMMON_ZONE_IDS order)
- * followed by REGION_ORDER groups of everything else. Empty groups are
- * dropped.
+ * Splits options into the Common group then REGION_ORDER groups of the rest;
+ * empty groups are dropped.
  */
 export function groupTimeZoneOptions(
   options: readonly TimeZoneOption[],

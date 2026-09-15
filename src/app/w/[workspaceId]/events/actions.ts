@@ -8,7 +8,7 @@ import { prisma } from "@/adapters/db/client";
 import { canManageEvent } from "@/domain/event-access";
 
 const ORGANIZER_ROLES: WorkspaceRole[] = ["OWNER", "ORGANIZER"];
-const EVENT_MODES: EventMode[] = ["GM_GROUPS", "SINGLE_ACTIVITY"];
+const EVENT_MODES: EventMode[] = ["MULTI_GROUP", "SINGLE_ACTIVITY"];
 const QUESTION_TYPES: QuestionType[] = [
   "SINGLE_CHOICE",
   "MULTI_CHOICE",
@@ -16,10 +16,8 @@ const QUESTION_TYPES: QuestionType[] = [
   "RANKING",
 ];
 
-// Every action re-authorizes server-side; forms only decide what's visible.
-// The event's GameMaster runs their own event; a workspace OWNER/ORGANIZER
-// manages it as an admin override. Both facts come from the database, never
-// from IdP claims.
+// Every action re-authorizes server-side; forms only decide what's
+// visible. Management facts come from the database, never from IdP claims.
 async function requireEventManager(eventId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) throw new Error("event not found");
@@ -31,13 +29,13 @@ async function requireEventManager(eventId: string) {
   });
   const allowed = canManageEvent({
     viewerUserId: user.id,
-    gmUserId: event.gmUserId,
+    organizerUserId: event.organizerUserId,
     viewerIsWorkspaceOrganizer:
       membership !== null && ORGANIZER_ROLES.includes(membership.role),
   });
   if (!allowed) {
     throw new ForbiddenError(
-      "must be the event's GameMaster or a workspace OWNER or ORGANIZER",
+      "must be the event's Organizer or a workspace OWNER or ORGANIZER",
     );
   }
   return { event, user };
@@ -100,8 +98,7 @@ function parseEventFields(
 
 export async function createEvent(formData: FormData) {
   const workspaceId = String(formData.get("workspaceId") ?? "");
-  // Running a game is not a workspace permission: any member may create an
-  // event. Membership still comes from the database, never from IdP claims.
+  // Any workspace member may create an event.
   const user = await requireUser();
   const creatorMembership = await prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: user.id } },
@@ -111,6 +108,8 @@ export async function createEvent(formData: FormData) {
   }
 
   const mode = String(formData.get("mode") ?? "") as EventMode;
+  const organizerParticipates =
+    String(formData.get("organizerParticipates") ?? "") === "on";
 
   function fail(message: string): never {
     redirect(
@@ -123,15 +122,14 @@ export async function createEvent(formData: FormData) {
   if (!EVENT_MODES.includes(mode)) fail("Choose a mode.");
 
   const event = await prisma.$transaction(async (tx) => {
-    // Creating an event makes the creator its owner in both modes (D-010,
-    // D-014); reassigning happens later from Edit event, roster-only. Single
-    // activity has no groups, so its size bounds are always null whatever
-    // the form sent.
+    // The creator owns every event they create; single activity has no
+    // groups, so its size bounds are always null whatever the form sent.
     const created = await tx.event.create({
       data: {
         workspaceId,
         mode,
-        gmUserId: user.id,
+        organizerUserId: user.id,
+        organizerParticipates,
         status: "DRAFT",
         ...parsed.fields,
         ...(mode === "SINGLE_ACTIVITY"
@@ -139,23 +137,18 @@ export async function createEvent(formData: FormData) {
           : {}),
       },
     });
-    // GM_GROUPS: the GameMaster's row is storage only, never shown as a
-    // participant (D-013). SINGLE_ACTIVITY: the Organizer takes part like
-    // everyone else (D-014), so they join as a PLAYER.
+    // The owner's participant row has role ORGANIZER in both modes, always.
     await tx.eventParticipant.create({
       data: {
         eventId: created.id,
         userId: user.id,
-        role: mode === "GM_GROUPS" ? "GAMEMASTER" : "PLAYER",
+        role: "ORGANIZER",
         responseStatus: "INVITED",
       },
     });
-    // The GM's availability is gathered up front, without a prompt: copy
-    // their standing week into event rows (the same copy the respond
-    // page's pre-fill does). An empty standing week copies nothing; the
-    // GM can adjust either way from the event page later. The Organizer of
-    // a single activity responds through the respond page instead.
-    if (mode === "GM_GROUPS") {
+    // A non-participating organizer's standing week is copied into event
+    // rows at creation; a participating organizer responds instead.
+    if (!organizerParticipates) {
       const standingRows = await tx.standingAvailability.findMany({
         where: { userId: user.id },
       });
@@ -192,8 +185,11 @@ export async function createEvent(formData: FormData) {
 
 export async function updateEvent(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
-  const { event } = await requireEventManager(eventId);
-  const gmUserId = String(formData.get("gmUserId") ?? "").trim() || null;
+  const { event, user } = await requireEventManager(eventId);
+  const organizerUserId =
+    String(formData.get("organizerUserId") ?? "").trim() || null;
+  const organizerParticipates =
+    String(formData.get("organizerParticipates") ?? "") === "on";
 
   function fail(message: string): never {
     redirect(
@@ -203,46 +199,54 @@ export async function updateEvent(formData: FormData) {
 
   const parsed = parseEventFields(formData);
   if ("error" in parsed) fail(parsed.error);
-  // The owner is reassignable in both modes, but only to someone already on
-  // this event's roster (D-015: no directory).
-  const ownerWord = event.mode === "GM_GROUPS" ? "GameMaster" : "Organizer";
-  if (!gmUserId) fail(`This event needs ${event.mode === "GM_GROUPS" ? "a" : "an"} ${ownerWord}.`);
-  const gmParticipant = await prisma.eventParticipant.findUnique({
-    where: { eventId_userId: { eventId, userId: gmUserId } },
+  // The owner is reassignable in both modes, but only to someone already
+  // on this event's roster.
+  if (!organizerUserId) fail("This event needs an Organizer.");
+  const ownerParticipant = await prisma.eventParticipant.findUnique({
+    where: { eventId_userId: { eventId, userId: organizerUserId } },
   });
-  if (!gmParticipant) {
-    fail(`The ${ownerWord} must already be on this event.`);
+  if (!ownerParticipant) {
+    fail("The Organizer must already be on this event.");
   }
 
+  const participationChanged =
+    organizerParticipates !== event.organizerParticipates;
   await prisma.$transaction(async (tx) => {
     await tx.event.update({
       where: { id: eventId },
       data: {
         ...parsed.fields,
-        gmUserId,
+        organizerUserId,
+        organizerParticipates,
         // Single activity has no groups; its size bounds stay null.
         ...(event.mode === "SINGLE_ACTIVITY"
           ? { minGroupSize: null, maxGroupSize: null }
           : {}),
       },
     });
-    // Moving the GameMaster moves the GAMEMASTER participant row: the new GM
-    // is added if absent, the previous GM stays on as a PLAYER.
-    if (event.mode === "GM_GROUPS" && gmUserId && gmUserId !== event.gmUserId) {
-      if (event.gmUserId) {
+    // Reassigning moves the ORGANIZER participant role to the new owner and
+    // leaves the previous owner as a PLAYER, in both modes.
+    if (organizerUserId !== event.organizerUserId) {
+      if (event.organizerUserId) {
         await tx.eventParticipant.updateMany({
-          where: { eventId, userId: event.gmUserId },
+          where: { eventId, userId: event.organizerUserId },
           data: { role: "PLAYER" },
         });
       }
-      await tx.eventParticipant.upsert({
-        where: { eventId_userId: { eventId, userId: gmUserId } },
-        update: { role: "GAMEMASTER" },
-        create: {
-          eventId,
-          userId: gmUserId,
-          role: "GAMEMASTER",
-          responseStatus: "INVITED",
+      await tx.eventParticipant.update({
+        where: { eventId_userId: { eventId, userId: organizerUserId } },
+        data: { role: "ORGANIZER" },
+      });
+    }
+    // Flipping the switch changes nothing else; answers, availability rows,
+    // and response status are all kept as they are.
+    if (participationChanged) {
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "Event",
+          entityId: eventId,
+          action: "organizer_participation_changed",
         },
       });
     }
@@ -295,9 +299,7 @@ export async function setResultsRevealed(formData: FormData) {
   revalidatePath(eventPath(event.workspaceId, eventId));
 }
 
-// The usual end-of-collection step: stop accepting responses and show
-// everyone the results in one go. One transaction so the status change, the
-// reveal, and their audit trail land together or not at all.
+// Stops accepting responses and reveals results in one transaction.
 export async function closeEventAndShareResults(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const { event, user } = await requireEventManager(eventId);
@@ -374,13 +376,14 @@ export async function addParticipant(formData: FormData) {
   });
   if (!membership) return;
 
+  // The owner always has a row already, so anyone added here is a PLAYER.
   await prisma.eventParticipant.upsert({
     where: { eventId_userId: { eventId, userId } },
     update: {},
     create: {
       eventId,
       userId,
-      role: userId === event.gmUserId ? "GAMEMASTER" : "PLAYER",
+      role: "PLAYER",
       responseStatus: "INVITED",
     },
   });
@@ -392,8 +395,8 @@ export async function removeParticipant(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   const { event } = await requireEventManager(eventId);
 
-  // The event's GameMaster cannot be removed while they hold that role.
-  if (userId === event.gmUserId) return;
+  // The event's Organizer cannot be removed while they hold that role.
+  if (userId === event.organizerUserId) return;
   await prisma.eventParticipant.deleteMany({ where: { eventId, userId } });
   revalidatePath(eventPath(event.workspaceId, eventId));
 }
@@ -539,9 +542,8 @@ export async function updateQuestionPrompt(formData: FormData) {
   if (!question) return;
   const { event } = await requireEventManager(question.eventId);
 
-  // Once answers exist the answered version is preserved: the edit bumps the
-  // question's version, and Answer.questionVersion keeps recording which
-  // version each answer was for.
+  // Once answers exist an edit bumps the question's version;
+  // Answer.questionVersion records which version each answer was for.
   const answered = (await prisma.answer.count({ where: { questionId } })) > 0;
   await prisma.question.update({
     where: { id: questionId },

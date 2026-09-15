@@ -9,9 +9,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Replaces the caller's entire standing availability (with per-range status),
-// availability note, and time zone in one transaction, bumping the version so
-// copies into events can reference it.
+// Replaces the caller's entire standing availability, note, and time zone
+// in one transaction, bumping the version.
 export async function PUT(request: Request) {
   const user = await getSessionUser();
   if (!user) {

@@ -4,10 +4,8 @@ import { prisma } from "@/adapters/db/client";
 
 export const dynamic = "force-dynamic";
 
-// Records that the caller saw the device-zone mismatch banner for this
-// detected zone and chose to keep their profile zone. The banner stays
-// hidden until the device reports a different zone. The profile zone itself
-// is never touched here; /api/me/time-zone owns that (and clears this).
+// Stores the detected device zone the caller chose to ignore; the mismatch
+// banner stays hidden until the device reports a different zone.
 export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) {

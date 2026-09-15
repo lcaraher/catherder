@@ -20,14 +20,14 @@ import {
   updateEvent,
   updateQuestionPrompt,
 } from "../actions";
-import { GmAvailabilityEditor } from "@/components/gm-availability-editor";
-import { GmBadge } from "@/components/gm-badge";
+import { OrganizerAvailabilityEditor } from "@/components/organizer-availability-editor";
+import { OrganizerBadge } from "@/components/organizer-badge";
 import { QuestionPromptForm } from "@/components/question-prompt-form";
 
 export const dynamic = "force-dynamic";
 
 const MODE_LABELS = {
-  GM_GROUPS: "GameMaster groups",
+  MULTI_GROUP: "Multi-group activity",
   SINGLE_ACTIVITY: "Single activity",
 } as const;
 
@@ -91,9 +91,8 @@ export default async function EventPage({
   const { workspaceId, eventId } = await params;
   const { error } = await searchParams;
 
-  // The event's GameMaster runs their own event, even with only PARTICIPANT
-  // workspace membership; a workspace OWNER/ORGANIZER manages it as a visible
-  // admin override. Every action re-checks on the server regardless.
+  // The Organizer or a workspace OWNER/ORGANIZER may manage this page;
+  // every action re-checks on the server regardless.
   const user = await requireUser();
   const membership = await prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: user.id } },
@@ -104,7 +103,7 @@ export default async function EventPage({
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
-      gmUser: { select: { displayName: true } },
+      organizerUser: { select: { displayName: true } },
       participants: {
         include: { user: { select: { id: true, displayName: true } } },
         orderBy: { user: { displayName: "asc" } },
@@ -122,29 +121,35 @@ export default async function EventPage({
 
   const access = {
     viewerUserId: user.id,
-    gmUserId: event.gmUserId,
+    organizerUserId: event.organizerUserId,
     viewerIsWorkspaceOrganizer,
   };
   if (!canManageEvent(access)) {
     throw new ForbiddenError(
-      "must be the event's GameMaster or a workspace OWNER or ORGANIZER",
+      "must be the event's Organizer or a workspace OWNER or ORGANIZER",
     );
   }
   const adminOverride = isAdminOverride(access);
 
-  // The GameMaster is not a participant (D-013): their row stays in storage
-  // but never renders in the participant list.
-  const playerParticipants = event.participants.filter(
-    (participant) => participant.role !== "GAMEMASTER",
+  // A non-participating organizer's row never renders in the roster; a
+  // participating one leads it.
+  const ownerRow = event.participants.find(
+    (participant) => participant.role === "ORGANIZER",
   );
+  const nonOwnerRows = event.participants.filter(
+    (participant) => participant.role !== "ORGANIZER",
+  );
+  const rosterRows =
+    event.organizerParticipates && ownerRow
+      ? [ownerRow, ...nonOwnerRows]
+      : nonOwnerRows;
 
-  // The GM's own availability for this event, edited in a dedicated section
-  // (only for the GM themselves — an admin override does not see it, and a
-  // single activity's Organizer responds through the respond page instead).
-  const viewerIsGm =
-    event.mode === "GM_GROUPS" &&
-    event.gmUserId !== null &&
-    event.gmUserId === user.id;
+  // The organizer edits their own event availability here — never an admin
+  // override, never when they participate (they respond instead).
+  const viewerManagesOwnAvailability =
+    event.organizerUserId !== null &&
+    event.organizerUserId === user.id &&
+    !event.organizerParticipates;
   const toRanges = (
     rows: {
       weekday: number;
@@ -159,20 +164,21 @@ export default async function EventPage({
       endSlot: dbTimeToSlot(row.endLocal, "end"),
       status: row.status,
     }));
-  const [gmAvailabilityRows, gmStandingRows] = viewerIsGm
-    ? await Promise.all([
-        prisma.eventAvailability.findMany({
-          where: { eventId, userId: user.id },
-          orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
-        }),
-        prisma.standingAvailability.findMany({
-          where: { userId: user.id },
-          orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
-        }),
-      ])
-    : [[], []];
-  const gmAvailabilityRanges = toRanges(gmAvailabilityRows);
-  const gmStandingRanges = toRanges(gmStandingRows);
+  const [organizerAvailabilityRows, organizerStandingRows] =
+    viewerManagesOwnAvailability
+      ? await Promise.all([
+          prisma.eventAvailability.findMany({
+            where: { eventId, userId: user.id },
+            orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
+          }),
+          prisma.standingAvailability.findMany({
+            where: { userId: user.id },
+            orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
+          }),
+        ])
+      : [[], []];
+  const organizerAvailabilityRanges = toRanges(organizerAvailabilityRows);
+  const organizerStandingRanges = toRanges(organizerStandingRows);
 
   const participantIds = new Set(event.participants.map((p) => p.userId));
   const allMembers = await prisma.workspaceMember.findMany({
@@ -180,7 +186,7 @@ export default async function EventPage({
     include: { user: { select: { id: true, displayName: true } } },
     orderBy: { user: { displayName: "asc" } },
   });
-  // Existing participants (which always includes the GameMaster) are excluded.
+  // Existing participants (which always includes the organizer) are excluded.
   const addableMembers = allMembers.filter(
     (member) => !participantIds.has(member.userId),
   );
@@ -202,16 +208,13 @@ export default async function EventPage({
       </div>
       <p className="mb-4 text-sm text-hint">
         {MODE_LABELS[event.mode]}
-        {event.gmUser && (
+        {event.organizerUser && (
           <>
-            {event.mode === "GM_GROUPS" ? " · GameMaster: " : " · Organizer: "}
-            <span className="font-medium">{event.gmUser.displayName}</span>
-            {event.mode === "GM_GROUPS" && (
-              <>
-                {" "}
-                <GmBadge />
-              </>
-            )}
+            {" · Organizer: "}
+            <span className="font-medium">
+              {event.organizerUser.displayName}
+            </span>{" "}
+            <OrganizerBadge />
           </>
         )}
         {` · target ${event.requiredSlots / 2}h`}
@@ -219,11 +222,13 @@ export default async function EventPage({
         {event.maxGroupSize !== null && ` · max ${event.maxGroupSize}`}
       </p>
 
-      {adminOverride && event.gmUser && (
+      {adminOverride && event.organizerUser && (
         <p className="mb-4 rounded border border-notice-admin-border bg-notice-admin px-3 py-2 text-sm text-notice-admin-text">
           This event is organized by{" "}
-          <span className="font-medium">{event.gmUser.displayName}</span> — you
-          are acting as an admin.
+          <span className="font-medium">
+            {event.organizerUser.displayName}
+          </span>{" "}
+          — you are acting as an admin.
         </p>
       )}
 
@@ -279,7 +284,7 @@ export default async function EventPage({
           <p className="text-muted">
             {event.resultsRevealedAt
               ? "Results are shared: participants can see everyone's responses."
-              : "Results are hidden: responses, overlap and results are visible to organizers and the GameMaster only."}
+              : "Results are hidden: responses, overlap and results are visible to the organizer and workspace admins only."}
           </p>
           {event.status === "OPEN" ? (
             <>
@@ -370,7 +375,7 @@ export default async function EventPage({
                 className={inputClass}
               />
             </div>
-            {event.mode === "GM_GROUPS" && (
+            {event.mode === "MULTI_GROUP" && (
               <>
                 <div>
                   <label
@@ -408,17 +413,17 @@ export default async function EventPage({
             )}
             <div>
               <label
-                htmlFor="edit-gmUserId"
+                htmlFor="edit-organizerUserId"
                 className="mb-1 block text-muted"
               >
-                {event.mode === "GM_GROUPS" ? "GameMaster" : "Organizer"}
+                Organizer
               </label>
-              {/* Reassignment is roster-only (D-015): the options are this
-                  event's participants, and updateEvent rejects anyone else. */}
+              {/* Options are this event's participants; updateEvent rejects
+                  anyone else. */}
               <select
-                id="edit-gmUserId"
-                name="gmUserId"
-                defaultValue={event.gmUserId ?? ""}
+                id="edit-organizerUserId"
+                name="organizerUserId"
+                defaultValue={event.organizerUserId ?? ""}
                 className={inputClass}
               >
                 {event.participants.map((participant) => (
@@ -428,6 +433,24 @@ export default async function EventPage({
                 ))}
               </select>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-muted">
+              <input
+                type="checkbox"
+                name="organizerParticipates"
+                defaultChecked={event.organizerParticipates}
+              />
+              Organizer also participates
+            </label>
+            <button
+              type="button"
+              aria-label="What does this do?"
+              title="When on, the organizer takes part like any other member: they answer the questions and submit their availability for this event. When off, only their availability is used, and they are never asked to respond."
+              className={smallButton}
+            >
+              ?
+            </button>
           </div>
           <p className="text-xs text-hint">
             Target session length is a starting point for grouping — you can
@@ -443,25 +466,31 @@ export default async function EventPage({
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
-        {event.gmUser && (
+        {event.organizerUser && !event.organizerParticipates && (
           <p className="mb-3 flex items-center gap-2 text-sm">
             Organized by{" "}
-            <span className="font-medium">{event.gmUser.displayName}</span>
-            {event.mode === "GM_GROUPS" && <GmBadge />}
+            <span className="font-medium">
+              {event.organizerUser.displayName}
+            </span>
+            <OrganizerBadge />
           </p>
         )}
-        {playerParticipants.length === 0 ? (
+        {rosterRows.length === 0 ? (
           <p className="mb-3 text-sm text-hint">No participants yet.</p>
         ) : (
           <ul className="mb-3 flex flex-col gap-1">
-            {playerParticipants.map((participant) => (
+            {rosterRows.map((participant) => (
               <li
                 key={participant.userId}
                 className="flex items-center justify-between rounded border border-edge px-3 py-2 text-sm"
               >
                 <span className="flex items-center gap-2">
                   {participant.user.displayName}
-                  <span className="text-xs text-faint">Player</span>
+                  {participant.role === "ORGANIZER" ? (
+                    <OrganizerBadge />
+                  ) : (
+                    <span className="text-xs text-faint">Player</span>
+                  )}
                 </span>
                 <span className="flex items-center gap-3">
                   <span
@@ -519,7 +548,7 @@ export default async function EventPage({
                       </form>
                     )
                   )}
-                  {participant.userId !== event.gmUserId && (
+                  {participant.userId !== event.organizerUserId && (
                     <form action={removeParticipant}>
                       <input type="hidden" name="eventId" value={event.id} />
                       <input
@@ -543,7 +572,6 @@ export default async function EventPage({
         )}
         {addableMembers.length > 0 && (
           <>
-            {/* D-015: the member directory is dev scaffolding, not a feature. */}
             <p className="mb-1 text-xs text-hint">
               Development only — in the live app people join by link or
               invitation.
@@ -568,21 +596,22 @@ export default async function EventPage({
         )}
       </section>
 
-      {viewerIsGm && (
+      {viewerManagesOwnAvailability && (
         <section className="mb-8">
           <h2 className="mb-3 text-lg font-medium">
             Your availability for this event
           </h2>
-          {gmAvailabilityRanges.length === 0 && (
+          {organizerAvailabilityRanges.length === 0 && (
             <p className="mb-3 text-sm text-muted">
-              Players are matched against your availability. Set it here, or
-              leave it empty to see everyone&rsquo;s overlap on its own.
+              Participants are matched against your availability. Set it
+              here, or leave it empty to see everyone&rsquo;s overlap on its
+              own.
             </p>
           )}
-          <GmAvailabilityEditor
+          <OrganizerAvailabilityEditor
             eventId={event.id}
-            initialRanges={gmAvailabilityRanges}
-            standingRanges={gmStandingRanges}
+            initialRanges={organizerAvailabilityRanges}
+            standingRanges={organizerStandingRanges}
             clockFormat={user.clockFormat}
           />
         </section>

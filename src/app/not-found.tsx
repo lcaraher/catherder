@@ -1,9 +1,8 @@
 import Link from "next/link";
 
 /**
- * App-wide 404, also rendered by every notFound() call. Deliberately bare:
- * whether the page never existed or the viewer may not know it exists, the
- * answer looks the same.
+ * App-wide 404, also rendered by every notFound() call; a missing page and
+ * a page the viewer may not see look the same.
  */
 export default function NotFound() {
   return (

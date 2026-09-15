@@ -40,8 +40,8 @@ resource "aws_iam_role" "github_deploy" {
   assume_role_policy = data.aws_iam_policy_document.github_deploy_trust.json
 }
 
-# TODO(Stage C): narrow to least-privilege deploy permissions.
-# AdministratorAccess is a temporary bootstrap convenience only.
+# TODO: narrow to least-privilege deploy permissions; AdministratorAccess
+# is a temporary bootstrap convenience only.
 resource "aws_iam_role_policy_attachment" "github_deploy_admin" {
   role       = aws_iam_role.github_deploy.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"

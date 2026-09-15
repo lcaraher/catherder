@@ -2,10 +2,7 @@
 
 import Link from "next/link";
 
-/**
- * Generic error boundary. Never shows the error's message or stack — those
- * can carry internal details; the server log is where they belong.
- */
+/** Generic error boundary; never shows the error's message or stack. */
 export default function ErrorPage({
   error,
   reset,

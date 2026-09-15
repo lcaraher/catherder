@@ -13,22 +13,14 @@ export async function getSessionUser(): Promise<User | null> {
   return prisma.user.findUnique({ where: { id: userId } });
 }
 
-/**
- * For server components and route handlers: returns the logged-in user or
- * redirects to the login page. (/dev-login is the only login UI so far; it
- * 404s when the dev issuer is disabled.)
- */
+/** Returns the logged-in user or redirects to the login page. */
 export async function requireUser(): Promise<User> {
   const user = await getSessionUser();
   if (!user) redirect("/dev-login");
   return user;
 }
 
-/**
- * Requires a logged-in user whose WorkspaceMember row for the workspace has
- * one of the given roles. Authorization comes from the database, never from
-* identity-provider claims: the IdP authenticates, these tables authorize.
- */
+/** Requires a logged-in user whose WorkspaceMember role is one of `roles`. */
 export async function requireRole(
   workspaceId: string,
   roles: WorkspaceRole[],

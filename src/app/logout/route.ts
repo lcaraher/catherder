@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   await clearSession();
-  // With the dev issuer enabled, landing on the dev login saves a click;
-  // production (where the dev issuer is refused) keeps redirecting to /.
+  // With the dev issuer enabled, land on the dev login; otherwise on /.
   const target = isDevIssuerEnabled() ? "/dev-login" : "/";
   return NextResponse.redirect(new URL(target, request.url), 303);
 }

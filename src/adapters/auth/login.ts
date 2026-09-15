@@ -3,9 +3,7 @@ import { prisma } from "@/adapters/db/client";
 import { verifyIdToken, type VerifiedIdentity } from "./oidc";
 import { createSession } from "./session";
 
-// Default for users whose issuer provides no zoneinfo claim; they can change
-// it in their profile. Availability is always local wall-clock + IANA zone
-// so the zone must be a valid IANA name.
+// Fallback zone when the issuer provides no zoneinfo claim.
 const DEFAULT_TIME_ZONE = "UTC";
 
 /**

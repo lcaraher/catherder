@@ -42,9 +42,11 @@ export default async function RespondPage({
   });
   // Non-participants get a 404 rather than confirmation the event exists.
   if (!participant) notFound();
-  // The GameMaster is not a participant (D-013): they manage their
-  // availability from the event page instead of responding.
-  if (participant.role === "GAMEMASTER") notFound();
+  // A non-participating organizer never responds; they manage availability
+  // from the event page instead.
+  if (participant.role === "ORGANIZER" && !event.organizerParticipates) {
+    notFound();
+  }
 
   const canEdit = canEditResponse({
     eventStatus: event.status,
@@ -59,8 +61,8 @@ export default async function RespondPage({
     },
   });
   const showResultsLink = canViewOthersResponses({
-    viewerIsOrganizerOrGm:
-      event.gmUserId === user.id ||
+    viewerIsManager:
+      event.organizerUserId === user.id ||
       membership?.role === "OWNER" ||
       membership?.role === "ORGANIZER",
     resultsRevealedAt: event.resultsRevealedAt,

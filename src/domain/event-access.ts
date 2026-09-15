@@ -1,38 +1,34 @@
-// Pure event-management access rules: no framework, adapter, or I/O imports.
-// The event's GameMaster runs their own event; a workspace OWNER/ORGANIZER
-// can also manage it, acting as a visible admin override.
+// Pure event-management access rules.
 
 export interface EventAccessInput {
   viewerUserId: string;
-  /** The event's GameMaster, or null for events without one (SINGLE_ACTIVITY). */
-  gmUserId: string | null;
+  /** The event's Organizer, or null on legacy rows without one. */
+  organizerUserId: string | null;
   /** Whether the viewer holds OWNER or ORGANIZER in the event's workspace. */
   viewerIsWorkspaceOrganizer: boolean;
 }
 
 /**
- * Whether the viewer may manage this event: its GameMaster always can, and a
- * workspace OWNER/ORGANIZER always can. For an event with no GameMaster only
- * the workspace organizers qualify.
+ * The event's Organizer and any workspace OWNER/ORGANIZER may manage it;
+ * with no Organizer, only workspace admins qualify.
  */
 export function canManageEvent({
   viewerUserId,
-  gmUserId,
+  organizerUserId,
   viewerIsWorkspaceOrganizer,
 }: EventAccessInput): boolean {
   if (viewerIsWorkspaceOrganizer) return true;
-  return gmUserId !== null && viewerUserId === gmUserId;
+  return organizerUserId !== null && viewerUserId === organizerUserId;
 }
 
 /**
- * Whether the viewer is managing someone else's event: they may manage it,
- * they are not its GameMaster, and the event has one. Managing an event that
- * has no GameMaster is ordinary organizer work, not an override.
+ * True when a manager is not the event's Organizer and the event has one;
+ * managing an Organizer-less event is not an override.
  */
 export function isAdminOverride(input: EventAccessInput): boolean {
   return (
     canManageEvent(input) &&
-    input.gmUserId !== null &&
-    input.viewerUserId !== input.gmUserId
+    input.organizerUserId !== null &&
+    input.viewerUserId !== input.organizerUserId
   );
 }

@@ -4,7 +4,7 @@ import type { AvailabilityRange } from "./availability.ts";
 import {
   collapseOverlapToHours,
   computeOverlapGrid,
-  splitGm,
+  splitOrganizer,
   type OverlapParticipant,
 } from "./overlap.ts";
 
@@ -17,7 +17,7 @@ function participant(
 ): OverlapParticipant {
   return {
     displayName: overrides.userId,
-    isGameMaster: false,
+    isOrganizer: false,
     timeZone: "UTC",
     ranges: [],
     ...overrides,
@@ -134,9 +134,8 @@ describe("computeOverlapGrid", () => {
   });
 
   it("rounds a quarter-hour zone to the nearest half-hour and reports it", () => {
-    // Asia/Kathmandu is UTC+5:45, exactly between +5:30 and +6:00; the tie
-    // rounds away from zero, so it is treated as +6:00: their Monday 12:00
-    // (slot 24) lands at the viewer's 06:00 (slot 12).
+    // Asia/Kathmandu (UTC+5:45) rounds away from zero to +6:00: their
+    // Monday 12:00 (slot 24) lands at the viewer's 06:00 (slot 12).
     const { grid, approximated, viewerApproximated } = computeOverlapGrid(
       [
         participant({
@@ -165,33 +164,57 @@ describe("computeOverlapGrid", () => {
   });
 });
 
-describe("splitGm", () => {
-  it("removes the GM from the counts and reports them separately", () => {
+describe("splitOrganizer", () => {
+  it("with countOrganizer false, removes the organizer from the counts and reports them separately", () => {
     const { grid } = computeOverlapGrid(
       [
-        participant({ userId: "gm", ranges: [range(0, 36, 37), range(0, 37, 38, "TENTATIVE")] }),
+        participant({ userId: "org", ranges: [range(0, 36, 37), range(0, 37, 38, "TENTATIVE")] }),
         participant({ userId: "a", ranges: [range(0, 36, 38)] }),
       ],
       "UTC",
       NOW,
     );
-    const split = splitGm(grid, "gm");
+    const split = splitOrganizer(grid, "org", false);
     assert.deepEqual(split[0][36], {
       players: { available: ["a"], tentative: [] },
-      gm: "AVAILABLE",
+      organizer: "AVAILABLE",
     });
     assert.deepEqual(split[0][37], {
       players: { available: ["a"], tentative: [] },
-      gm: "TENTATIVE",
+      organizer: "TENTATIVE",
     });
-    // A cell the GM is not painted in reports gm null.
+    // A cell the organizer is not painted in reports organizer null.
     assert.deepEqual(split[0][35], {
       players: { available: [], tentative: [] },
-      gm: null,
+      organizer: null,
     });
   });
 
-  it("with gmUserId null, players equal the input cells and gm is null", () => {
+  it("with countOrganizer true, keeps the organizer in the counts and still reports them", () => {
+    const { grid } = computeOverlapGrid(
+      [
+        participant({ userId: "org", ranges: [range(0, 36, 37), range(0, 37, 38, "TENTATIVE")] }),
+        participant({ userId: "a", ranges: [range(0, 36, 38)] }),
+      ],
+      "UTC",
+      NOW,
+    );
+    const split = splitOrganizer(grid, "org", true);
+    assert.deepEqual(split[0][36], {
+      players: { available: ["org", "a"], tentative: [] },
+      organizer: "AVAILABLE",
+    });
+    assert.deepEqual(split[0][37], {
+      players: { available: ["a"], tentative: ["org"] },
+      organizer: "TENTATIVE",
+    });
+    assert.deepEqual(split[0][35], {
+      players: { available: [], tentative: [] },
+      organizer: null,
+    });
+  });
+
+  it("with organizerUserId null, players equal the input cells and organizer is null", () => {
     const { grid } = computeOverlapGrid(
       [
         participant({ userId: "a", ranges: [range(3, 20, 22)] }),
@@ -200,33 +223,30 @@ describe("splitGm", () => {
       "UTC",
       NOW,
     );
-    const split = splitGm(grid, null);
+    const split = splitOrganizer(grid, null, false);
     for (let weekday = 0; weekday < grid.length; weekday++) {
       for (let slot = 0; slot < grid[weekday].length; slot++) {
         assert.deepEqual(split[weekday][slot].players, grid[weekday][slot]);
-        assert.equal(split[weekday][slot].gm, null);
+        assert.equal(split[weekday][slot].organizer, null);
       }
     }
   });
 
   it("does not mutate the input grid", () => {
     const { grid } = computeOverlapGrid(
-      [participant({ userId: "gm", ranges: [range(0, 36, 38)] })],
+      [participant({ userId: "org", ranges: [range(0, 36, 38)] })],
       "UTC",
       NOW,
     );
-    splitGm(grid, "gm");
-    assert.deepEqual(grid[0][36], { available: ["gm"], tentative: [] });
+    splitOrganizer(grid, "org", false);
+    assert.deepEqual(grid[0][36], { available: ["org"], tentative: [] });
   });
 });
 
 describe("collapseOverlapToHours", () => {
   it("applies the hour-collapse rule per participant", () => {
-    // In 18:00–19:00 (slots 36 and 37):
-    //   a — AVAILABLE in both halves            -> available
-    //   b — AVAILABLE in the first half only    -> excluded
-    //   c — AVAILABLE then TENTATIVE            -> tentative
-    //   d — TENTATIVE in both halves            -> tentative
+    // 18:00–19:00 (slots 36–37): a available both halves; b first half
+    // only (excluded); c available-then-tentative; d tentative both.
     const { grid } = computeOverlapGrid(
       [
         participant({ userId: "a", ranges: [range(0, 36, 38)] }),
@@ -245,13 +265,13 @@ describe("collapseOverlapToHours", () => {
     assert.deepEqual(hours[0][18], { available: ["a"], tentative: ["c", "d"] });
   });
 
-  it("applies the same both-halves rule to the GM on a split grid", () => {
-    // GM: 18:00–19:00 both halves AVAILABLE; 19:00–20:00 AVAILABLE then
-    // TENTATIVE; 20:00–21:00 first half only. Player a spans 18:00–21:00.
+  it("applies the same both-halves rule to the organizer on a split grid", () => {
+    // Organizer: 18–19 available, 19–20 available-then-tentative, 20–21
+    // first half only. Player a spans 18:00–21:00.
     const { grid } = computeOverlapGrid(
       [
         participant({
-          userId: "gm",
+          userId: "org",
           ranges: [range(0, 36, 39), range(0, 39, 40, "TENTATIVE"), range(0, 40, 41)],
         }),
         participant({ userId: "a", ranges: [range(0, 36, 42)] }),
@@ -259,20 +279,21 @@ describe("collapseOverlapToHours", () => {
       "UTC",
       NOW,
     );
-    const hours = collapseOverlapToHours(splitGm(grid, "gm"));
+    const hours = collapseOverlapToHours(splitOrganizer(grid, "org", false));
     assert.equal(hours[0].length, 24);
     assert.deepEqual(hours[0][18], {
       players: { available: ["a"], tentative: [] },
-      gm: "AVAILABLE",
+      organizer: "AVAILABLE",
     });
     assert.deepEqual(hours[0][19], {
       players: { available: ["a"], tentative: [] },
-      gm: "TENTATIVE",
+      organizer: "TENTATIVE",
     });
-    // One painted half-hour out of two: the GM does not count for the hour.
+    // One painted half-hour out of two: the organizer does not count for
+    // the hour.
     assert.deepEqual(hours[0][20], {
       players: { available: ["a"], tentative: [] },
-      gm: null,
+      organizer: null,
     });
   });
 });

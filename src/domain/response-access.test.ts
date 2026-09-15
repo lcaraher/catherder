@@ -12,9 +12,8 @@ const REVEALED = new Date("2026-09-12T10:00:00Z");
 const UNLOCKED = new Date("2026-09-12T11:00:00Z");
 
 describe("canEditResponse", () => {
-  // Every combination of status × unlock. Editing follows the event
-  // lifecycle only: OPEN always editable, CLOSED only with an unlock,
-  // DRAFT never.
+  // Every combination of status × unlock: OPEN always editable, CLOSED
+  // only with an unlock, DRAFT never.
   const cases: [EventStatus, Date | null, boolean][] = [
     ["DRAFT", null, false],
     ["DRAFT", UNLOCKED, false],
@@ -45,9 +44,8 @@ describe("canEditResponse", () => {
   });
 
   it("a revealed event is still editable while OPEN", () => {
-    // Regression guard: sharing results must never lock editing. The rule
-    // deliberately takes no resultsRevealedAt input, so a revealed OPEN
-    // event's fields must produce the same answer as an unrevealed one.
+    // Sharing results must never lock editing: the rule takes no
+    // resultsRevealedAt input at all.
     const revealedOpenEvent = {
       eventStatus: "OPEN" as EventStatus,
       editUnlockedAt: null,
@@ -65,12 +63,12 @@ describe("canViewOthersResponses", () => {
     [false, REVEALED, true],
   ];
 
-  for (const [viewerIsOrganizerOrGm, resultsRevealedAt, expected] of cases) {
-    it(`${viewerIsOrganizerOrGm ? "organizer/GM" : "participant"}, ${
+  for (const [viewerIsManager, resultsRevealedAt, expected] of cases) {
+    it(`${viewerIsManager ? "manager" : "participant"}, ${
       resultsRevealedAt ? "revealed" : "not revealed"
     } -> ${expected}`, () => {
       assert.equal(
-        canViewOthersResponses({ viewerIsOrganizerOrGm, resultsRevealedAt }),
+        canViewOthersResponses({ viewerIsManager, resultsRevealedAt }),
         expected,
       );
     });
@@ -84,8 +82,7 @@ describe("canViewOwnResponse", () => {
 });
 
 describe("canViewQuestionAnswers", () => {
-  // Every combination of viewer × event reveal × question reveal. An
-  // organizer/GM always sees answers; a participant needs both gates open.
+  // Every combination of viewer × event reveal × question reveal.
   const cases: [boolean, Date | null, boolean, boolean][] = [
     [true, null, false, true],
     [true, null, true, true],
@@ -98,17 +95,17 @@ describe("canViewQuestionAnswers", () => {
   ];
 
   for (const [
-    viewerIsOrganizerOrGm,
+    viewerIsManager,
     resultsRevealedAt,
     answersRevealed,
     expected,
   ] of cases) {
-    it(`${viewerIsOrganizerOrGm ? "organizer/GM" : "participant"}, results ${
+    it(`${viewerIsManager ? "manager" : "participant"}, results ${
       resultsRevealedAt ? "revealed" : "hidden"
     }, question ${answersRevealed ? "revealed" : "hidden"} -> ${expected}`, () => {
       assert.equal(
         canViewQuestionAnswers({
-          viewerIsOrganizerOrGm,
+          viewerIsManager,
           resultsRevealedAt,
           answersRevealed,
         }),

@@ -6,19 +6,8 @@ const MESSAGE =
   "You have unsaved changes that will be lost if you leave this page.";
 
 /**
- * Warns before the page is left while `isDirty()` returns true: the standard
- * beforeunload dialog for browser navigation (close, reload, address bar) and
- * a window.confirm for in-app link clicks. Nothing is ever saved on the
- * user's behalf.
- *
- * `isDirty` is a callback, not a boolean, so parents that track form state in
- * refs (to avoid re-rendering on every grid paint stroke) can still be
- * guarded — it is read at event time, never at render time.
- *
- * Link clicks are intercepted with a capture-phase listener on `document`,
- * which runs before React's own root listener: stopPropagation there keeps
- * next/link's client-side navigation handler from ever firing, and
- * preventDefault covers plain anchors.
+ * Warns before leaving while isDirty() is true: beforeunload for browser
+ * navigation, window.confirm for in-app link clicks. Never saves anything.
  */
 export function useUnsavedChangesGuard(isDirty: () => boolean) {
   const isDirtyRef = useRef(isDirty);

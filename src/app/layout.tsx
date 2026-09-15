@@ -18,6 +18,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <header className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
             <Link href="/">catherder</Link>
             <Link href="/availability">Availability</Link>
+            <Link href="/help">How do?</Link>
             <span className="ml-auto flex items-center gap-4">
               <span>{user.displayName}</span>
               <a href="/logout">Log out</a>

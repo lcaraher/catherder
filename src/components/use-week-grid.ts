@@ -4,11 +4,8 @@ import { useRef, useState } from "react";
 import { weekFromRanges, type AvailabilityRange, type SlotStatus } from "@/domain/availability";
 
 /**
- * Grid handling shared by RespondForm and the GM's event-availability
- * editor: tracks the latest on-screen week in a ref, and replaces the whole
- * grid by remounting the editor with a new seed week (bumping `gridKey`) —
- * the editor owns its week state after mount, so that is the only way to
- * swap its contents (e.g. "Reload from my saved availability", "Clear").
+ * Tracks the latest on-screen week in a ref and replaces the whole grid by
+ * remounting the editor with a new seed week (bumping `gridKey`).
  */
 export function useWeekGrid(initialRanges: AvailabilityRange[]) {
   const [initialWeek] = useState(() => weekFromRanges(initialRanges));
@@ -26,10 +23,7 @@ export function useWeekGrid(initialRanges: AvailabilityRange[]) {
     initialWeek,
     /** Always the latest painted week; read it at save/submit time. */
     weekRef,
-    /**
-     * Pass as WeekGridEditor's `key` so bumps remount it. React does not
-     * accept `key` via prop spread, so it stays separate from gridProps.
-     */
+    /** Pass as WeekGridEditor's `key`; React rejects `key` in a prop spread. */
     gridKey,
     /** Spread onto WeekGridEditor: seed week and the onChange mirror. */
     gridProps: {

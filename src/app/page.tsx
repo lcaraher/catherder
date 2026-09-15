@@ -9,9 +9,8 @@ const STATUS_STYLES: Record<string, string> = {
   CLOSED: "bg-badge-closed text-badge-closed-text",
 };
 
-// One inbox row: the event, who runs it, its status, and optionally the
-// viewer's own state. Never anything about other people. (D-011: the word
-// "workspace" and its name stay out of the UI.)
+// One inbox row: the event, who organizes it, its status, and the viewer's
+// own state — never anything about other people.
 function EventRow({
   href,
   name,
@@ -22,7 +21,7 @@ function EventRow({
 }: {
   href: string;
   name: string;
-  /** The event's GameMaster; events without one show no second line. */
+  /** The event's Organizer; events without one show no second line. */
   organizerName?: string;
   status: string;
   note?: string;
@@ -74,7 +73,7 @@ export default async function Home() {
     );
   }
 
-  const [memberships, participations, gmEvents] = await Promise.all([
+  const [memberships, participations, organizedEvents] = await Promise.all([
     prisma.workspaceMember.findMany({
       where: { userId: user.id },
       select: { workspaceId: true },
@@ -89,30 +88,30 @@ export default async function Home() {
             name: true,
             status: true,
             resultsRevealedAt: true,
-            gmUser: { select: { displayName: true } },
+            organizerParticipates: true,
+            organizerUser: { select: { displayName: true } },
           },
         },
       },
       orderBy: { event: { createdAt: "desc" } },
     }),
     prisma.event.findMany({
-      where: { gmUserId: user.id },
+      where: { organizerUserId: user.id },
       select: {
         id: true,
         name: true,
         status: true,
         workspaceId: true,
-        gmUser: { select: { displayName: true } },
+        organizerUser: { select: { displayName: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
   ]);
 
-  // The GameMaster is not a participant (D-013): their participant row is
-  // storage only, so it never appears in the response lists — their events
-  // are under "Events you run" instead.
+  // A non-participating organizer never appears in the response lists;
+  // their events are under "Events you run" instead.
   const playerParticipations = participations.filter(
-    (p) => p.role !== "GAMEMASTER",
+    (p) => p.role !== "ORGANIZER" || p.event.organizerParticipates,
   );
   const needsResponse = playerParticipations.filter(
     (p) =>
@@ -130,7 +129,7 @@ export default async function Home() {
   const nothingWaiting =
     needsResponse.length === 0 &&
     submitted.length === 0 &&
-    gmEvents.length === 0;
+    organizedEvents.length === 0;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
@@ -161,7 +160,7 @@ export default async function Home() {
                     key={p.eventId}
                     href={`/e/${p.eventId}/respond`}
                     name={p.event.name}
-                    organizerName={p.event.gmUser?.displayName}
+                    organizerName={p.event.organizerUser?.displayName}
                     status={p.event.status}
                   />
                 ))}
@@ -178,7 +177,7 @@ export default async function Home() {
                     key={p.eventId}
                     href={`/e/${p.eventId}/respond`}
                     name={p.event.name}
-                    organizerName={p.event.gmUser?.displayName}
+                    organizerName={p.event.organizerUser?.displayName}
                     status={p.event.status}
                     resultsHref={
                       p.event.resultsRevealedAt !== null
@@ -199,16 +198,16 @@ export default async function Home() {
             </section>
           )}
 
-          {gmEvents.length > 0 && (
+          {organizedEvents.length > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-medium">Events you run</h2>
               <ul className="flex flex-col gap-2">
-                {gmEvents.map((event) => (
+                {organizedEvents.map((event) => (
                   <EventRow
                     key={event.id}
                     href={`/w/${event.workspaceId}/events/${event.id}`}
                     name={event.name}
-                    organizerName={event.gmUser?.displayName}
+                    organizerName={event.organizerUser?.displayName}
                     status={event.status}
                   />
                 ))}

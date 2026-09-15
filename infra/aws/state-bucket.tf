@@ -1,4 +1,4 @@
-# S3 bucket that will hold Terraform state once the backend is migrated
+# S3 bucket holding Terraform state.
 
 resource "aws_s3_bucket" "tf_state" {
   bucket = "catherder-tfstate-${data.aws_caller_identity.current.account_id}"

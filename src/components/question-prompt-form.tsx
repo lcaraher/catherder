@@ -10,9 +10,8 @@ interface Props {
 }
 
 /**
- * The prompt editor on a question card. Purely a confirmation wrapper: when
- * answers exist and the wording actually changed, the manager confirms
- * before the (unchanged) server action runs.
+ * Prompt editor on a question card: when answers exist and the wording
+ * changed, the manager confirms before the server action runs.
  */
 export function QuestionPromptForm({
   action,

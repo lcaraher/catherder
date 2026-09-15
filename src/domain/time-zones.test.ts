@@ -133,9 +133,8 @@ describe("year-round abbreviations", () => {
   });
 
   it("keeps both forms for a southern-hemisphere zone", () => {
-    // Sydney's DST months are inverted (daylight in January, standard in
-    // July); en-US ICU has no letter names for it, so assert on whatever
-    // two forms Intl produces rather than hard-coding them.
+    // Sydney has daylight in January and standard in July; assert on
+    // whatever two forms Intl produces rather than hard-coding them.
     const [sydney] = buildTimeZoneOptions(["Australia/Sydney"], september);
     assert.equal(sydney.abbreviations.length, 2);
     for (const abbreviation of sydney.abbreviations) {

@@ -1,5 +1,4 @@
-// Auth configuration boundary: everything is read from environment variables
-// so the same code works against any OIDC issuer, with no cloud SDKs under src/.
+// Auth configuration, read from environment variables.
 
 export interface AuthConfig {
   /** Expected `iss` claim of incoming ID tokens. */
@@ -38,8 +37,7 @@ function required(name: string): string {
 
 let cached: AuthConfig | undefined;
 
-// Lazy so importing auth code never throws at build time (Docker builds run
-// without env vars); validation happens on first use per server process.
+// Validated lazily on first use; importing this module never throws at build time.
 export function getAuthConfig(): AuthConfig {
   if (!cached) {
     assertDevIssuerNotInProduction();

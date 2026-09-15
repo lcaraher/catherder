@@ -114,9 +114,8 @@ export function RespondForm({
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // What the server currently holds, updated after each successful submit.
-  // Dirtiness is a comparison against this, so a reload from the standing
-  // week counts as unsaved (it changed the form) while edit-then-undo does not.
+  // The last successful submit; dirtiness compares against it, so a
+  // standing-week reload counts as unsaved while edit-then-undo does not.
   const savedRef = useRef({ week: initialWeek, answers: initialAnswerState });
   useUnsavedChangesGuard(
     () =>
@@ -199,8 +198,7 @@ export function RespondForm({
     }
   }
 
-  // Kept below the questions on purpose: the only submit control sits after
-  // everything the participant is expected to have seen.
+  // The only submit control sits below the questions.
   function submitControls(margin: string) {
     return (
       <div className={`${margin} flex items-center gap-3`}>

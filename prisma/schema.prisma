@@ -15,7 +15,7 @@ enum WorkspaceRole {
 }
 
 enum EventMode {
-  GM_GROUPS
+  MULTI_GROUP
   SINGLE_ACTIVITY
 }
 
@@ -26,7 +26,7 @@ enum EventStatus {
 }
 
 enum EventParticipantRole {
-  GAMEMASTER
+  ORGANIZER
   PLAYER
 }
 
@@ -62,9 +62,8 @@ model User {
   // How this user reads times everywhere: 7:30 PM vs 19:30. Display only —
   // storage stays slot-based local wall-clock regardless.
   clockFormat ClockFormat @default(TWELVE_HOUR)
-  // The device zone the user chose to ignore ("Keep <profile zone>"): the
-  // mismatch banner stays hidden while the detected zone equals this. Cleared
-  // whenever the profile zone changes.
+  // The device zone the user chose to ignore; cleared whenever the profile
+  // zone changes.
   dismissedDeviceZone String?
   // Free-text note shown alongside standing availability. Sensitive: never log.
   availabilityNote String?
@@ -73,7 +72,7 @@ model User {
   identities           ExternalIdentity[]
   ownedWorkspaces      Workspace[]
   memberships          WorkspaceMember[]
-  gmEvents             Event[]                @relation("EventGm")
+  organizedEvents      Event[]                @relation("EventOrganizer")
   eventParticipations  EventParticipant[]
   standingAvailability StandingAvailability[]
   eventAvailability    EventAvailability[]
@@ -120,30 +119,33 @@ model WorkspaceMember {
 }
 
 model Event {
-  id            String      @id @default(cuid())
-  workspaceId   String
-  name          String
-  mode          EventMode
-  gmUserId      String?
+  id              String    @id @default(cuid())
+  workspaceId     String
+  name            String
+  mode            EventMode
+  organizerUserId String?
+  // Whether the organizer also responds as a participant. Off: only their
+  // availability is used and they are never asked to respond.
+  organizerParticipates Boolean @default(false)
   // Target session length in half-hour slots (e.g. 6 = 3 hours).
   requiredSlots Int
   minGroupSize  Int?
   maxGroupSize  Int?
   status        EventStatus
   // When set, responses/overlap/results are visible to participants too.
-  // Null = visible to organizers and the event's GameMaster only.
+  // Null = visible to the organizer and workspace admins only.
   resultsRevealedAt DateTime?
   createdAt         DateTime  @default(now())
 
-  workspace    Workspace           @relation(fields: [workspaceId], references: [id])
-  gmUser       User?               @relation("EventGm", fields: [gmUserId], references: [id])
-  participants EventParticipant[]
-  availability EventAvailability[]
-  questions    Question[]
-  answers      Answer[]
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id])
+  organizerUser User?               @relation("EventOrganizer", fields: [organizerUserId], references: [id])
+  participants  EventParticipant[]
+  availability  EventAvailability[]
+  questions     Question[]
+  answers       Answer[]
 
   @@index([workspaceId])
-  @@index([gmUserId])
+  @@index([organizerUserId])
 }
 
 model EventParticipant {
@@ -207,7 +209,7 @@ model Question {
   version      Int
   displayOrder Int
   // Per-question participant visibility: even once event results are shared,
-  // a question's answers stay organizer/GM-only until this is true.
+  // a question's answers stay manager-only until this is true.
   answersRevealed Boolean @default(false)
   // Participants cannot submit a response without answering this question.
   // Enforced at submit time only; existing answers are never re-validated.

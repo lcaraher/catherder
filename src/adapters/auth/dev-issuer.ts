@@ -2,10 +2,8 @@ import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
 import type { User } from "@prisma/client";
 import { getAuthConfig } from "./config";
 
-// Dev-only OIDC issuer: the app itself signs ID tokens and serves the
-// matching JWKS at /api/dev-auth/jwks, so login exercises the exact same
-// remote-JWKS verification path a real issuer would. Enabled only via
-// AUTH_DEV_ISSUER=true and refused outright in production (see config.ts).
+// Dev-only OIDC issuer: signs ID tokens and serves the matching JWKS at
+// /api/dev-auth/jwks. Enabled via AUTH_DEV_ISSUER=true; refused in production.
 
 const DEV_KEY_ID = "catherder-dev-key";
 const ALG = "RS256";
@@ -15,9 +13,7 @@ interface DevIssuerKeys {
   jwks: { keys: JWK[] };
 }
 
-// Cached on globalThis so the signing key survives dev-server hot reloads;
-// a fresh key per process is fine because tokens are minted and verified
-// within a single login request.
+// Cached on globalThis so the signing key survives dev-server hot reloads.
 const globalForDevIssuer = globalThis as unknown as {
   devIssuerKeys?: Promise<DevIssuerKeys>;
 };

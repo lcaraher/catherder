@@ -1,5 +1,4 @@
-// Pure overlap computation: no framework, adapter, or I/O imports. Slot and
-// midnight conventions come from availability.ts — never re-implemented here.
+// Pure overlap computation; slot and midnight conventions come from availability.ts.
 
 import {
   SLOTS_PER_DAY,
@@ -11,7 +10,7 @@ import {
 export interface OverlapParticipant {
   userId: string;
   displayName: string;
-  isGameMaster: boolean;
+  isOrganizer: boolean;
   /** IANA zone the participant's ranges are wall-clock local to. */
   timeZone: string;
   ranges: AvailabilityRange[];
@@ -36,10 +35,7 @@ export interface OverlapResult {
 
 const MINUTES_PER_SLOT = 30;
 
-/**
- * The zone's UTC offset in minutes at the given instant, from
- * Intl.DateTimeFormat — never a hard-coded table.
- */
+/** The zone's UTC offset in minutes at the given instant, via Intl.DateTimeFormat. */
 function utcOffsetMinutes(timeZone: string, at: Date): number {
   const name =
     new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
@@ -56,10 +52,8 @@ function utcOffsetMinutes(timeZone: string, at: Date): number {
 }
 
 /**
- * The half-hour slot grid cannot represent offsets like Asia/Kathmandu's
- * +5:45, so they are rounded to the nearest half-hour; +5:45 sits exactly
- * between +5:30 and +6:00 and ties round away from zero, making it +6:00.
- * Callers surface who was approximated instead of this module throwing.
+ * Rounds an offset to the nearest half-hour; ties round away from zero
+ * (+5:45 becomes +6:00). Callers report who was approximated.
  */
 function roundToHalfHour(offsetMinutes: number): number {
   return (
@@ -70,10 +64,8 @@ function roundToHalfHour(offsetMinutes: number): number {
 }
 
 /**
- * Weekly availability has no dates, so DST is resolved against one concrete
- * reference week: every zone's offset is sampled at the coming Monday 12:00
- * in the viewer's zone (today, if today is Monday). The instant only feeds
- * offset sampling, so being off by the DST correction hour is immaterial.
+ * Weekly availability has no dates, so every zone's offset is sampled at the
+ * coming Monday 12:00 in the viewer's zone (today, if today is Monday).
  */
 function referenceInstant(viewerTimeZone: string, now: Date): Date {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -104,13 +96,8 @@ function referenceInstant(viewerTimeZone: string, now: Date): Date {
 }
 
 /**
- * Merges every participant's week into one 7 × 48 grid in the viewer's zone.
- * Each participant's slots are shifted by the whole-week slot difference
- * between their UTC offset and the viewer's, so a block that crosses
- * midnight wraps to the adjacent weekday (Sunday late night forward into
- * Monday, Monday early morning back into Sunday). Available and tentative
- * are kept separate and never summed. Offsets that are not whole half-hours
- * are rounded (see roundToHalfHour) and reported in the result.
+ * Merges every participant's week into one 7 × 48 grid in the viewer's zone;
+ * a block that crosses midnight wraps to the adjacent weekday.
  */
 export function computeOverlapGrid(
   participants: readonly OverlapParticipant[],
@@ -135,9 +122,7 @@ export function computeOverlapGrid(
     const exactOffset = utcOffsetMinutes(participant.timeZone, reference);
     const offset = roundToHalfHour(exactOffset);
     if (offset !== exactOffset) approximated.push(participant.userId);
-    // A participant east of the viewer (larger offset) reaches any wall-clock
-    // time earlier in absolute terms, so their slots land earlier for the
-    // viewer; west of the viewer, later.
+    // East of the viewer lands earlier in the viewer's grid; west, later.
     const shiftSlots = (viewerOffset - offset) / MINUTES_PER_SLOT;
 
     const week = weekFromRanges(participant.ranges);
@@ -160,53 +145,56 @@ export function computeOverlapGrid(
 }
 
 /**
- * The GM's slice of a cell after splitGm: pulled out of the counts and
- * reported as a single status (null = the GM is not painted there, or the
- * event has no GM).
+ * The organizer's slice of a cell after splitOrganizer, as a single status;
+ * null = not painted there, or no organizer.
  */
-export type GmSlotStatus = "AVAILABLE" | "TENTATIVE" | null;
+export type OrganizerSlotStatus = "AVAILABLE" | "TENTATIVE" | null;
 
-/** One cell with the GM separated from the player counts. */
+/** One cell with the organizer reported separately from the counts. */
 export interface SplitOverlapCell {
   players: OverlapCell;
-  gm: GmSlotStatus;
+  organizer: OrganizerSlotStatus;
 }
 
-/** grid[weekday][slot] with the GM split out of every cell. */
+/** grid[weekday][slot] with the organizer split out of every cell. */
 export type SplitOverlapGrid = SplitOverlapCell[][];
 
 /**
- * Splits the GM out of every cell: the GM's userId is removed from the
- * available/tentative lists and reported as the cell's `gm` status instead.
- * With gmUserId null (SINGLE_ACTIVITY) every cell's players equal the input
- * cell and gm is null. Pure — the input grid is never mutated.
+ * Reports the organizer's status separately in every cell; with
+ * countOrganizer false their id is also removed from the counts. Pure.
  */
-export function splitGm(
+export function splitOrganizer(
   grid: OverlapGrid,
-  gmUserId: string | null,
+  organizerUserId: string | null,
+  countOrganizer: boolean,
 ): SplitOverlapGrid {
   return grid.map((day) =>
     day.map((cell) => {
-      const gm: GmSlotStatus =
-        gmUserId === null
+      const organizer: OrganizerSlotStatus =
+        organizerUserId === null
           ? null
-          : cell.available.includes(gmUserId)
+          : cell.available.includes(organizerUserId)
             ? "AVAILABLE"
-            : cell.tentative.includes(gmUserId)
+            : cell.tentative.includes(organizerUserId)
               ? "TENTATIVE"
               : null;
+      const keep = countOrganizer || organizerUserId === null;
       return {
         players: {
-          available: cell.available.filter((id) => id !== gmUserId),
-          tentative: cell.tentative.filter((id) => id !== gmUserId),
+          available: keep
+            ? [...cell.available]
+            : cell.available.filter((id) => id !== organizerUserId),
+          tentative: keep
+            ? [...cell.tentative]
+            : cell.tentative.filter((id) => id !== organizerUserId),
         },
-        gm,
+        organizer,
       };
     }),
   );
 }
 
-/** The hour-collapse rule for one pair of half-hour cells (see below). */
+/** The hour-collapse rule for one pair of half-hour cells. */
 function collapseCellPair(first: OverlapCell, second: OverlapCell): OverlapCell {
   const firstAvailable = new Set(first.available);
   const secondAvailable = new Set(second.available);
@@ -225,8 +213,11 @@ function collapseCellPair(first: OverlapCell, second: OverlapCell): OverlapCell 
   return { available, tentative };
 }
 
-/** The same both-halves rule applied to the GM's single status. */
-function collapseGmPair(first: GmSlotStatus, second: GmSlotStatus): GmSlotStatus {
+/** The same both-halves rule applied to the organizer's single status. */
+function collapseOrganizerPair(
+  first: OrganizerSlotStatus,
+  second: OrganizerSlotStatus,
+): OrganizerSlotStatus {
   if (first === null || second === null) return null;
   return first === "AVAILABLE" && second === "AVAILABLE"
     ? "AVAILABLE"
@@ -234,11 +225,8 @@ function collapseGmPair(first: GmSlotStatus, second: GmSlotStatus): GmSlotStatus
 }
 
 /**
- * Collapses a half-hour overlap grid to 7 × 24 for Hour mode. Within an
- * hour a participant counts as available only when both half-hours are
- * AVAILABLE, tentative when both halves are painted and at least one is
- * TENTATIVE, and not at all when either half is unpainted. On a split grid
- * the GM's status follows the same both-halves rule.
+ * Collapses to 7 × 24: available needs both half-hours AVAILABLE, tentative
+ * needs both painted; the organizer follows the same both-halves rule.
  */
 export function collapseOverlapToHours(grid: OverlapGrid): OverlapGrid;
 export function collapseOverlapToHours(grid: SplitOverlapGrid): SplitOverlapGrid;
@@ -257,7 +245,7 @@ export function collapseOverlapToHours(
       if (isSplit(first) && isSplit(second)) {
         hours.push({
           players: collapseCellPair(first.players, second.players),
-          gm: collapseGmPair(first.gm, second.gm),
+          organizer: collapseOrganizerPair(first.organizer, second.organizer),
         });
       } else if (!isSplit(first) && !isSplit(second)) {
         hours.push(collapseCellPair(first, second));

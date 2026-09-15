@@ -1,6 +1,4 @@
-// Auth adapter boundary. Identity-provider integrations are configured through
-// environment variables and exposed to the rest of the app only via this module.
-// The IdP authenticates only; authorization roles come from the database.
+// Auth adapter boundary: all identity-provider access goes through this module.
 
 export { getAuthConfig, assertDevIssuerNotInProduction } from "./config";
 export { verifyIdToken, type VerifiedIdentity } from "./oidc";
