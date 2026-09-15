@@ -552,6 +552,158 @@ export async function updateQuestionPrompt(formData: FormData) {
   revalidatePath(eventPath(event.workspaceId, question.eventId));
 }
 
+export async function updateQuestionOption(formData: FormData) {
+  const optionId = String(formData.get("optionId") ?? "");
+  const label = String(formData.get("label") ?? "").trim();
+  if (label === "") return;
+  const option = await prisma.questionOption.findUnique({
+    where: { id: optionId },
+    include: { question: true },
+  });
+  if (!option) return;
+  const { event, user } = await requireEventManager(option.question.eventId);
+  if (label === option.label) return;
+
+  // Answers stay attached (the option id is unchanged); rewording an
+  // answered question's option starts a fresh version, like a prompt edit.
+  const answered =
+    (await prisma.answer.count({
+      where: { questionId: option.questionId },
+    })) > 0;
+  await prisma.$transaction(async (tx) => {
+    await tx.questionOption.update({
+      where: { id: optionId },
+      data: { label },
+    });
+    if (answered) {
+      await tx.question.update({
+        where: { id: option.questionId },
+        data: { version: { increment: 1 } },
+      });
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "QuestionOption",
+        entityId: optionId,
+        action: "question_option_edited",
+        detail: { optionId, from: option.label, to: label },
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, option.question.eventId));
+}
+
+// Choice questions only: whether responders get a free-text "Other".
+export async function setQuestionAllowOther(formData: FormData) {
+  const questionId = String(formData.get("questionId") ?? "");
+  const allowOther = String(formData.get("allowOther") ?? "") === "true";
+  const question = await prisma.question.findUnique({
+    where: { id: questionId },
+  });
+  if (!question) return;
+  if (question.type !== "SINGLE_CHOICE" && question.type !== "MULTI_CHOICE") {
+    return;
+  }
+  const { event, user } = await requireEventManager(question.eventId);
+  if (question.allowOther === allowOther) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.question.update({
+      where: { id: questionId },
+      data: { allowOther },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Question",
+        entityId: questionId,
+        action: allowOther
+          ? "question_allow_other_set"
+          : "question_allow_other_cleared",
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, question.eventId));
+}
+
+export async function deleteQuestion(formData: FormData) {
+  const questionId = String(formData.get("questionId") ?? "");
+  const question = await prisma.question.findUnique({
+    where: { id: questionId },
+    include: {
+      options: { orderBy: { displayOrder: "asc" } },
+      answers: { include: { choices: true, text: true } },
+    },
+  });
+  if (!question) return;
+  const { event, user } = await requireEventManager(question.eventId);
+
+  // This snapshot can hold participants' free text: it stays in the database
+  // under the same protection as the answers and is never written to logs.
+  const detail = {
+    questionId,
+    eventId: question.eventId,
+    prompt: question.prompt,
+    type: question.type,
+    version: question.version,
+    displayOrder: question.displayOrder,
+    required: question.required,
+    answersRevealed: question.answersRevealed,
+    allowOther: question.allowOther,
+    options: question.options.map((option) => ({
+      optionId: option.id,
+      label: option.label,
+      displayOrder: option.displayOrder,
+    })),
+    answers: question.answers.map((answer) => ({
+      userId: answer.userId,
+      questionVersion: answer.questionVersion,
+      choices: answer.choices.map((choice) => ({
+        optionId: choice.optionId,
+        rank: choice.rank,
+      })),
+      text: answer.text?.text ?? null,
+      otherText: answer.otherText,
+    })),
+  };
+
+  const answerIds = question.answers.map((answer) => answer.id);
+  await prisma.$transaction(async (tx) => {
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Question",
+        entityId: questionId,
+        action: "question_deleted",
+        detail,
+      },
+    });
+    await tx.answerText.deleteMany({ where: { answerId: { in: answerIds } } });
+    await tx.answerChoice.deleteMany({
+      where: { answerId: { in: answerIds } },
+    });
+    await tx.answer.deleteMany({ where: { questionId } });
+    await tx.questionOption.deleteMany({ where: { questionId } });
+    await tx.question.delete({ where: { id: questionId } });
+    // Renumber so the remaining questions' displayOrder stays 0..n-1.
+    const remaining = await tx.question.findMany({
+      where: { eventId: question.eventId },
+      orderBy: { displayOrder: "asc" },
+      select: { id: true, displayOrder: true },
+    });
+    for (const [index, row] of remaining.entries()) {
+      if (row.displayOrder !== index) {
+        await tx.question.update({
+          where: { id: row.id },
+          data: { displayOrder: index },
+        });
+      }
+    }
+  });
+  revalidatePath(eventPath(event.workspaceId, question.eventId));
+}
+
 export async function addQuestionOption(formData: FormData) {
   const questionId = String(formData.get("questionId") ?? "");
   const label = String(formData.get("label") ?? "").trim();
@@ -585,14 +737,44 @@ export async function removeQuestionOption(formData: FormData) {
     include: { question: true },
   });
   if (!option) return;
-  const { event } = await requireEventManager(option.question.eventId);
+  const { event, user } = await requireEventManager(option.question.eventId);
 
-  // Options are only removable while nothing references them; once answers
-  // exist the choices must stay intact.
+  // Choices referencing the option are dropped with it; the audit row
+  // records them so an administrator can restore by hand.
+  const choices = await prisma.answerChoice.findMany({
+    where: { optionId },
+    include: { answer: { select: { userId: true } } },
+  });
   const answered =
-    (await prisma.answer.count({ where: { questionId: option.questionId } })) >
-    0;
-  if (answered) return;
-  await prisma.questionOption.delete({ where: { id: optionId } });
+    (await prisma.answer.count({
+      where: { questionId: option.questionId },
+    })) > 0;
+  await prisma.$transaction(async (tx) => {
+    await tx.answerChoice.deleteMany({ where: { optionId } });
+    await tx.questionOption.delete({ where: { id: optionId } });
+    if (answered) {
+      await tx.question.update({
+        where: { id: option.questionId },
+        data: { version: { increment: 1 } },
+      });
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "QuestionOption",
+        entityId: optionId,
+        action: "question_option_removed",
+        detail: {
+          optionId,
+          label: option.label,
+          displayOrder: option.displayOrder,
+          choices: choices.map((choice) => ({
+            userId: choice.answer.userId,
+            rank: choice.rank,
+          })),
+        },
+      },
+    });
+  });
   revalidatePath(eventPath(event.workspaceId, option.question.eventId));
 }

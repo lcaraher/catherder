@@ -9,19 +9,24 @@ import {
   addQuestion,
   addQuestionOption,
   closeEventAndShareResults,
+  deleteQuestion,
   removeParticipant,
   removeQuestionOption,
   reorderQuestion,
   setEventStatus,
   setParticipantEditLock,
+  setQuestionAllowOther,
   setQuestionAnswersRevealed,
   setQuestionRequired,
   setResultsRevealed,
   updateEvent,
+  updateQuestionOption,
   updateQuestionPrompt,
 } from "../actions";
 import { OrganizerAvailabilityEditor } from "@/components/organizer-availability-editor";
 import { OrganizerBadge } from "@/components/organizer-badge";
+import { QuestionDeleteForm } from "@/components/question-delete-form";
+import { QuestionOptionRow } from "@/components/question-option-row";
 import { QuestionPromptForm } from "@/components/question-prompt-form";
 
 export const dynamic = "force-dynamic";
@@ -111,7 +116,10 @@ export default async function EventPage({
       questions: {
         orderBy: { displayOrder: "asc" },
         include: {
-          options: { orderBy: { displayOrder: "asc" } },
+          options: {
+            orderBy: { displayOrder: "asc" },
+            include: { _count: { select: { choices: true } } },
+          },
           _count: { select: { answers: true } },
         },
       },
@@ -674,6 +682,11 @@ export default async function EventPage({
                         ↓
                       </button>
                     </form>
+                    <QuestionDeleteForm
+                      action={deleteQuestion}
+                      questionId={question.id}
+                      answerCount={question._count.answers}
+                    />
                   </span>
                 </div>
                 <QuestionPromptForm
@@ -741,30 +754,54 @@ export default async function EventPage({
                       Required
                     </button>
                   </form>
+                  {(question.type === "SINGLE_CHOICE" ||
+                    question.type === "MULTI_CHOICE") && (
+                    <form
+                      action={setQuestionAllowOther}
+                      className={segmentGroupClass}
+                      aria-label="Other answer"
+                    >
+                      <input
+                        type="hidden"
+                        name="questionId"
+                        value={question.id}
+                      />
+                      <button
+                        type="submit"
+                        name="allowOther"
+                        value="false"
+                        aria-pressed={!question.allowOther}
+                        title="Participants pick from the listed options only."
+                        className={segmentClass(!question.allowOther)}
+                      >
+                        No Other
+                      </button>
+                      <button
+                        type="submit"
+                        name="allowOther"
+                        value="true"
+                        aria-pressed={question.allowOther}
+                        title="Participants may pick Other and type their own short answer."
+                        className={segmentClass(question.allowOther)}
+                      >
+                        Allow Other
+                      </button>
+                    </form>
+                  )}
                 </div>
                 {question.type !== "TEXT" && (
                   <div>
                     <ul className="mb-2 flex flex-col gap-1">
                       {question.options.map((option) => (
-                        <li key={option.id} className="flex items-center gap-2">
-                          <span className="flex-1">{option.label}</span>
-                          {question._count.answers === 0 && (
-                            <form action={removeQuestionOption}>
-                              <input
-                                type="hidden"
-                                name="optionId"
-                                value={option.id}
-                              />
-                              <button
-                                type="submit"
-                                aria-label={`Remove option ${option.label}`}
-                                className={smallButton}
-                              >
-                                Remove
-                              </button>
-                            </form>
-                          )}
-                        </li>
+                        <QuestionOptionRow
+                          key={option.id}
+                          updateAction={updateQuestionOption}
+                          removeAction={removeQuestionOption}
+                          optionId={option.id}
+                          initialLabel={option.label}
+                          hasAnswers={question._count.answers > 0}
+                          choiceCount={option._count.choices}
+                        />
                       ))}
                     </ul>
                     <form

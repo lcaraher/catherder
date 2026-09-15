@@ -359,6 +359,9 @@ export default async function ResponsesPage({
                                   .filter((label): label is string =>
                                     Boolean(label),
                                   );
+                                if (answer.otherText) {
+                                  chosen.push(`Other: ${answer.otherText}`);
+                                }
                                 if (chosen.length > 0)
                                   display = chosen.join(", ");
                               }
@@ -427,6 +430,29 @@ export default async function ResponsesPage({
                             </li>
                           );
                         })}
+                        {question.type !== "RANKING" &&
+                          (() => {
+                            // Shown while Other is offered, and kept for old
+                            // Other answers after the setting is turned off.
+                            const counted = [...byUser.values()].filter(
+                              (answer) => respondentIds.has(answer.userId),
+                            );
+                            const otherTexts = counted
+                              .map((answer) => answer.otherText)
+                              .filter((text): text is string => Boolean(text));
+                            if (!question.allowOther && otherTexts.length === 0)
+                              return null;
+                            return (
+                              <li>
+                                Other — {otherTexts.length}
+                                {otherTexts.map((text, i) => (
+                                  <p key={i} className="whitespace-pre-wrap">
+                                    {text}
+                                  </p>
+                                ))}
+                              </li>
+                            );
+                          })()}
                       </ul>
                     </>
                   )}

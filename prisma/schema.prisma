@@ -214,6 +214,8 @@ model Question {
   // Participants cannot submit a response without answering this question.
   // Enforced at submit time only; existing answers are never re-validated.
   required Boolean @default(false)
+  // Choice questions only: offers a free-text "Other" alongside the options.
+  allowOther Boolean @default(false)
 
   event   Event            @relation(fields: [eventId], references: [id])
   options QuestionOption[]
@@ -240,7 +242,9 @@ model Answer {
   questionVersion Int
   eventId         String
   userId          String
-  updatedAt       DateTime @updatedAt
+  // Free-text "Other" on a choice question. Sensitive: never log.
+  otherText String?
+  updatedAt DateTime @updatedAt
 
   question Question       @relation(fields: [questionId], references: [id])
   event    Event          @relation(fields: [eventId], references: [id])
@@ -279,7 +283,10 @@ model AuditEvent {
   entity      String
   entityId    String
   action      String
-  at          DateTime @default(now())
+  // Snapshot of what a destructive action removed, for hand restoration.
+  // May hold participants' free text — same protection as answers, never logged.
+  detail Json?
+  at     DateTime @default(now())
 
   actor User? @relation(fields: [actorUserId], references: [id])
 

@@ -154,6 +154,9 @@ export default async function RespondPage({
                         const chosen = answer.choices
                           .map((c) => labelById.get(c.optionId))
                           .filter((label): label is string => Boolean(label));
+                        if (answer.otherText) {
+                          chosen.push(`Other: ${answer.otherText}`);
+                        }
                         if (chosen.length > 0) display = chosen.join(", ");
                       }
                     }
@@ -199,6 +202,8 @@ export default async function RespondPage({
             .filter((choice) => choice.rank !== null)
             .map((choice) => [choice.optionId, choice.rank as number]),
         ),
+        other: answer.otherText !== null,
+        otherText: answer.otherText ?? "",
       },
     ]),
   );
@@ -235,6 +240,7 @@ export default async function RespondPage({
           type: question.type,
           prompt: question.prompt,
           required: question.required,
+          allowOther: question.allowOther,
           options: question.options.map((option) => ({
             id: option.id,
             label: option.label,

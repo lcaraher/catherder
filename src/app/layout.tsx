@@ -5,7 +5,7 @@ import { getSessionUser } from "@/adapters/auth";
 
 export const metadata: Metadata = {
   title: "catherder",
-  description: "TTRPG session planning",
+  description: "Find when everyone can meet",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

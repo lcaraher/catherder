@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { slotToDbTime, validateRanges } from "@/domain/availability";
-import { TEXT_ANSWER_MAX_LENGTH } from "@/domain/questions";
+import {
+  isAnswerComplete,
+  OTHER_ANSWER_MAX_LENGTH,
+  TEXT_ANSWER_MAX_LENGTH,
+} from "@/domain/questions";
 import { canEditResponse } from "@/domain/response-access";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +15,8 @@ interface AnswerInput {
   questionId: string;
   optionIds: string[];
   text: string;
+  // Trimmed; non-empty means "Other" was selected with this text.
+  otherText: string;
   ranks: { optionId: string; rank: number }[];
 }
 
@@ -98,6 +104,7 @@ export async function POST(
         ? item.optionIds.filter((id): id is string => typeof id === "string")
         : [],
       text: typeof item.text === "string" ? item.text : "",
+      otherText: typeof item.otherText === "string" ? item.otherText.trim() : "",
       ranks: Array.isArray(item.ranks)
         ? item.ranks.filter(
             (r): r is { optionId: string; rank: number } =>
@@ -115,13 +122,30 @@ export async function POST(
       return badRequest(`missing answer for question "${question.prompt}"`);
     }
     const optionIds = new Set(question.options.map((option) => option.id));
+    // "Other" text is accepted only where the question offers Other, and
+    // within its cap; the client counter mirrors the same limit.
+    if (answer.otherText !== "") {
+      if (
+        !question.allowOther ||
+        (question.type !== "SINGLE_CHOICE" && question.type !== "MULTI_CHOICE")
+      ) {
+        return badRequest(
+          `"${question.prompt}" does not accept an Other answer`,
+        );
+      }
+      if (answer.otherText.length > OTHER_ANSWER_MAX_LENGTH) {
+        return badRequest(
+          `Other answers are limited to ${OTHER_ANSWER_MAX_LENGTH} characters ("${question.prompt}" is over the limit).`,
+        );
+      }
+    }
     switch (question.type) {
       case "SINGLE_CHOICE": {
-        // No choice is allowed here; the required check below rejects it
-        // when the question demands an answer.
+        // An empty answer passes here; the required check decides if that's ok.
         if (
           answer.optionIds.length > 1 ||
-          answer.optionIds.some((id) => !optionIds.has(id))
+          answer.optionIds.some((id) => !optionIds.has(id)) ||
+          (answer.optionIds.length > 0 && answer.otherText !== "")
         ) {
           return badRequest(`choose one option for "${question.prompt}"`);
         }
@@ -165,20 +189,17 @@ export async function POST(
     }
   }
 
-  // Required questions must carry an answer: whitespace-only TEXT, no
-  // option, or no ranks count as missing. Only this submission is checked.
+  // Required questions must carry an answer; the shared domain rule counts
+  // Other-with-text as answered. Only this submission is checked.
   const missingRequired = event.questions.filter((question) => {
     if (!question.required) return false;
     const answer = answersById.get(question.id)!;
-    switch (question.type) {
-      case "TEXT":
-        return answer.text.trim() === "";
-      case "SINGLE_CHOICE":
-      case "MULTI_CHOICE":
-        return answer.optionIds.length === 0;
-      case "RANKING":
-        return answer.ranks.length === 0;
-    }
+    return !isAnswerComplete(question, {
+      optionIds: answer.optionIds,
+      text: answer.text,
+      rankCount: answer.ranks.length,
+      otherText: answer.otherText,
+    });
   });
   if (missingRequired.length > 0) {
     const names = missingRequired
@@ -219,16 +240,18 @@ export async function POST(
 
     for (const question of event.questions) {
       const input = answersById.get(question.id)!;
+      const otherText = input.otherText === "" ? null : input.otherText;
       const answer = await tx.answer.upsert({
         where: {
           questionId_userId: { questionId: question.id, userId: user.id },
         },
-        update: { questionVersion: question.version },
+        update: { questionVersion: question.version, otherText },
         create: {
           questionId: question.id,
           questionVersion: question.version,
           eventId,
           userId: user.id,
+          otherText,
         },
       });
       await tx.answerChoice.deleteMany({ where: { answerId: answer.id } });

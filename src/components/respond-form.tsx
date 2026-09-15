@@ -12,13 +12,18 @@ import {
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useWeekGrid } from "@/components/use-week-grid";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
-import { TEXT_ANSWER_MAX_LENGTH } from "@/domain/questions";
+import {
+  isAnswerComplete,
+  OTHER_ANSWER_MAX_LENGTH,
+  TEXT_ANSWER_MAX_LENGTH,
+} from "@/domain/questions";
 
 export interface QuestionDto {
   id: string;
   type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TEXT" | "RANKING";
   prompt: string;
   required: boolean;
+  allowOther: boolean;
   options: { id: string; label: string }[];
 }
 
@@ -26,6 +31,9 @@ export interface AnswerState {
   optionIds: string[];
   text: string;
   ranks: Record<string, number>;
+  /** Whether the "Other" radio/checkbox is ticked. */
+  other: boolean;
+  otherText: string;
 }
 
 interface Props {
@@ -58,6 +66,8 @@ function buildAnswerState(
       optionIds: [],
       text: "",
       ranks: {},
+      other: false,
+      otherText: "",
     };
   }
   return state;
@@ -67,6 +77,10 @@ function buildAnswerState(
 // re-picking the same ranks, must not count as an unsaved change.
 function answerEqual(a: AnswerState, b: AnswerState): boolean {
   if (a.text !== b.text) return false;
+  // Only the Other text that would actually be submitted counts.
+  if ((a.other ? a.otherText : "") !== (b.other ? b.otherText : "")) {
+    return false;
+  }
   const aIds = [...a.optionIds].sort();
   const bIds = [...b.optionIds].sort();
   if (aIds.length !== bIds.length || aIds.some((id, i) => id !== bIds[i])) {
@@ -82,15 +96,12 @@ function answerEqual(a: AnswerState, b: AnswerState): boolean {
 
 // Courtesy mirror of the server's required check — the server is the gate.
 function isAnswered(question: QuestionDto, answer: AnswerState): boolean {
-  switch (question.type) {
-    case "TEXT":
-      return answer.text.trim() !== "";
-    case "SINGLE_CHOICE":
-    case "MULTI_CHOICE":
-      return answer.optionIds.length > 0;
-    case "RANKING":
-      return Object.keys(answer.ranks).length > 0;
-  }
+  return isAnswerComplete(question, {
+    optionIds: answer.optionIds,
+    text: answer.text,
+    rankCount: Object.keys(answer.ranks).length,
+    otherText: answer.other ? answer.otherText : "",
+  });
 }
 
 export function RespondForm({
@@ -174,6 +185,9 @@ export function RespondForm({
               questionId: question.id,
               optionIds: answer.optionIds,
               text: answer.text,
+              // Other counts only while ticked; the server treats an empty
+              // string as "Other not selected".
+              otherText: answer.other ? answer.otherText : "",
               ranks: Object.entries(answer.ranks).map(([optionId, rank]) => ({
                 optionId,
                 rank,
@@ -226,6 +240,31 @@ export function RespondForm({
     );
   }
 
+  // One-line "Other" input with the same cap-and-counter style as text
+  // answers; revealed only while Other is ticked.
+  function renderOtherInput(question: QuestionDto, answer: AnswerState) {
+    return (
+      <div className="ml-6">
+        <input
+          type="text"
+          value={answer.otherText}
+          onChange={(e) => update(question.id, { otherText: e.target.value })}
+          aria-label={`Other answer for "${question.prompt}"`}
+          className={`w-full ${inputClass}`}
+        />
+        <p
+          className={`mt-1 text-xs ${
+            answer.otherText.length > OTHER_ANSWER_MAX_LENGTH
+              ? "text-error"
+              : "text-faint"
+          }`}
+        >
+          {answer.otherText.length}/{OTHER_ANSWER_MAX_LENGTH}
+        </p>
+      </div>
+    );
+  }
+
   function renderQuestion(question: QuestionDto, index: number) {
     const answer = answers[question.id];
     return (
@@ -248,16 +287,40 @@ export function RespondForm({
                   type="radio"
                   name={`q-${question.id}`}
                   checked={answer.optionIds[0] === option.id}
-                  onChange={() => update(question.id, { optionIds: [option.id] })}
+                  onChange={() =>
+                    update(question.id, { optionIds: [option.id], other: false })
+                  }
                 />
                 {option.label}
               </label>
             ))}
+            {question.allowOther && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name={`q-${question.id}`}
+                  checked={answer.other}
+                  onChange={() =>
+                    update(question.id, { optionIds: [], other: true })
+                  }
+                />
+                Other
+              </label>
+            )}
+            {question.allowOther &&
+              answer.other &&
+              renderOtherInput(question, answer)}
             {/* A radio cannot be unticked, so clearing needs its own control. */}
-            {answer.optionIds.length > 0 && (
+            {(answer.optionIds.length > 0 || answer.other) && (
               <button
                 type="button"
-                onClick={() => update(question.id, { optionIds: [] })}
+                onClick={() =>
+                  update(question.id, {
+                    optionIds: [],
+                    other: false,
+                    otherText: "",
+                  })
+                }
                 className="self-start text-xs text-hint hover:underline"
               >
                 Clear answer
@@ -287,6 +350,26 @@ export function RespondForm({
                 </label>
               );
             })}
+            {question.allowOther && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={answer.other}
+                  onChange={(e) =>
+                    update(
+                      question.id,
+                      e.target.checked
+                        ? { other: true }
+                        : { other: false, otherText: "" },
+                    )
+                  }
+                />
+                Other
+              </label>
+            )}
+            {question.allowOther &&
+              answer.other &&
+              renderOtherInput(question, answer)}
           </div>
         )}
 
