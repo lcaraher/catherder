@@ -12,6 +12,7 @@ import {
   groupTimeZoneOptions,
 } from "@/domain/time-zones";
 import { ClockFormatPicker } from "@/components/clock-format-picker";
+import { EventDescription } from "@/components/event-description";
 import { RespondForm } from "@/components/respond-form";
 import { TimeZonePicker } from "@/components/time-zone-picker";
 import { WeekGridDisplay } from "@/components/week-grid-display";
@@ -51,6 +52,7 @@ export default async function RespondPage({
   const canEdit = canEditResponse({
     eventStatus: event.status,
     editUnlockedAt: participant.editUnlockedAt,
+    archivedAt: event.archivedAt,
   });
 
   // The shared-results link only exists when this viewer could actually see
@@ -93,6 +95,11 @@ export default async function RespondPage({
     where: { eventId, userId: user.id },
     include: { choices: true, text: true },
   });
+  const description = event.description !== null && (
+    <div className="mb-6 rounded border border-edge p-3">
+      <EventDescription text={event.description} />
+    </div>
+  );
 
   if (!canEdit) {
     // A participant may always view their own submission (canViewOwnResponse),
@@ -107,10 +114,11 @@ export default async function RespondPage({
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
         <p className="mb-6 rounded border border-edge bg-surface-muted px-3 py-2 text-sm text-muted">
-          Editing is closed because this event is not open for responses. If
-          you need to change your response, ask the organizer to unlock it for
-          you.
+          {event.archivedAt !== null
+            ? "This event has been archived."
+            : "Editing is closed because this event is not open for responses. If you need to change your response, ask the organizer to unlock it for you."}
         </p>
+        {description}
         {resultsLink}
 
         {!hasSubmission ? (
@@ -223,6 +231,7 @@ export default async function RespondPage({
         times here; changes here apply to this event only), then answer the
         questions below.
       </p>
+      {description}
       {resultsLink}
       <TimeZonePicker
         groups={zoneGroups}

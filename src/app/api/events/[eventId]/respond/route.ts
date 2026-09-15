@@ -54,12 +54,19 @@ export async function POST(
   if (participant.role === "ORGANIZER" && !event.organizerParticipates) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  if (event.archivedAt !== null) {
+    return NextResponse.json(
+      { error: "this event has been archived" },
+      { status: 403 },
+    );
+  }
   // The page renders read-only when editing is closed, but the server is the
   // gate: re-check here and refuse regardless of what the client sent.
   if (
     !canEditResponse({
       eventStatus: event.status,
       editUnlockedAt: participant.editUnlockedAt,
+      archivedAt: event.archivedAt,
     })
   ) {
     return NextResponse.json(

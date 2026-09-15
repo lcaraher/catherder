@@ -4,15 +4,18 @@ export type EventStatus = "DRAFT" | "OPEN" | "CLOSED";
 
 /**
  * Whether a participant may (re)submit: OPEN always, CLOSED only with an
- * unlock, DRAFT never. Sharing results never affects editing.
+ * unlock, DRAFT never, archived never. Sharing results never affects editing.
  */
 export function canEditResponse({
   eventStatus,
   editUnlockedAt,
+  archivedAt,
 }: {
   eventStatus: EventStatus;
   editUnlockedAt: Date | null;
+  archivedAt: Date | null;
 }): boolean {
+  if (archivedAt !== null) return false;
   if (eventStatus === "OPEN") return true;
   if (eventStatus === "CLOSED") return editUnlockedAt !== null;
   return false;

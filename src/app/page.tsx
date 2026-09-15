@@ -88,6 +88,7 @@ export default async function Home() {
             name: true,
             status: true,
             resultsRevealedAt: true,
+            archivedAt: true,
             organizerParticipates: true,
             organizerUser: { select: { displayName: true } },
           },
@@ -101,6 +102,7 @@ export default async function Home() {
         id: true,
         name: true,
         status: true,
+        archivedAt: true,
         workspaceId: true,
         organizerUser: { select: { displayName: true } },
       },
@@ -109,9 +111,12 @@ export default async function Home() {
   ]);
 
   // A non-participating organizer never appears in the response lists;
-  // their events are under "Events you run" instead.
+  // their events are under "Events you run" instead. Archived events leave
+  // every list; only the owner keeps them, under "Archived" at the bottom.
   const playerParticipations = participations.filter(
-    (p) => p.role !== "ORGANIZER" || p.event.organizerParticipates,
+    (p) =>
+      p.event.archivedAt === null &&
+      (p.role !== "ORGANIZER" || p.event.organizerParticipates),
   );
   const needsResponse = playerParticipations.filter(
     (p) =>
@@ -120,16 +125,23 @@ export default async function Home() {
       canEditResponse({
         eventStatus: p.event.status,
         editUnlockedAt: p.editUnlockedAt,
+        archivedAt: p.event.archivedAt,
       }),
   );
   const submitted = playerParticipations.filter(
     (p) => p.responseStatus === "SUBMITTED",
   );
+  const activeOrganized = organizedEvents.filter(
+    (event) => event.archivedAt === null,
+  );
+  const archivedOrganized = organizedEvents.filter(
+    (event) => event.archivedAt !== null,
+  );
 
   const nothingWaiting =
     needsResponse.length === 0 &&
     submitted.length === 0 &&
-    organizedEvents.length === 0;
+    activeOrganized.length === 0;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
@@ -188,6 +200,7 @@ export default async function Home() {
                       canEditResponse({
                         eventStatus: p.event.status,
                         editUnlockedAt: p.editUnlockedAt,
+                        archivedAt: p.event.archivedAt,
                       })
                         ? "You can still change it"
                         : "Locked"
@@ -198,11 +211,11 @@ export default async function Home() {
             </section>
           )}
 
-          {organizedEvents.length > 0 && (
+          {activeOrganized.length > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-medium">Events you run</h2>
               <ul className="flex flex-col gap-2">
-                {organizedEvents.map((event) => (
+                {activeOrganized.map((event) => (
                   <EventRow
                     key={event.id}
                     href={`/w/${event.workspaceId}/events/${event.id}`}
@@ -216,6 +229,26 @@ export default async function Home() {
           )}
 
         </div>
+      )}
+
+      {archivedOrganized.length > 0 && (
+        <details className="mt-8">
+          <summary className="cursor-pointer text-lg font-medium">
+            Archived
+          </summary>
+          <ul className="mt-3 flex flex-col gap-2">
+            {archivedOrganized.map((event) => (
+              <EventRow
+                key={event.id}
+                href={`/w/${event.workspaceId}/events/${event.id}`}
+                name={event.name}
+                organizerName={event.organizerUser?.displayName}
+                status={event.status}
+                note="Archived"
+              />
+            ))}
+          </ul>
+        </details>
       )}
     </main>
   );

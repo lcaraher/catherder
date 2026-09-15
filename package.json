@@ -10,14 +10,16 @@
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON prisma/seed.mts",
-    "test": "node --test \"src/**/*.test.ts\""
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@prisma/client": "^6",
     "jose": "^6.2.12",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

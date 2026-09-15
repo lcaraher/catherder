@@ -8,6 +8,7 @@ import {
   addParticipant,
   addQuestion,
   addQuestionOption,
+  archiveEvent,
   closeEventAndShareResults,
   deleteQuestion,
   removeParticipant,
@@ -19,10 +20,15 @@ import {
   setQuestionAnswersRevealed,
   setQuestionRequired,
   setResultsRevealed,
+  unarchiveEvent,
   updateEvent,
+  updateEventDescription,
   updateQuestionOption,
   updateQuestionPrompt,
 } from "../actions";
+import { ArchiveEventForm } from "@/components/archive-event-form";
+import { EventDescription } from "@/components/event-description";
+import { EventDescriptionForm } from "@/components/event-description-form";
 import { OrganizerAvailabilityEditor } from "@/components/organizer-availability-editor";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { QuestionDeleteForm } from "@/components/question-delete-form";
@@ -202,7 +208,7 @@ export default async function EventPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <p className="mb-2 text-sm">
-        <Link href={`/w/${workspaceId}`} className="text-hint hover:underline">
+        <Link href="/" className="text-hint hover:underline">
           ← Events
         </Link>
       </p>
@@ -213,6 +219,11 @@ export default async function EventPage({
         >
           {event.status}
         </span>
+        {event.archivedAt !== null && (
+          <span className="rounded bg-badge-draft px-2 py-0.5 text-xs font-medium text-badge-draft-text">
+            ARCHIVED
+          </span>
+        )}
       </div>
       <p className="mb-4 text-sm text-hint">
         {MODE_LABELS[event.mode]}
@@ -287,6 +298,22 @@ export default async function EventPage({
       </div>
 
       <section className="mb-8">
+        <h2 className="mb-3 text-lg font-medium">Description</h2>
+        <div className="flex flex-col gap-3 rounded border border-edge p-3">
+          <EventDescriptionForm
+            action={updateEventDescription}
+            eventId={event.id}
+            initialText={event.description ?? ""}
+          />
+          {event.description !== null && (
+            <div className="border-t border-edge pt-3">
+              <EventDescription text={event.description} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Results sharing</h2>
         <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
           <p className="text-muted">
@@ -347,10 +374,8 @@ export default async function EventPage({
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Edit event</h2>
-        <form
-          action={updateEvent}
-          className="flex flex-col gap-3 rounded border border-edge p-3 text-sm"
-        >
+        <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
+        <form action={updateEvent} className="flex flex-col gap-3">
           <input type="hidden" name="eventId" value={event.id} />
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-48 flex-1">
@@ -470,6 +495,31 @@ export default async function EventPage({
             </button>
           </div>
         </form>
+        {/* Archiving lives outside the edit form: forms cannot nest. */}
+        <div className="flex flex-wrap items-center gap-3 border-t border-edge pt-3">
+          {event.archivedAt === null ? (
+            <>
+              <ArchiveEventForm action={archiveEvent} eventId={event.id} />
+              <span className="text-xs text-hint">
+                Archived events leave everyone&rsquo;s lists and cannot be
+                edited or responded to.
+              </span>
+            </>
+          ) : (
+            <>
+              <form action={unarchiveEvent}>
+                <input type="hidden" name="eventId" value={event.id} />
+                <button type="submit" className={smallButton}>
+                  Unarchive
+                </button>
+              </form>
+              <span className="text-xs text-hint">
+                This event is archived. Unarchive it to open or close it.
+              </span>
+            </>
+          )}
+        </div>
+        </div>
       </section>
 
       <section className="mb-8">

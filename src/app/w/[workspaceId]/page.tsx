@@ -24,12 +24,18 @@ export default async function WorkspacePage({
   // page never confirms the workspace exists.
   const membership = await prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: user.id } },
-    include: { workspace: { select: { name: true } } },
   });
   if (!membership) notFound();
 
   const viewerIsWorkspaceOrganizer =
     membership.role === "OWNER" || membership.role === "ORGANIZER";
+
+  const viewerManages = (event: { organizerUserId: string | null }): boolean =>
+    canManageEvent({
+      viewerUserId: user.id,
+      organizerUserId: event.organizerUserId,
+      viewerIsWorkspaceOrganizer,
+    });
 
   // Rows lead where the viewer can act: managers to the event page,
   // everyone else to their own respond page.
@@ -37,26 +43,53 @@ export default async function WorkspacePage({
     id: string;
     organizerUserId: string | null;
   }): string =>
-    canManageEvent({
-      viewerUserId: user.id,
-      organizerUserId: event.organizerUserId,
-      viewerIsWorkspaceOrganizer,
-    })
+    viewerManages(event)
       ? `/w/${workspaceId}/events/${event.id}`
       : `/e/${event.id}/respond`;
 
+  // Archived events leave the list; only someone who can manage them still
+  // reaches them, through a closed block beneath it.
+  const archivedBlock = (
+    events: { id: string; name: string; organizerUserId: string | null }[],
+  ) => {
+    const archived = events.filter(viewerManages);
+    if (archived.length === 0) return null;
+    return (
+      <details className="mt-8">
+        <summary className="cursor-pointer text-lg font-medium">
+          Archived
+        </summary>
+        <ul className="mt-3 flex flex-col gap-2">
+          {archived.map((event) => (
+            <li key={event.id}>
+              <Link
+                href={rowHref(event)}
+                className="flex items-center justify-between rounded border border-edge px-4 py-3 hover:bg-surface-muted"
+              >
+                <span className="font-medium">{event.name}</span>
+                <span className="text-xs text-hint">Archived</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </details>
+    );
+  };
+
   if (viewerIsWorkspaceOrganizer) {
-    const events = await prisma.event.findMany({
+    const allEvents = await prisma.event.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { participants: true } } },
     });
+    const events = allEvents.filter((event) => event.archivedAt === null);
+    const archivedEvents = allEvents.filter(
+      (event) => event.archivedAt !== null,
+    );
 
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-        <h1 className="mb-6 text-2xl font-semibold">
-          {membership.workspace.name}
-        </h1>
+        <h1 className="mb-6 text-2xl font-semibold">Events</h1>
 
         {events.length === 0 ? (
           <p className="text-sm text-hint">No events yet.</p>
@@ -82,13 +115,14 @@ export default async function WorkspacePage({
             ))}
           </ul>
         )}
+        {archivedBlock(archivedEvents)}
       </main>
     );
   }
 
   // Non-organizer members see only events they are part of, once those are
   // out of DRAFT — and only their own state, nothing about anyone else.
-  const events = await prisma.event.findMany({
+  const allEvents = await prisma.event.findMany({
     where: {
       workspaceId,
       status: { not: "DRAFT" },
@@ -102,12 +136,12 @@ export default async function WorkspacePage({
       },
     },
   });
+  const events = allEvents.filter((event) => event.archivedAt === null);
+  const archivedEvents = allEvents.filter((event) => event.archivedAt !== null);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <h1 className="mb-6 text-2xl font-semibold">
-        {membership.workspace.name}
-      </h1>
+      <h1 className="mb-6 text-2xl font-semibold">Events</h1>
 
       {events.length === 0 ? (
         <p className="text-sm text-hint">
@@ -143,6 +177,7 @@ export default async function WorkspacePage({
           ))}
         </ul>
       )}
+      {archivedBlock(archivedEvents)}
     </main>
   );
 }

@@ -132,10 +132,14 @@ model Event {
   minGroupSize  Int?
   maxGroupSize  Int?
   status        EventStatus
+  // Markdown shown to participants; null when blank. At most 10,000 characters.
+  description String?
   // When set, responses/overlap/results are visible to participants too.
   // Null = visible to the organizer and workspace admins only.
   resultsRevealedAt DateTime?
-  createdAt         DateTime  @default(now())
+  // When set, the event is hidden from lists and never editable by anyone.
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   workspace     Workspace           @relation(fields: [workspaceId], references: [id])
   organizerUser User?               @relation("EventOrganizer", fields: [organizerUserId], references: [id])

@@ -6,6 +6,7 @@ import type { EventMode, QuestionType, WorkspaceRole } from "@prisma/client";
 import { ForbiddenError, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { canManageEvent } from "@/domain/event-access";
+import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
 
 const ORGANIZER_ROLES: WorkspaceRole[] = ["OWNER", "ORGANIZER"];
 const EVENT_MODES: EventMode[] = ["MULTI_GROUP", "SINGLE_ACTIVITY"];
@@ -255,12 +256,98 @@ export async function updateEvent(formData: FormData) {
   redirect(eventPath(event.workspaceId, eventId));
 }
 
+export async function updateEventDescription(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const text = String(formData.get("description") ?? "").trim();
+  const { event, user } = await requireEventManager(eventId);
+
+  if (text.length > EVENT_DESCRIPTION_MAX_LENGTH) {
+    redirect(
+      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(
+        `The description is limited to ${EVENT_DESCRIPTION_MAX_LENGTH} characters.`,
+      )}`,
+    );
+  }
+  // Blank is stored as null so "no description" has one representation.
+  const description = text === "" ? null : text;
+  if (description === event.description) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({ where: { id: eventId }, data: { description } });
+    // The previous text is kept so a wiped description can be restored by hand.
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Event",
+        entityId: eventId,
+        action: "event_description_edited",
+        detail: { from: event.description },
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+}
+
+export async function archiveEvent(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const { event, user } = await requireEventManager(eventId);
+  if (event.archivedAt !== null) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({
+      where: { id: eventId },
+      data: { archivedAt: new Date() },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Event",
+        entityId: eventId,
+        action: "event_archived",
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath("/");
+}
+
+export async function unarchiveEvent(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const { event, user } = await requireEventManager(eventId);
+  if (event.archivedAt === null) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({
+      where: { id: eventId },
+      data: { archivedAt: null },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Event",
+        entityId: eventId,
+        action: "event_unarchived",
+      },
+    });
+  });
+  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath("/");
+}
+
 export async function setEventStatus(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const status = String(formData.get("status") ?? "");
   if (status !== "OPEN" && status !== "CLOSED") return;
   const { event, user } = await requireEventManager(eventId);
   if (event.status === status) return;
+  // An archived event stays as it is; unarchive it first.
+  if (event.archivedAt !== null) {
+    redirect(
+      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(
+        "This event is archived. Unarchive it before opening or closing it.",
+      )}`,
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.event.update({ where: { id: eventId }, data: { status } });
@@ -304,6 +391,14 @@ export async function closeEventAndShareResults(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const { event, user } = await requireEventManager(eventId);
   if (event.status !== "OPEN") return;
+  // An archived event stays as it is; unarchive it first.
+  if (event.archivedAt !== null) {
+    redirect(
+      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(
+        "This event is archived. Unarchive it before opening or closing it.",
+      )}`,
+    );
+  }
 
   const alreadyRevealed = event.resultsRevealedAt !== null;
   await prisma.$transaction(async (tx) => {

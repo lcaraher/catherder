@@ -10,6 +10,7 @@ import {
 
 const REVEALED = new Date("2026-09-12T10:00:00Z");
 const UNLOCKED = new Date("2026-09-12T11:00:00Z");
+const ARCHIVED = new Date("2026-09-14T09:00:00Z");
 
 describe("canEditResponse", () => {
   // Every combination of status × unlock: OPEN always editable, CLOSED
@@ -25,22 +26,70 @@ describe("canEditResponse", () => {
 
   for (const [eventStatus, editUnlockedAt, expected] of cases) {
     it(`${eventStatus}, ${editUnlockedAt ? "unlocked" : "no unlock"} -> ${expected}`, () => {
-      assert.equal(canEditResponse({ eventStatus, editUnlockedAt }), expected);
+      assert.equal(
+        canEditResponse({ eventStatus, editUnlockedAt, archivedAt: null }),
+        expected,
+      );
     });
   }
 
   it("a CLOSED event is editable with an organizer-granted unlock", () => {
     assert.equal(
-      canEditResponse({ eventStatus: "CLOSED", editUnlockedAt: UNLOCKED }),
+      canEditResponse({
+        eventStatus: "CLOSED",
+        editUnlockedAt: UNLOCKED,
+        archivedAt: null,
+      }),
       true,
     );
   });
 
   it("an OPEN event is editable without any unlock", () => {
     assert.equal(
-      canEditResponse({ eventStatus: "OPEN", editUnlockedAt: null }),
+      canEditResponse({
+        eventStatus: "OPEN",
+        editUnlockedAt: null,
+        archivedAt: null,
+      }),
       true,
     );
+  });
+
+  it("an archived OPEN event is not editable", () => {
+    assert.equal(
+      canEditResponse({
+        eventStatus: "OPEN",
+        editUnlockedAt: null,
+        archivedAt: ARCHIVED,
+      }),
+      false,
+    );
+  });
+
+  it("an archived CLOSED event is not editable even with an unlock", () => {
+    assert.equal(
+      canEditResponse({
+        eventStatus: "CLOSED",
+        editUnlockedAt: UNLOCKED,
+        archivedAt: ARCHIVED,
+      }),
+      false,
+    );
+  });
+
+  it("archiving overrides every status and unlock combination", () => {
+    for (const eventStatus of ["DRAFT", "OPEN", "CLOSED"] as EventStatus[]) {
+      for (const editUnlockedAt of [null, UNLOCKED]) {
+        assert.equal(
+          canEditResponse({
+            eventStatus,
+            editUnlockedAt,
+            archivedAt: ARCHIVED,
+          }),
+          false,
+        );
+      }
+    }
   });
 
   it("a revealed event is still editable while OPEN", () => {
@@ -49,6 +98,7 @@ describe("canEditResponse", () => {
     const revealedOpenEvent = {
       eventStatus: "OPEN" as EventStatus,
       editUnlockedAt: null,
+      archivedAt: null,
       resultsRevealedAt: REVEALED,
     };
     assert.equal(canEditResponse(revealedOpenEvent), true);
