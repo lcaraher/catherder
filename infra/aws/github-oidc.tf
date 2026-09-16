@@ -2,8 +2,8 @@
 # assume an AWS role without long-lived access keys.
 
 resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
 
   # AWS validates GitHub's OIDC cert against its own trusted CA list and
   # ignores this value, but the argument is still required by the API.

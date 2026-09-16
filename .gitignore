@@ -146,6 +146,9 @@ vite.config.ts.timestamp-*
 infra/aws/terraform.tfvars
 *.tfstate*
 .terraform/
+*.tfvars
+!dev.tfvars
+!prod.tfvars
 
 # Local agent and editor config
 CLAUDE.md

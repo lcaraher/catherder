@@ -4,13 +4,13 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.64"
     }
   }
 
+  # Partial backend: the state key comes from backend.<env>.hcl at init time.
   backend "s3" {
     bucket       = "catherder-tfstate-567487920465"
-    key          = "infra/aws/terraform.tfstate"
     region       = "us-east-2"
     encrypt      = true
     use_lockfile = true
