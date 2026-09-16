@@ -67,8 +67,11 @@ export default async function Home() {
   const user = await getSessionUser();
   if (!user) {
     return (
-      <main className="flex flex-1 items-center justify-center">
+      <main className="flex flex-1 flex-col items-center justify-center gap-2">
         <h1 className="text-3xl font-semibold">catherder</h1>
+        <Link href="/join" className="text-sm text-hint hover:underline">
+          Have an invite code?
+        </Link>
       </main>
     );
   }
