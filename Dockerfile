@@ -16,6 +16,13 @@ RUN npm run build
 FROM node:24-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# RDS signs with Amazon's own CA, which Node does not trust by default; bundled at build time.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && mkdir -p /app/certs \
+    && curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /app/certs/rds-global-bundle.pem \
+    && rm -rf /var/lib/apt/lists/*
+ENV DATABASE_SSL_CA=/app/certs/rds-global-bundle.pem
 RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

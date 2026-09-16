@@ -13,6 +13,7 @@
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"src/**/*.test.ts\" && vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1134.0",
     "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6",
     "jose": "^6.2.12",
