@@ -33,6 +33,10 @@ export async function verifyIdToken(idToken: string): Promise<VerifiedIdentity> 
     throw new Error("ID token is missing the email claim");
   }
   const name = typeof payload.name === "string" ? payload.name : undefined;
+  const username =
+    typeof payload["cognito:username"] === "string"
+      ? payload["cognito:username"]
+      : undefined;
   const zoneinfo =
     typeof payload.zoneinfo === "string" ? payload.zoneinfo : undefined;
 
@@ -40,7 +44,7 @@ export async function verifyIdToken(idToken: string): Promise<VerifiedIdentity> 
     issuer: config.issuer,
     subject: payload.sub,
     email,
-    displayName: name ?? email.split("@")[0],
+    displayName: username ?? name ?? email.split("@")[0],
     timeZone: zoneinfo,
   };
 }

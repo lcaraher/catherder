@@ -200,7 +200,7 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
     }
     expect(digest).toContain("NEXT_REDIRECT");
     expect(digest).toContain(
-      `/dev-login?next=${encodeURIComponent(`/join/${display}`)}`,
+      `/login?next=${encodeURIComponent(`/join/${display}`)}`,
     );
   });
 

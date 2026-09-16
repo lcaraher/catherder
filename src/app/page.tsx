@@ -69,6 +69,9 @@ export default async function Home() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-2">
         <h1 className="text-3xl font-semibold">catherder</h1>
+        <a href="/login" className="text-sm underline">
+          Sign in
+        </a>
         <Link href="/join" className="text-sm text-hint hover:underline">
           Have an invite code?
         </Link>

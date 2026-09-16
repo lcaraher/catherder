@@ -23,5 +23,5 @@ export function safeReturnPath(raw: string | null | undefined): string | null {
 /** Login URL that brings the person back to `next` afterwards, if it is safe. */
 export function loginPathFor(next: string | null | undefined): string {
   const safe = safeReturnPath(next);
-  return safe ? `/dev-login?next=${encodeURIComponent(safe)}` : "/dev-login";
+  return safe ? `/login?next=${encodeURIComponent(safe)}` : "/login";
 }

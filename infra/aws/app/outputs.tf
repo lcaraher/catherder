@@ -37,3 +37,28 @@ output "login_hostname" {
   description = "Hostname for the login (Cognito) domain."
   value       = local.login_hostname
 }
+
+output "cognito_user_pool_id" {
+  description = "ID of the Cognito user pool."
+  value       = aws_cognito_user_pool.users.id
+}
+
+output "cognito_issuer" {
+  description = "OIDC issuer URL of the user pool."
+  value       = "https://cognito-idp.${data.aws_region.current.region}.amazonaws.com/${aws_cognito_user_pool.users.id}"
+}
+
+output "cognito_jwks_url" {
+  description = "JWKS endpoint the app verifies tokens against."
+  value       = "https://cognito-idp.${data.aws_region.current.region}.amazonaws.com/${aws_cognito_user_pool.users.id}/.well-known/jwks.json"
+}
+
+output "cognito_client_id" {
+  description = "ID of the public app client."
+  value       = aws_cognito_user_pool_client.app.id
+}
+
+output "cognito_login_domain" {
+  description = "Custom domain serving the Cognito managed login pages."
+  value       = local.login_hostname
+}

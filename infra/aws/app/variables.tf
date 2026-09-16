@@ -24,3 +24,13 @@ variable "availability_zones" {
   type        = list(string)
   default     = ["us-east-2a", "us-east-2b"]
 }
+
+variable "app_callback_urls" {
+  description = "OAuth redirect URIs the Cognito app client may send the code to."
+  type        = list(string)
+}
+
+variable "app_logout_urls" {
+  description = "URLs the Cognito hosted logout endpoint may redirect back to."
+  type        = list(string)
+}
