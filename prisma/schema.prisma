@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  // Engine-free client: queries run through the pg driver adapter, no Rust binary.
+  engineType = "client"
 }
 
 // Plain PostgreSQL only — no vendor-specific extensions or proprietary SQL.

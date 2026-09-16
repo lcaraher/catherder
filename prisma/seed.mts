@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../src/adapters/db/client.ts";
 import {
   slotToDbTime,
   type AvailabilityRange,
@@ -6,7 +6,6 @@ import {
 
 // Local development seed, run via `npm run db:seed`. Upserts keyed on
 // unique fields so re-running is safe; logs counts and opaque IDs only.
-const prisma = new PrismaClient();
 
 // Weekday convention matches the schema: 0 = Monday … 6 = Sunday.
 const WED = 2;
