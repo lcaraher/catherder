@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-// Public help page: no sign-in needed, it holds no data. All section text
-// below is placeholder to be rewritten — headings are the real structure.
+// Public help page: no sign-in needed, it holds no data. Section text marked
+// as placeholder is to be rewritten — headings are the real structure.
 
 const SECTIONS: { heading: string; body: string }[] = [
   {
@@ -15,6 +15,10 @@ const SECTIONS: { heading: string; body: string }[] = [
   {
     heading: "Your availability and time zone",
     body: "A short explanation of the weekly grid and time-zone handling will go here.",
+  },
+  {
+    heading: "Joining by link or code",
+    body: "An organizer can share a join link or a short code (it looks like ABCDE-FGHJK). Open the link, or go to Join an event and type the code; capitals, hyphens and spaces do not matter. If you are not signed in yet, you will be asked to sign in first and then brought straight back. Joining adds the event to your home page under Needs your response. A link or code only works while the event is open, and the organizer can replace it at any time, after which the old one stops working.",
   },
   {
     heading: "Responding to an event",

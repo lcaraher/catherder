@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getAppConfig } from "@/adapters/app-config";
 import { ForbiddenError, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot } from "@/domain/availability";
 import { canManageEvent, isAdminOverride } from "@/domain/event-access";
+import { formatInviteCode } from "@/domain/invites";
 import {
   addParticipant,
   addQuestion,
   addQuestionOption,
   archiveEvent,
   closeEventAndShareResults,
+  createInvite,
   deleteQuestion,
+  regenerateInvite,
   removeParticipant,
   removeQuestionOption,
   reorderQuestion,
@@ -29,6 +33,7 @@ import {
 import { ArchiveEventForm } from "@/components/archive-event-form";
 import { EventDescription } from "@/components/event-description";
 import { EventDescriptionForm } from "@/components/event-description-form";
+import { InvitePanel } from "@/components/invite-panel";
 import { OrganizerAvailabilityEditor } from "@/components/organizer-availability-editor";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { QuestionDeleteForm } from "@/components/question-delete-form";
@@ -115,6 +120,7 @@ export default async function EventPage({
     where: { id: eventId },
     include: {
       organizerUser: { select: { displayName: true } },
+      invite: { select: { code: true } },
       participants: {
         include: { user: { select: { id: true, displayName: true } } },
         orderBy: { user: { displayName: "asc" } },
@@ -296,6 +302,30 @@ export default async function EventPage({
           </span>
         )}
       </div>
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-medium">Invite people</h2>
+        {event.invite ? (
+          <InvitePanel
+            eventId={event.id}
+            joinUrl={`${getAppConfig().baseUrl}/join/${event.invite.code}`}
+            code={formatInviteCode(event.invite.code)}
+            regenerateAction={regenerateInvite}
+          />
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 rounded border border-edge p-3 text-sm">
+            <form action={createInvite}>
+              <input type="hidden" name="eventId" value={event.id} />
+              <button type="submit" className={smallButton}>
+                Create invite
+              </button>
+            </form>
+            <span className="text-xs text-hint">
+              This event has no join link or code yet.
+            </span>
+          </div>
+        )}
+      </section>
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Description</h2>

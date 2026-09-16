@@ -11,3 +11,4 @@ export {
   ForbiddenError,
 } from "./guards";
 export { isDevIssuerEnabled, getDevJwks, mintDevIdToken } from "./dev-issuer";
+export { safeReturnPath, loginPathFor } from "./return-path";

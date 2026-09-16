@@ -3,6 +3,7 @@ import {
   isDevIssuerEnabled,
   loginWithIdToken,
   mintDevIdToken,
+  safeReturnPath,
 } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 
@@ -22,5 +23,7 @@ export async function POST(request: Request) {
   }
   const idToken = await mintDevIdToken(user);
   await loginWithIdToken(idToken);
-  return NextResponse.redirect(new URL("/", request.url), 303);
+  // Only a same-origin relative path is honoured; anything else lands on /.
+  const next = safeReturnPath(String(form.get("next") ?? "")) ?? "/";
+  return NextResponse.redirect(new URL(next, request.url), 303);
 }

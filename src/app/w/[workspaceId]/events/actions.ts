@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { EventMode, QuestionType, WorkspaceRole } from "@prisma/client";
 import { ForbiddenError, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { createInviteInTx, withFreshInviteCode } from "@/adapters/db/invites";
 import { canManageEvent } from "@/domain/event-access";
 import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
 
@@ -122,66 +123,116 @@ export async function createEvent(formData: FormData) {
   if ("error" in parsed) fail(parsed.error);
   if (!EVENT_MODES.includes(mode)) fail("Choose a mode.");
 
-  const event = await prisma.$transaction(async (tx) => {
-    // The creator owns every event they create; single activity has no
-    // groups, so its size bounds are always null whatever the form sent.
-    const created = await tx.event.create({
-      data: {
-        workspaceId,
-        mode,
-        organizerUserId: user.id,
-        organizerParticipates,
-        status: "DRAFT",
-        ...parsed.fields,
-        ...(mode === "SINGLE_ACTIVITY"
-          ? { minGroupSize: null, maxGroupSize: null }
-          : {}),
-      },
-    });
-    // The owner's participant row has role ORGANIZER in both modes, always.
-    await tx.eventParticipant.create({
-      data: {
-        eventId: created.id,
-        userId: user.id,
-        role: "ORGANIZER",
-        responseStatus: "INVITED",
-      },
-    });
-    // A non-participating organizer's standing week is copied into event
-    // rows at creation; a participating organizer responds instead.
-    if (!organizerParticipates) {
-      const standingRows = await tx.standingAvailability.findMany({
-        where: { userId: user.id },
+  // A fresh invite is issued with the event; a code collision retries the whole transaction.
+  const event = await withFreshInviteCode((inviteCode) =>
+    prisma.$transaction(async (tx) => {
+      // The creator owns every event they create; single activity has no
+      // groups, so its size bounds are always null whatever the form sent.
+      const created = await tx.event.create({
+        data: {
+          workspaceId,
+          mode,
+          organizerUserId: user.id,
+          organizerParticipates,
+          status: "DRAFT",
+          ...parsed.fields,
+          ...(mode === "SINGLE_ACTIVITY"
+            ? { minGroupSize: null, maxGroupSize: null }
+            : {}),
+        },
       });
-      if (standingRows.length > 0) {
-        const standingVersion = Math.max(
-          ...standingRows.map((row) => row.version),
-        );
-        await tx.eventAvailability.createMany({
-          data: standingRows.map((row) => ({
-            eventId: created.id,
-            userId: user.id,
-            weekday: row.weekday,
-            startLocal: row.startLocal,
-            endLocal: row.endLocal,
-            status: row.status,
-            copiedFromStandingVersion: standingVersion,
-          })),
+      // The owner's participant row has role ORGANIZER in both modes, always.
+      await tx.eventParticipant.create({
+        data: {
+          eventId: created.id,
+          userId: user.id,
+          role: "ORGANIZER",
+          responseStatus: "INVITED",
+        },
+      });
+      // A non-participating organizer's standing week is copied into event
+      // rows at creation; a participating organizer responds instead.
+      if (!organizerParticipates) {
+        const standingRows = await tx.standingAvailability.findMany({
+          where: { userId: user.id },
         });
+        if (standingRows.length > 0) {
+          const standingVersion = Math.max(
+            ...standingRows.map((row) => row.version),
+          );
+          await tx.eventAvailability.createMany({
+            data: standingRows.map((row) => ({
+              eventId: created.id,
+              userId: user.id,
+              weekday: row.weekday,
+              startLocal: row.startLocal,
+              endLocal: row.endLocal,
+              status: row.status,
+              copiedFromStandingVersion: standingVersion,
+            })),
+          });
+        }
       }
-    }
-    await tx.auditEvent.create({
-      data: {
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "Event",
+          entityId: created.id,
+          action: "create",
+        },
+      });
+      await createInviteInTx(tx, {
+        eventId: created.id,
+        code: inviteCode,
         actorUserId: user.id,
-        entity: "Event",
-        entityId: created.id,
-        action: "create",
-      },
-    });
-    return created;
-  });
+      });
+      return created;
+    }),
+  );
 
   redirect(eventPath(workspaceId, event.id));
+}
+
+// For events created before invites existed; a no-op once one exists.
+export async function createInvite(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const { event, user } = await requireEventManager(eventId);
+  const existing = await prisma.eventInvite.findUnique({ where: { eventId } });
+  if (existing) return;
+
+  await withFreshInviteCode((code) =>
+    prisma.$transaction((tx) =>
+      createInviteInTx(tx, { eventId, code, actorUserId: user.id }),
+    ),
+  );
+  revalidatePath(eventPath(event.workspaceId, eventId));
+}
+
+// Replaces the code in place: the old link and code stop working at once.
+export async function regenerateInvite(formData: FormData) {
+  const eventId = String(formData.get("eventId") ?? "");
+  const { event, user } = await requireEventManager(eventId);
+  const invite = await prisma.eventInvite.findUnique({ where: { eventId } });
+  if (!invite) return;
+
+  await withFreshInviteCode((code) =>
+    prisma.$transaction(async (tx) => {
+      await tx.eventInvite.update({
+        where: { id: invite.id },
+        data: { code, regeneratedAt: new Date() },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "EventInvite",
+          entityId: invite.id,
+          action: "regenerated",
+          detail: { eventId },
+        },
+      });
+    }),
+  );
+  revalidatePath(eventPath(event.workspaceId, eventId));
 }
 
 export async function updateEvent(formData: FormData) {
@@ -549,7 +600,9 @@ export async function setQuestionRequired(formData: FormData) {
         actorUserId: user.id,
         entity: "Question",
         entityId: questionId,
-        action: required ? "question_required_set" : "question_required_cleared",
+        action: required
+          ? "question_required_set"
+          : "question_required_cleared",
       },
     });
   });

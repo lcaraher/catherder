@@ -1,11 +1,16 @@
 import { notFound } from "next/navigation";
-import { isDevIssuerEnabled } from "@/adapters/auth";
+import { isDevIssuerEnabled, safeReturnPath } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 
 export const dynamic = "force-dynamic";
 
-export default async function DevLoginPage() {
+export default async function DevLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   if (!isDevIssuerEnabled()) notFound();
+  const next = safeReturnPath((await searchParams).next);
   const users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
 
   return (
@@ -20,6 +25,7 @@ export default async function DevLoginPage() {
             <li key={user.id}>
               <form method="post" action="/api/dev-auth/login">
                 <input type="hidden" name="userId" value={user.id} />
+                {next && <input type="hidden" name="next" value={next} />}
                 <button
                   type="submit"
                   className="w-full rounded border border-edge-strong px-4 py-2 text-left hover:bg-btn-secondary-hover"

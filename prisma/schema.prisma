@@ -80,6 +80,7 @@ model User {
   eventAvailability    EventAvailability[]
   answers              Answer[]
   auditEvents          AuditEvent[]
+  createdInvites       EventInvite[]
 }
 
 model ExternalIdentity {
@@ -149,9 +150,27 @@ model Event {
   availability  EventAvailability[]
   questions     Question[]
   answers       Answer[]
+  invite        EventInvite?
 
   @@index([workspaceId])
   @@index([organizerUserId])
+}
+
+// One multi-use join code per event; regenerating replaces it in place.
+model EventInvite {
+  id      String @id @default(cuid())
+  eventId String @unique
+  // Canonical form: 10 upper-case Crockford base32 characters, no hyphen.
+  code            String   @unique
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  // Set each time the code is replaced.
+  regeneratedAt DateTime?
+
+  event     Event @relation(fields: [eventId], references: [id])
+  createdBy User  @relation(fields: [createdByUserId], references: [id])
+
+  @@index([createdByUserId])
 }
 
 model EventParticipant {

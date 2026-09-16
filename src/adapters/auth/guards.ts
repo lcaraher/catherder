@@ -1,6 +1,7 @@
 import type { User, WorkspaceRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/adapters/db/client";
+import { loginPathFor } from "./return-path";
 import { readSessionUserId } from "./session";
 
 /** Thrown by requireRole; surfaces as a 403-worthy error to callers. */
@@ -13,10 +14,10 @@ export async function getSessionUser(): Promise<User | null> {
   return prisma.user.findUnique({ where: { id: userId } });
 }
 
-/** Returns the logged-in user or redirects to the login page. */
-export async function requireUser(): Promise<User> {
+/** Returns the logged-in user or redirects to login, returning to `next` after. */
+export async function requireUser(next?: string): Promise<User> {
   const user = await getSessionUser();
-  if (!user) redirect("/dev-login");
+  if (!user) redirect(loginPathFor(next));
   return user;
 }
 
