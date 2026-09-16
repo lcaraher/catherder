@@ -62,3 +62,28 @@ output "cognito_login_domain" {
   description = "Custom domain serving the Cognito managed login pages."
   value       = local.login_hostname
 }
+
+output "database_host" {
+  description = "Hostname of the PostgreSQL instance."
+  value       = aws_db_instance.postgres.address
+}
+
+output "database_port" {
+  description = "Port of the PostgreSQL instance."
+  value       = aws_db_instance.postgres.port
+}
+
+output "database_name" {
+  description = "Name of the application database."
+  value       = aws_db_instance.postgres.db_name
+}
+
+output "database_secret_arn" {
+  description = "ARN of the RDS-managed master user secret."
+  value       = aws_db_instance.postgres.master_user_secret[0].secret_arn
+}
+
+output "database_username" {
+  description = "Master username of the PostgreSQL instance."
+  value       = aws_db_instance.postgres.username
+}
