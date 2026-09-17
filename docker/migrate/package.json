@@ -1,0 +1,9 @@
+{
+  "name": "catherder-migrate",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "3.1134.0",
+    "prisma": "6.19.3"
+  }
+}

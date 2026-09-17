@@ -14,3 +14,4 @@ CLAUDE.md
 AGENTS.md
 LICENSE
 *.log
+*.tfstate
