@@ -61,32 +61,34 @@ async function fetchCredentials(secretArn) {
 }
 
 // DATABASE_URL wins as given (local and CI); otherwise the URL is built from the RDS-managed secret.
-async function resolveDatabaseUrl(env) {
-  if (env.DATABASE_URL) return env.DATABASE_URL;
+async function resolveConnection(env) {
+  if (env.DATABASE_URL) {
+    return { url: env.DATABASE_URL, childEnv: {} };
+  }
   const secretArn = required(env, "DATABASE_SECRET_ARN");
   const host = required(env, "DATABASE_HOST");
   const database = required(env, "DATABASE_NAME");
   const sslCa = required(env, "DATABASE_SSL_CA");
   const dbPort = port(env);
   const { username, password } = await fetchCredentials(secretArn);
-  // sslaccept=strict is Prisma's certificate-verification switch; sslmode alone does not verify.
-  return (
+  // sslaccept=strict turns verification on; the trust store comes from SSL_CERT_FILE because Prisma's sslcert reads only the first certificate of a bundle.
+  const url =
     `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}` +
     `@${host}:${dbPort}/${database}` +
-    `?sslmode=require&sslcert=${sslCa}&sslaccept=strict&connection_limit=1`
-  );
+    `?sslmode=require&sslaccept=strict&connection_limit=1`;
+  return { url, childEnv: { SSL_CERT_FILE: sslCa } };
 }
 
 // The event payload is ignored; every invoke applies whatever migrations are pending.
 export async function handler() {
-  const url = await resolveDatabaseUrl(process.env);
+  const { url, childEnv } = await resolveConnection(process.env);
   try {
     const { stdout } = await execFileAsync(
       process.execPath,
       [PRISMA_CLI, "migrate", "deploy", "--schema", SCHEMA],
       {
         cwd: here,
-        env: { ...process.env, DATABASE_URL: url },
+        env: { ...process.env, ...childEnv, DATABASE_URL: url },
         timeout: TIMEOUT_MS,
         maxBuffer: MAX_OUTPUT_BYTES,
       },
