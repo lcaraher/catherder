@@ -1,4 +1,5 @@
-// Database credentials from the RDS-managed secret in AWS Secrets Manager.
+// Database credentials from the RDS-managed secret in AWS Secrets Manager;
+// fetchSecretString is shared with any other secret the deployment reads.
 
 export interface DatabaseCredentials {
   username: string;
@@ -49,9 +50,7 @@ type SecretsManager = {
 let client: SecretsManager | undefined;
 
 // The SDK is loaded on first use so URL-mode processes never import it.
-async function fetchFromSecretsManager(
-  secretArn: string,
-): Promise<DatabaseCredentials> {
+export async function fetchSecretString(secretArn: string): Promise<string> {
   const { SecretsManagerClient, GetSecretValueCommand } = await import(
     "@aws-sdk/client-secrets-manager"
   );
@@ -60,9 +59,15 @@ async function fetchFromSecretsManager(
     new GetSecretValueCommand({ SecretId: secretArn }),
   );
   if (!result.SecretString) {
-    throw new Error("database secret has no string value");
+    throw new Error("secret has no string value");
   }
-  return parseSecretString(result.SecretString);
+  return result.SecretString;
+}
+
+async function fetchFromSecretsManager(
+  secretArn: string,
+): Promise<DatabaseCredentials> {
+  return parseSecretString(await fetchSecretString(secretArn));
 }
 
 /** Caches one fetch of the secret for `ttlMs`; concurrent callers share the in-flight fetch. */
