@@ -7,6 +7,11 @@ export interface AppConfig {
 
 let cached: AppConfig | undefined;
 
+/** Drops the cached config so the next getAppConfig() re-reads the environment. */
+export function resetAppConfigForTests(): void {
+  cached = undefined;
+}
+
 // Validated lazily on first use; importing this module never throws at build time.
 export function getAppConfig(): AppConfig {
   if (!cached) {
@@ -23,4 +28,9 @@ export function getAppConfig(): AppConfig {
     cached = { baseUrl: origin };
   }
   return cached;
+}
+
+// Redirects must use the public origin: behind the Lambda Web Adapter the request URL carries the bind address.
+export function appUrl(path: string): URL {
+  return new URL(path, getAppConfig().baseUrl);
 }

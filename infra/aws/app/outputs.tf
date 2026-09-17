@@ -112,3 +112,23 @@ output "app_log_group_name" {
   description = "CloudWatch log group of the application Lambda."
   value       = aws_cloudwatch_log_group.app.name
 }
+
+output "app_function_name" {
+  description = "Name of the application Lambda function."
+  value       = aws_lambda_function.app.function_name
+}
+
+output "app_url" {
+  description = "Public URL of the application."
+  value       = "https://${local.app_hostname}"
+}
+
+output "api_default_endpoint" {
+  description = "AWS-issued endpoint of the HTTP API, usable when DNS is in doubt."
+  value       = aws_apigatewayv2_api.app.api_endpoint
+}
+
+output "app_certificate_arn" {
+  description = "ARN of the regional certificate on the application domain."
+  value       = aws_acm_certificate.app.arn
+}

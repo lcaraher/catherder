@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { appUrl } from "@/adapters/app-config";
 import { isDevIssuerEnabled, startLoginFlow } from "@/adapters/auth";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const next = new URL(request.url).searchParams.get("next");
   if (isDevIssuerEnabled()) {
-    const target = new URL("/dev-login", request.url);
+    const target = appUrl("/dev-login");
     if (next !== null) target.searchParams.set("next", next);
     return NextResponse.redirect(target, 303);
   }

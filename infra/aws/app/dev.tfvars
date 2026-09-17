@@ -7,4 +7,4 @@ app_logout_urls   = ["https://dev.catherderapp.com/", "http://localhost:3001/"]
 
 # Placeholders; C5 sets these from the pipeline.
 migrate_image_tag = "migrate-9584e88"
-app_image_tag     = "app-d95568a"
+app_image_tag     = "app-298c1f6"

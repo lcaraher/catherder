@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { appUrl } from "@/adapters/app-config";
 import {
   isDevIssuerEnabled,
   loginWithIdToken,
@@ -25,5 +26,5 @@ export async function POST(request: Request) {
   await loginWithIdToken(idToken);
   // Only a same-origin relative path is honoured; anything else lands on /.
   const next = safeReturnPath(String(form.get("next") ?? "")) ?? "/";
-  return NextResponse.redirect(new URL(next, request.url), 303);
+  return NextResponse.redirect(appUrl(next), 303);
 }

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { appUrl } from "@/adapters/app-config";
 import { completeLoginFlow, LoginFlowError } from "@/adapters/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,5 +16,5 @@ export async function GET(request: Request) {
     const requestId = request.headers.get("x-request-id") ?? randomUUID();
     console.warn(`auth callback failed request=${requestId} kind=${kind}`);
   }
-  return NextResponse.redirect(new URL(next, request.url), 303);
+  return NextResponse.redirect(appUrl(next), 303);
 }
