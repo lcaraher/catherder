@@ -3,4 +3,5 @@
 process.env.AUTH_ISSUER ??= "http://localhost:3001";
 process.env.AUTH_AUDIENCE ??= "catherder";
 process.env.AUTH_SESSION_SECRET ??= "integration-test-session-secret";
+process.env.APP_BASE_URL ??= "http://localhost:3001";
 process.env.AUTH_DEV_ISSUER = "true";
