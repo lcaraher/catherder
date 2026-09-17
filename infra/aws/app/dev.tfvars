@@ -4,3 +4,7 @@ domain_name = "catherderapp.com"
 # localhost entries let the app be tested locally against the real dev pool.
 app_callback_urls = ["https://dev.catherderapp.com/auth/callback", "http://localhost:3001/auth/callback"]
 app_logout_urls   = ["https://dev.catherderapp.com/", "http://localhost:3001/"]
+
+# Placeholders; C5 sets these from the pipeline.
+migrate_image_tag = "migrate-d95568a"
+app_image_tag     = "app-d95568a"

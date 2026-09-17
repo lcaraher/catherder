@@ -34,3 +34,13 @@ variable "app_logout_urls" {
   description = "URLs the Cognito hosted logout endpoint may redirect back to."
   type        = list(string)
 }
+
+variable "migrate_image_tag" {
+  description = "ECR image tag of the migration image this environment runs."
+  type        = string
+}
+
+variable "app_image_tag" {
+  description = "ECR image tag of the application image this environment runs."
+  type        = string
+}

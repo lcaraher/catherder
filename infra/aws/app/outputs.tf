@@ -87,3 +87,28 @@ output "database_username" {
   description = "Master username of the PostgreSQL instance."
   value       = aws_db_instance.postgres.username
 }
+
+output "migrate_function_name" {
+  description = "Name of the migration Lambda function."
+  value       = aws_lambda_function.migrate.function_name
+}
+
+output "session_secret_arn" {
+  description = "ARN of the secret holding the session-cookie signing key."
+  value       = aws_secretsmanager_secret.session.arn
+}
+
+output "app_runtime_role_arn" {
+  description = "ARN of the execution role for the application Lambda."
+  value       = aws_iam_role.app_runtime.arn
+}
+
+output "migrate_log_group_name" {
+  description = "CloudWatch log group of the migration Lambda."
+  value       = aws_cloudwatch_log_group.migrate.name
+}
+
+output "app_log_group_name" {
+  description = "CloudWatch log group of the application Lambda."
+  value       = aws_cloudwatch_log_group.app.name
+}
