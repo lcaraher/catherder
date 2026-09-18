@@ -3,4 +3,7 @@
 domain_name  = "example.com"
 github_org   = "your-github-org"
 github_repo  = "your-repo-name"
+# Read both from https://api.github.com/repos/<org>/<repo>: the top-level id and owner.id.
+github_owner_id = "123456"
+github_repo_id  = "456789"
 budget_email = "you@example.com"

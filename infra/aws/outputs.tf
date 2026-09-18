@@ -8,6 +8,16 @@ output "deploy_role_arn" {
   value       = aws_iam_role.github_deploy.arn
 }
 
+output "plan_role_arn" {
+  description = "ARN of the github-plan role for pull-request jobs (role-to-assume)."
+  value       = aws_iam_role.github_plan.arn
+}
+
+output "push_role_arn" {
+  description = "ARN of the github-push role for push-to-main image builds (role-to-assume)."
+  value       = aws_iam_role.github_push.arn
+}
+
 output "state_bucket_name" {
   description = "Name of the Terraform state bucket (paste into the S3 backend block)."
   value       = aws_s3_bucket.tf_state.bucket

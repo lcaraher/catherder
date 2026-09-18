@@ -19,11 +19,11 @@ resource "aws_ecr_lifecycle_policy" "catherder" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep only the last 5 images"
+        description  = "Keep only the last 10 images"
         selection = {
           tagStatus   = "any"
           countType   = "imageCountMoreThan"
-          countNumber = 5
+          countNumber = 10
         }
         action = {
           type = "expire"

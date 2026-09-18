@@ -17,3 +17,19 @@ variable "budget_email" {
   description = "Email address that receives AWS budget alerts."
   type        = string
 }
+
+variable "github_owner_id" {
+  description = "Numeric id of the GitHub owner, as GitHub puts it in the immutable OIDC subject."
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "Numeric id of the GitHub repository, as GitHub puts it in the immutable OIDC subject."
+  type        = string
+}
+
+variable "deploy_environments" {
+  description = "GitHub Environment names whose approved deploy jobs may assume the deploy role."
+  type        = list(string)
+  default     = ["dev"]
+}
