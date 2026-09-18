@@ -39,6 +39,11 @@ resource "aws_lambda_function" "app" {
     }
   }
 
+  # Terraform sets the image only when the function is created; every deploy changes it through the pipeline, and Terraform must not change it back.
+  lifecycle {
+    ignore_changes = [image_uri]
+  }
+
   # Lambda checks the role's network permissions at creation.
   depends_on = [
     aws_iam_role_policy_attachment.app_runtime_vpc,
