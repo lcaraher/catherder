@@ -104,7 +104,6 @@ export default async function Home() {
         name: true,
         status: true,
         archivedAt: true,
-        workspaceId: true,
         organizerUser: { select: { displayName: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -146,7 +145,7 @@ export default async function Home() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      {/* Every signed-in person may start an event; the route picks where it goes. */}
+      {/* Every signed-in person may start an event. */}
       <div className="mb-6">
         <Link
           href="/events/new"
@@ -216,7 +215,7 @@ export default async function Home() {
                 {activeOrganized.map((event) => (
                   <EventRow
                     key={event.id}
-                    href={`/w/${event.workspaceId}/events/${event.id}`}
+                    href={`/e/${event.id}/manage`}
                     name={event.name}
                     organizerName={event.organizerUser?.displayName}
                     status={event.status}
@@ -238,7 +237,7 @@ export default async function Home() {
             {archivedOrganized.map((event) => (
               <EventRow
                 key={event.id}
-                href={`/w/${event.workspaceId}/events/${event.id}`}
+                href={`/e/${event.id}/manage`}
                 name={event.name}
                 organizerName={event.organizerUser?.displayName}
                 status={event.status}

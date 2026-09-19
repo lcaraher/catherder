@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAppConfig } from "@/adapters/app-config";
-import { ForbiddenError, requireUser } from "@/adapters/auth";
+import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot } from "@/domain/availability";
 import { canManageEvent, isAdminOverride } from "@/domain/event-access";
 import { formatInviteCode } from "@/domain/invites";
 import {
-  addParticipant,
   addQuestion,
   addQuestionOption,
   archiveEvent,
@@ -29,7 +28,7 @@ import {
   updateEventDescription,
   updateQuestionOption,
   updateQuestionPrompt,
-} from "../actions";
+} from "./actions";
 import { ArchiveEventForm } from "@/components/archive-event-form";
 import { EventDescription } from "@/components/event-description";
 import { EventDescriptionForm } from "@/components/event-description-form";
@@ -101,20 +100,13 @@ export default async function EventPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ workspaceId: string; eventId: string }>;
+  params: Promise<{ eventId: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { workspaceId, eventId } = await params;
+  const { eventId } = await params;
   const { error } = await searchParams;
 
-  // The Organizer or a workspace OWNER/ORGANIZER may manage this page;
-  // every action re-checks on the server regardless.
   const user = await requireUser();
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: user.id } },
-  });
-  const viewerIsWorkspaceOrganizer =
-    membership?.role === "OWNER" || membership?.role === "ORGANIZER";
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -137,18 +129,15 @@ export default async function EventPage({
       },
     },
   });
-  if (!event || event.workspaceId !== workspaceId) notFound();
+  if (!event) notFound();
 
   const access = {
     viewerUserId: user.id,
     organizerUserId: event.organizerUserId,
-    viewerIsWorkspaceOrganizer,
+    viewerIsSiteAdmin: user.siteAdmin,
   };
-  if (!canManageEvent(access)) {
-    throw new ForbiddenError(
-      "must be the event's Organizer or a workspace OWNER or ORGANIZER",
-    );
-  }
+  // Anyone who cannot manage the event gets the same 404 as a missing one.
+  if (!canManageEvent(access)) notFound();
   const adminOverride = isAdminOverride(access);
 
   // A non-participating organizer's row never renders in the roster; a
@@ -167,7 +156,6 @@ export default async function EventPage({
   // The organizer edits their own event availability here — never an admin
   // override, never when they participate (they respond instead).
   const viewerManagesOwnAvailability =
-    event.organizerUserId !== null &&
     event.organizerUserId === user.id &&
     !event.organizerParticipates;
   const toRanges = (
@@ -200,17 +188,6 @@ export default async function EventPage({
   const organizerAvailabilityRanges = toRanges(organizerAvailabilityRows);
   const organizerStandingRanges = toRanges(organizerStandingRows);
 
-  const participantIds = new Set(event.participants.map((p) => p.userId));
-  const allMembers = await prisma.workspaceMember.findMany({
-    where: { workspaceId },
-    include: { user: { select: { id: true, displayName: true } } },
-    orderBy: { user: { displayName: "asc" } },
-  });
-  // Existing participants (which always includes the organizer) are excluded.
-  const addableMembers = allMembers.filter(
-    (member) => !participantIds.has(member.userId),
-  );
-
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <p className="mb-2 text-sm">
@@ -233,27 +210,21 @@ export default async function EventPage({
       </div>
       <p className="mb-4 text-sm text-hint">
         {MODE_LABELS[event.mode]}
-        {event.organizerUser && (
-          <>
-            {" · Organizer: "}
-            <span className="font-medium">
-              {event.organizerUser.displayName}
-            </span>{" "}
-            <OrganizerBadge />
-          </>
-        )}
+        {" · Organizer: "}
+        <span className="font-medium">{event.organizerUser.displayName}</span>{" "}
+        <OrganizerBadge />
         {` · target ${event.requiredSlots / 2}h`}
         {event.minGroupSize !== null && ` · min ${event.minGroupSize}`}
         {event.maxGroupSize !== null && ` · max ${event.maxGroupSize}`}
       </p>
 
-      {adminOverride && event.organizerUser && (
+      {adminOverride && (
         <p className="mb-4 rounded border border-notice-admin-border bg-notice-admin px-3 py-2 text-sm text-notice-admin-text">
           This event is organized by{" "}
           <span className="font-medium">
             {event.organizerUser.displayName}
-          </span>{" "}
-          — you are acting as an admin.
+          </span>
+          . Changes you make here are made to their event.
         </p>
       )}
 
@@ -349,7 +320,7 @@ export default async function EventPage({
           <p className="text-muted">
             {event.resultsRevealedAt
               ? "Results are shared: participants can see everyone's responses."
-              : "Results are hidden: responses, overlap and results are visible to the organizer and workspace admins only."}
+              : "Results are hidden: responses, overlap and results are visible to the organizer only."}
           </p>
           {event.status === "OPEN" ? (
             <>
@@ -486,7 +457,7 @@ export default async function EventPage({
               <select
                 id="edit-organizerUserId"
                 name="organizerUserId"
-                defaultValue={event.organizerUserId ?? ""}
+                defaultValue={event.organizerUserId}
                 className={inputClass}
               >
                 {event.participants.map((participant) => (
@@ -554,7 +525,7 @@ export default async function EventPage({
 
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-medium">Participants</h2>
-        {event.organizerUser && !event.organizerParticipates && (
+        {!event.organizerParticipates && (
           <p className="mb-3 flex items-center gap-2 text-sm">
             Organized by{" "}
             <span className="font-medium">
@@ -657,30 +628,6 @@ export default async function EventPage({
               </li>
             ))}
           </ul>
-        )}
-        {addableMembers.length > 0 && (
-          <>
-            <p className="mb-1 text-xs text-hint">
-              Development only — in the live app people join by link or
-              invitation.
-            </p>
-            <form
-              action={addParticipant}
-              className="flex items-center gap-2 text-sm"
-            >
-              <input type="hidden" name="eventId" value={event.id} />
-              <select name="userId" className={inputClass}>
-                {addableMembers.map((member) => (
-                  <option key={member.user.id} value={member.user.id}>
-                    {member.user.displayName}
-                  </option>
-                ))}
-              </select>
-              <button type="submit" className={smallButton}>
-                Add participant
-              </button>
-            </form>
-          </>
         )}
       </section>
 

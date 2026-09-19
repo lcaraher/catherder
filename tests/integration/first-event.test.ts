@@ -22,20 +22,18 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 
-describe.skipIf(!hasDatabase)("first event without a workspace against PostgreSQL", () => {
+describe.skipIf(!hasDatabase)("a person's first event against PostgreSQL", () => {
   type Modules = {
     prisma: typeof import("@/adapters/db/client").prisma;
     login: typeof import("@/app/api/dev-auth/login/route").POST;
-    createEvent: typeof import("@/app/w/[workspaceId]/events/actions").createEvent;
+    createEvent: typeof import("@/app/e/[eventId]/manage/actions").createEvent;
   };
   let m: Modules;
   let jwksServer: http.Server;
 
   let testerId: string;
-  let testerDisplayName: string;
-  let organizerId: string;
 
-  const testerEmail = "first-workspace@example.com";
+  const testerEmail = "first-event@example.com";
 
   async function loginAs(userId: string): Promise<void> {
     cookieJar.clear();
@@ -51,46 +49,24 @@ describe.skipIf(!hasDatabase)("first event without a workspace against PostgreSQ
     expect(cookieJar.has("catherder_session")).toBe(true);
   }
 
-  // The action always ends in a redirect; the digest carries the target.
-  async function createWithoutWorkspace(): Promise<string> {
-    const form = new FormData();
-    form.set("name", "First event");
-    form.set("mode", "SINGLE_ACTIVITY");
-    form.set("targetHours", "2");
-    let digest = "";
-    try {
-      await m.createEvent(form);
-    } catch (error) {
-      digest = (error as { digest?: string }).digest ?? "";
-    }
-    expect(digest).toContain("NEXT_REDIRECT");
-    return digest;
-  }
-
-  const ownedWorkspaces = (ownerUserId: string) =>
-    m.prisma.workspace.findMany({ where: { ownerUserId } });
-
   // Removes everything the tester owns or touched, in dependency order.
   async function removeTesterRows(): Promise<void> {
-    const workspaceIds = (await ownedWorkspaces(testerId)).map((w) => w.id);
     const eventIds = (
       await m.prisma.event.findMany({
-        where: { workspaceId: { in: workspaceIds } },
+        where: { organizerUserId: testerId },
         select: { id: true },
       })
     ).map((e) => e.id);
     await m.prisma.$transaction([
       m.prisma.auditEvent.deleteMany({ where: { actorUserId: testerId } }),
       m.prisma.eventInvite.deleteMany({ where: { eventId: { in: eventIds } } }),
+      m.prisma.eventAvailability.deleteMany({
+        where: { eventId: { in: eventIds } },
+      }),
       m.prisma.eventParticipant.deleteMany({
         where: { eventId: { in: eventIds } },
       }),
       m.prisma.event.deleteMany({ where: { id: { in: eventIds } } }),
-      m.prisma.workspaceMember.deleteMany({
-        where: { workspaceId: { in: workspaceIds } },
-      }),
-      m.prisma.workspace.deleteMany({ where: { id: { in: workspaceIds } } }),
-      m.prisma.workspaceMember.deleteMany({ where: { userId: testerId } }),
     ]);
   }
 
@@ -111,7 +87,7 @@ describe.skipIf(!hasDatabase)("first event without a workspace against PostgreSQ
     m = {
       prisma: (await import("@/adapters/db/client")).prisma,
       login: (await import("@/app/api/dev-auth/login/route")).POST,
-      createEvent: (await import("@/app/w/[workspaceId]/events/actions"))
+      createEvent: (await import("@/app/e/[eventId]/manage/actions"))
         .createEvent,
     };
 
@@ -120,19 +96,12 @@ describe.skipIf(!hasDatabase)("first event without a workspace against PostgreSQ
       update: {},
       create: {
         email: testerEmail,
-        displayName: "First Workspace Tester",
+        displayName: "First Event Tester",
         timeZone: "UTC",
       },
     });
     testerId = tester.id;
-    testerDisplayName = tester.displayName;
     await removeTesterRows();
-
-    organizerId = (
-      await m.prisma.user.findUniqueOrThrow({
-        where: { email: "organizer@example.com" },
-      })
-    ).id;
   });
 
   afterAll(async () => {
@@ -148,53 +117,46 @@ describe.skipIf(!hasDatabase)("first event without a workspace against PostgreSQ
     await new Promise<void>((resolve) => jwksServer?.close(() => resolve()));
   });
 
-  it("creates a workspace named after the person and puts the first event in it", async () => {
+  it("creates the event with its Organizer row, audit row and invite, then opens its manage page", async () => {
     await loginAs(testerId);
-    const digest = await createWithoutWorkspace();
-
-    const workspaces = await ownedWorkspaces(testerId);
-    expect(workspaces).toHaveLength(1);
-    const workspace = workspaces[0];
-    expect(workspace.name).toBe(testerDisplayName);
-
-    const membership = await m.prisma.workspaceMember.findUniqueOrThrow({
-      where: {
-        workspaceId_userId: { workspaceId: workspace.id, userId: testerId },
-      },
-    });
-    expect(membership.role).toBe("OWNER");
+    const form = new FormData();
+    form.set("name", "First event");
+    form.set("mode", "SINGLE_ACTIVITY");
+    form.set("targetHours", "2");
+    // The action always ends in a redirect; the digest carries the target.
+    let digest = "";
+    try {
+      await m.createEvent(form);
+    } catch (error) {
+      digest = (error as { digest?: string }).digest ?? "";
+    }
+    expect(digest).toContain("NEXT_REDIRECT");
 
     const events = await m.prisma.event.findMany({
-      where: { workspaceId: workspace.id },
+      where: { organizerUserId: testerId },
     });
     expect(events).toHaveLength(1);
     const event = events[0];
-    expect(event.organizerUserId).toBe(testerId);
+
+    const participants = await m.prisma.eventParticipant.findMany({
+      where: { eventId: event.id },
+    });
+    expect(participants).toHaveLength(1);
+    expect(participants[0].userId).toBe(testerId);
+    expect(participants[0].role).toBe("ORGANIZER");
 
     const audit = await m.prisma.auditEvent.findMany({
-      where: { entity: "Workspace", entityId: workspace.id, action: "created" },
+      where: { entity: "Event", entityId: event.id, action: "create" },
     });
     expect(audit).toHaveLength(1);
     expect(audit[0].actorUserId).toBe(testerId);
-    expect(audit[0].detail).toEqual({ eventId: event.id });
 
-    expect(digest).toContain(`/w/${workspace.id}/events/${event.id}`);
-  });
+    const invite = await m.prisma.eventInvite.findUniqueOrThrow({
+      where: { eventId: event.id },
+    });
+    expect(invite.createdByUserId).toBe(testerId);
+    expect(invite.code).toHaveLength(10);
 
-  it("sends a person who now has a membership back to the form without creating anything", async () => {
-    await loginAs(testerId);
-    const digest = await createWithoutWorkspace();
-    expect(digest).toContain("/events/new");
-    expect(digest).not.toContain("error=");
-    expect(await ownedWorkspaces(testerId)).toHaveLength(1);
-  });
-
-  it("never creates a second workspace for an existing member", async () => {
-    await loginAs(organizerId);
-    const digest = await createWithoutWorkspace();
-    expect(digest).toContain("/events/new");
-    expect(digest).not.toContain("error=");
-    const owned = await ownedWorkspaces(organizerId);
-    expect(owned.map((w) => w.name)).toEqual(["Seed Workspace"]);
+    expect(digest).toContain(`/e/${event.id}/manage`);
   });
 });

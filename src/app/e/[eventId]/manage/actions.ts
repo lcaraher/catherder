@@ -2,14 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { EventMode, QuestionType, WorkspaceRole } from "@prisma/client";
+import type { EventMode, QuestionType } from "@prisma/client";
 import { ForbiddenError, requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { createInviteInTx, withFreshInviteCode } from "@/adapters/db/invites";
 import { canManageEvent } from "@/domain/event-access";
 import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
 
-const ORGANIZER_ROLES: WorkspaceRole[] = ["OWNER", "ORGANIZER"];
 const EVENT_MODES: EventMode[] = ["MULTI_GROUP", "SINGLE_ACTIVITY"];
 const QUESTION_TYPES: QuestionType[] = [
   "SINGLE_CHOICE",
@@ -24,27 +23,19 @@ async function requireEventManager(eventId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) throw new Error("event not found");
   const user = await requireUser();
-  const membership = await prisma.workspaceMember.findUnique({
-    where: {
-      workspaceId_userId: { workspaceId: event.workspaceId, userId: user.id },
-    },
-  });
   const allowed = canManageEvent({
     viewerUserId: user.id,
     organizerUserId: event.organizerUserId,
-    viewerIsWorkspaceOrganizer:
-      membership !== null && ORGANIZER_ROLES.includes(membership.role),
+    viewerIsSiteAdmin: user.siteAdmin,
   });
   if (!allowed) {
-    throw new ForbiddenError(
-      "must be the event's Organizer or a workspace OWNER or ORGANIZER",
-    );
+    throw new ForbiddenError("not allowed to manage this event");
   }
   return { event, user };
 }
 
-function eventPath(workspaceId: string, eventId: string): string {
-  return `/w/${workspaceId}/events/${eventId}`;
+function eventPath(eventId: string): string {
+  return `/e/${eventId}/manage`;
 }
 
 function optionalSize(value: FormDataEntryValue | null): number | null {
@@ -99,36 +90,14 @@ function parseEventFields(
 }
 
 export async function createEvent(formData: FormData) {
-  const postedWorkspaceId = String(formData.get("workspaceId") ?? "");
   const user = await requireUser();
-  if (postedWorkspaceId !== "") {
-    // Any workspace member may create an event.
-    const creatorMembership = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: { workspaceId: postedWorkspaceId, userId: user.id },
-      },
-    });
-    if (!creatorMembership) {
-      throw new ForbiddenError("workspace membership required");
-    }
-  } else {
-    const membershipCount = await prisma.workspaceMember.count({
-      where: { userId: user.id },
-    });
-    // Closes the race where an invite was redeemed in another tab.
-    if (membershipCount !== 0) redirect("/events/new");
-  }
 
   const mode = String(formData.get("mode") ?? "") as EventMode;
   const organizerParticipates =
     String(formData.get("organizerParticipates") ?? "") === "on";
 
   function fail(message: string): never {
-    const formPath =
-      postedWorkspaceId === ""
-        ? "/events/new"
-        : `/w/${postedWorkspaceId}/events/new`;
-    redirect(`${formPath}?error=${encodeURIComponent(message)}`);
+    redirect(`/events/new?error=${encodeURIComponent(message)}`);
   }
 
   const parsed = parseEventFields(formData);
@@ -138,22 +107,10 @@ export async function createEvent(formData: FormData) {
   // A fresh invite is issued with the event; a code collision retries the whole transaction.
   const event = await withFreshInviteCode((inviteCode) =>
     prisma.$transaction(async (tx) => {
-      // A first event gets a workspace of its own, owned by the creator.
-      let workspaceId = postedWorkspaceId;
-      if (workspaceId === "") {
-        const workspace = await tx.workspace.create({
-          data: { name: user.displayName, ownerUserId: user.id },
-        });
-        await tx.workspaceMember.create({
-          data: { workspaceId: workspace.id, userId: user.id, role: "OWNER" },
-        });
-        workspaceId = workspace.id;
-      }
       // The creator owns every event they create; single activity has no
       // groups, so its size bounds are always null whatever the form sent.
       const created = await tx.event.create({
         data: {
-          workspaceId,
           mode,
           organizerUserId: user.id,
           organizerParticipates,
@@ -164,17 +121,6 @@ export async function createEvent(formData: FormData) {
             : {}),
         },
       });
-      if (postedWorkspaceId === "") {
-        await tx.auditEvent.create({
-          data: {
-            actorUserId: user.id,
-            entity: "Workspace",
-            entityId: workspaceId,
-            action: "created",
-            detail: { eventId: created.id },
-          },
-        });
-      }
       // The owner's participant row has role ORGANIZER in both modes, always.
       await tx.eventParticipant.create({
         data: {
@@ -224,13 +170,13 @@ export async function createEvent(formData: FormData) {
     }),
   );
 
-  redirect(eventPath(event.workspaceId, event.id));
+  redirect(eventPath(event.id));
 }
 
 // For events created before invites existed; a no-op once one exists.
 export async function createInvite(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
-  const { event, user } = await requireEventManager(eventId);
+  const { user } = await requireEventManager(eventId);
   const existing = await prisma.eventInvite.findUnique({ where: { eventId } });
   if (existing) return;
 
@@ -239,13 +185,13 @@ export async function createInvite(formData: FormData) {
       createInviteInTx(tx, { eventId, code, actorUserId: user.id }),
     ),
   );
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 // Replaces the code in place: the old link and code stop working at once.
 export async function regenerateInvite(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
-  const { event, user } = await requireEventManager(eventId);
+  const { user } = await requireEventManager(eventId);
   const invite = await prisma.eventInvite.findUnique({ where: { eventId } });
   if (!invite) return;
 
@@ -266,7 +212,7 @@ export async function regenerateInvite(formData: FormData) {
       });
     }),
   );
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 export async function updateEvent(formData: FormData) {
@@ -279,7 +225,7 @@ export async function updateEvent(formData: FormData) {
 
   function fail(message: string): never {
     redirect(
-      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(message)}`,
+      `${eventPath(eventId)}?error=${encodeURIComponent(message)}`,
     );
   }
 
@@ -313,12 +259,10 @@ export async function updateEvent(formData: FormData) {
     // Reassigning moves the ORGANIZER participant role to the new owner and
     // leaves the previous owner as a PLAYER, in both modes.
     if (organizerUserId !== event.organizerUserId) {
-      if (event.organizerUserId) {
-        await tx.eventParticipant.updateMany({
-          where: { eventId, userId: event.organizerUserId },
-          data: { role: "PLAYER" },
-        });
-      }
+      await tx.eventParticipant.updateMany({
+        where: { eventId, userId: event.organizerUserId },
+        data: { role: "PLAYER" },
+      });
       await tx.eventParticipant.update({
         where: { eventId_userId: { eventId, userId: organizerUserId } },
         data: { role: "ORGANIZER" },
@@ -337,8 +281,8 @@ export async function updateEvent(formData: FormData) {
       });
     }
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
-  redirect(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
+  redirect(eventPath(eventId));
 }
 
 export async function updateEventDescription(formData: FormData) {
@@ -348,7 +292,7 @@ export async function updateEventDescription(formData: FormData) {
 
   if (text.length > EVENT_DESCRIPTION_MAX_LENGTH) {
     redirect(
-      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(
+      `${eventPath(eventId)}?error=${encodeURIComponent(
         `The description is limited to ${EVENT_DESCRIPTION_MAX_LENGTH} characters.`,
       )}`,
     );
@@ -370,7 +314,7 @@ export async function updateEventDescription(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 export async function archiveEvent(formData: FormData) {
@@ -392,7 +336,7 @@ export async function archiveEvent(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
   revalidatePath("/");
 }
 
@@ -415,7 +359,7 @@ export async function unarchiveEvent(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
   revalidatePath("/");
 }
 
@@ -428,7 +372,7 @@ export async function setEventStatus(formData: FormData) {
   // An archived event stays as it is; unarchive it first.
   if (event.archivedAt !== null) {
     redirect(
-      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(
+      `${eventPath(eventId)}?error=${encodeURIComponent(
         "This event is archived. Unarchive it before opening or closing it.",
       )}`,
     );
@@ -445,7 +389,7 @@ export async function setEventStatus(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 export async function setResultsRevealed(formData: FormData) {
@@ -468,7 +412,7 @@ export async function setResultsRevealed(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 // Stops accepting responses and reveals results in one transaction.
@@ -479,7 +423,7 @@ export async function closeEventAndShareResults(formData: FormData) {
   // An archived event stays as it is; unarchive it first.
   if (event.archivedAt !== null) {
     redirect(
-      `${eventPath(event.workspaceId, eventId)}?error=${encodeURIComponent(
+      `${eventPath(eventId)}?error=${encodeURIComponent(
         "This event is archived. Unarchive it before opening or closing it.",
       )}`,
     );
@@ -513,14 +457,14 @@ export async function closeEventAndShareResults(formData: FormData) {
       });
     }
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 export async function setParticipantEditLock(formData: FormData) {
   const eventId = String(formData.get("eventId") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const unlocked = String(formData.get("unlocked") ?? "") === "true";
-  const { event, user } = await requireEventManager(eventId);
+  const { user } = await requireEventManager(eventId);
 
   const participant = await prisma.eventParticipant.findUnique({
     where: { eventId_userId: { eventId, userId } },
@@ -543,31 +487,7 @@ export async function setParticipantEditLock(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
-}
-
-export async function addParticipant(formData: FormData) {
-  const eventId = String(formData.get("eventId") ?? "");
-  const userId = String(formData.get("userId") ?? "");
-  const { event } = await requireEventManager(eventId);
-
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId: event.workspaceId, userId } },
-  });
-  if (!membership) return;
-
-  // The owner always has a row already, so anyone added here is a PLAYER.
-  await prisma.eventParticipant.upsert({
-    where: { eventId_userId: { eventId, userId } },
-    update: {},
-    create: {
-      eventId,
-      userId,
-      role: "PLAYER",
-      responseStatus: "INVITED",
-    },
-  });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 export async function removeParticipant(formData: FormData) {
@@ -578,7 +498,7 @@ export async function removeParticipant(formData: FormData) {
   // The event's Organizer cannot be removed while they hold that role.
   if (userId === event.organizerUserId) return;
   await prisma.eventParticipant.deleteMany({ where: { eventId, userId } });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 // Per-question participant visibility. Only takes effect once the event's
@@ -590,7 +510,7 @@ export async function setQuestionAnswersRevealed(formData: FormData) {
     where: { id: questionId },
   });
   if (!question) return;
-  const { event, user } = await requireEventManager(question.eventId);
+  const { user } = await requireEventManager(question.eventId);
   if (question.answersRevealed === revealed) return;
 
   await prisma.$transaction(async (tx) => {
@@ -609,7 +529,7 @@ export async function setQuestionAnswersRevealed(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, question.eventId));
+  revalidatePath(eventPath(question.eventId));
 }
 
 // Whether participants can submit without answering this question. Applies
@@ -621,7 +541,7 @@ export async function setQuestionRequired(formData: FormData) {
     where: { id: questionId },
   });
   if (!question) return;
-  const { event, user } = await requireEventManager(question.eventId);
+  const { user } = await requireEventManager(question.eventId);
   if (question.required === required) return;
 
   await prisma.$transaction(async (tx) => {
@@ -640,7 +560,7 @@ export async function setQuestionRequired(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, question.eventId));
+  revalidatePath(eventPath(question.eventId));
 }
 
 export async function addQuestion(formData: FormData) {
@@ -651,7 +571,7 @@ export async function addQuestion(formData: FormData) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line !== "");
-  const { event } = await requireEventManager(eventId);
+  await requireEventManager(eventId);
 
   if (!QUESTION_TYPES.includes(type) || prompt === "") return;
   if (type !== "TEXT" && optionLines.length === 0) return;
@@ -676,7 +596,7 @@ export async function addQuestion(formData: FormData) {
             },
     },
   });
-  revalidatePath(eventPath(event.workspaceId, eventId));
+  revalidatePath(eventPath(eventId));
 }
 
 export async function reorderQuestion(formData: FormData) {
@@ -687,7 +607,7 @@ export async function reorderQuestion(formData: FormData) {
     where: { id: questionId },
   });
   if (!question) return;
-  const { event } = await requireEventManager(question.eventId);
+  await requireEventManager(question.eventId);
 
   const neighbor = await prisma.question.findFirst({
     where: {
@@ -711,7 +631,7 @@ export async function reorderQuestion(formData: FormData) {
       data: { displayOrder: question.displayOrder },
     }),
   ]);
-  revalidatePath(eventPath(event.workspaceId, question.eventId));
+  revalidatePath(eventPath(question.eventId));
 }
 
 export async function updateQuestionPrompt(formData: FormData) {
@@ -722,7 +642,7 @@ export async function updateQuestionPrompt(formData: FormData) {
     where: { id: questionId },
   });
   if (!question) return;
-  const { event } = await requireEventManager(question.eventId);
+  await requireEventManager(question.eventId);
 
   // Once answers exist an edit bumps the question's version;
   // Answer.questionVersion records which version each answer was for.
@@ -731,7 +651,7 @@ export async function updateQuestionPrompt(formData: FormData) {
     where: { id: questionId },
     data: { prompt, ...(answered ? { version: { increment: 1 } } : {}) },
   });
-  revalidatePath(eventPath(event.workspaceId, question.eventId));
+  revalidatePath(eventPath(question.eventId));
 }
 
 export async function updateQuestionOption(formData: FormData) {
@@ -743,7 +663,7 @@ export async function updateQuestionOption(formData: FormData) {
     include: { question: true },
   });
   if (!option) return;
-  const { event, user } = await requireEventManager(option.question.eventId);
+  const { user } = await requireEventManager(option.question.eventId);
   if (label === option.label) return;
 
   // Answers stay attached (the option id is unchanged); rewording an
@@ -773,7 +693,7 @@ export async function updateQuestionOption(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, option.question.eventId));
+  revalidatePath(eventPath(option.question.eventId));
 }
 
 // Choice questions only: whether responders get a free-text "Other".
@@ -787,7 +707,7 @@ export async function setQuestionAllowOther(formData: FormData) {
   if (question.type !== "SINGLE_CHOICE" && question.type !== "MULTI_CHOICE") {
     return;
   }
-  const { event, user } = await requireEventManager(question.eventId);
+  const { user } = await requireEventManager(question.eventId);
   if (question.allowOther === allowOther) return;
 
   await prisma.$transaction(async (tx) => {
@@ -806,7 +726,7 @@ export async function setQuestionAllowOther(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, question.eventId));
+  revalidatePath(eventPath(question.eventId));
 }
 
 export async function deleteQuestion(formData: FormData) {
@@ -819,7 +739,7 @@ export async function deleteQuestion(formData: FormData) {
     },
   });
   if (!question) return;
-  const { event, user } = await requireEventManager(question.eventId);
+  const { user } = await requireEventManager(question.eventId);
 
   // This snapshot can hold participants' free text: it stays in the database
   // under the same protection as the answers and is never written to logs.
@@ -883,7 +803,7 @@ export async function deleteQuestion(formData: FormData) {
       }
     }
   });
-  revalidatePath(eventPath(event.workspaceId, question.eventId));
+  revalidatePath(eventPath(question.eventId));
 }
 
 export async function addQuestionOption(formData: FormData) {
@@ -894,7 +814,7 @@ export async function addQuestionOption(formData: FormData) {
     where: { id: questionId },
   });
   if (!question || question.type === "TEXT") return;
-  const { event } = await requireEventManager(question.eventId);
+  await requireEventManager(question.eventId);
 
   const answered = (await prisma.answer.count({ where: { questionId } })) > 0;
   const count = await prisma.questionOption.count({ where: { questionId } });
@@ -909,7 +829,7 @@ export async function addQuestionOption(formData: FormData) {
       });
     }
   });
-  revalidatePath(eventPath(event.workspaceId, question.eventId));
+  revalidatePath(eventPath(question.eventId));
 }
 
 export async function removeQuestionOption(formData: FormData) {
@@ -919,7 +839,7 @@ export async function removeQuestionOption(formData: FormData) {
     include: { question: true },
   });
   if (!option) return;
-  const { event, user } = await requireEventManager(option.question.eventId);
+  const { user } = await requireEventManager(option.question.eventId);
 
   // Choices referencing the option are dropped with it; the audit row
   // records them so an administrator can restore by hand.
@@ -958,5 +878,5 @@ export async function removeQuestionOption(formData: FormData) {
       },
     });
   });
-  revalidatePath(eventPath(event.workspaceId, option.question.eventId));
+  revalidatePath(eventPath(option.question.eventId));
 }

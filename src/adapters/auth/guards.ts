@@ -1,10 +1,10 @@
-import type { User, WorkspaceRole } from "@prisma/client";
+import type { User } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/adapters/db/client";
 import { loginPathFor } from "./return-path";
 import { readSessionUserId } from "./session";
 
-/** Thrown by requireRole; surfaces as a 403-worthy error to callers. */
+/** Thrown when a signed-in user may not do something; a 403-worthy error. */
 export class ForbiddenError extends Error {}
 
 /** Returns the logged-in user, or null if there is no valid session. */
@@ -19,21 +19,4 @@ export async function requireUser(next?: string): Promise<User> {
   const user = await getSessionUser();
   if (!user) redirect(loginPathFor(next));
   return user;
-}
-
-/** Requires a logged-in user whose WorkspaceMember role is one of `roles`. */
-export async function requireRole(
-  workspaceId: string,
-  roles: WorkspaceRole[],
-): Promise<{ user: User; role: WorkspaceRole }> {
-  const user = await requireUser();
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: user.id } },
-  });
-  if (!membership || !roles.includes(membership.role)) {
-    throw new ForbiddenError(
-      `workspace membership with role ${roles.join(" or ")} required`,
-    );
-  }
-  return { user, role: membership.role };
 }

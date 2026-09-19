@@ -6,6 +6,8 @@ export interface VerifiedIdentity {
   subject: string;
   email: string;
   displayName: string;
+  /** The `cognito:username` claim, when the issuer sends one. */
+  username?: string;
   /** IANA time-zone name from the `zoneinfo` claim, if the issuer provides one. */
   timeZone?: string;
 }
@@ -45,6 +47,7 @@ export async function verifyIdToken(idToken: string): Promise<VerifiedIdentity> 
     subject: payload.sub,
     email,
     displayName: username ?? name ?? email.split("@")[0],
+    username,
     timeZone: zoneinfo,
   };
 }

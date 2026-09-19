@@ -60,8 +60,8 @@ export type RedeemResult =
   { ok: true; eventId: string; alreadyParticipant: boolean } | { ok: false };
 
 /**
- * Redeems a typed or linked code for `userId`: joins the workspace and the
- * event where needed and records the outcome. Never surfaces why it failed.
+ * Redeems a typed or linked code for `userId`: joins the event where needed
+ * and records the outcome. Never surfaces why it failed.
  */
 export async function redeemInvite({
   userId,
@@ -78,7 +78,6 @@ export async function redeemInvite({
           event: {
             select: {
               id: true,
-              workspaceId: true,
               status: true,
               archivedAt: true,
             },
@@ -114,13 +113,6 @@ export async function redeemInvite({
     if (participant) {
       return { ok: true, eventId: event.id, alreadyParticipant: true };
     }
-    await tx.workspaceMember.upsert({
-      where: {
-        workspaceId_userId: { workspaceId: event.workspaceId, userId },
-      },
-      update: {},
-      create: { workspaceId: event.workspaceId, userId, role: "PARTICIPANT" },
-    });
     await tx.eventParticipant.create({
       data: {
         eventId: event.id,
