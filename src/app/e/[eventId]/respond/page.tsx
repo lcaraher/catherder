@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot, type AvailabilityRange } from "@/domain/availability";
+import { canManageEvent } from "@/domain/event-access";
 import {
   canEditResponse,
   canViewOthersResponses,
@@ -57,16 +58,12 @@ export default async function RespondPage({
 
   // The shared-results link only exists when this viewer could actually see
   // the responses page; the page re-checks the same rule server-side.
-  const membership = await prisma.workspaceMember.findUnique({
-    where: {
-      workspaceId_userId: { workspaceId: event.workspaceId, userId: user.id },
-    },
-  });
   const showResultsLink = canViewOthersResponses({
-    viewerIsManager:
-      event.organizerUserId === user.id ||
-      membership?.role === "OWNER" ||
-      membership?.role === "ORGANIZER",
+    viewerIsManager: canManageEvent({
+      viewerUserId: user.id,
+      organizerUserId: event.organizerUserId,
+      viewerIsSiteAdmin: user.siteAdmin,
+    }),
     resultsRevealedAt: event.resultsRevealedAt,
   });
   const resultsLink = showResultsLink && (

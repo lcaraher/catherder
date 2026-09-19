@@ -15,6 +15,19 @@ export interface AuthConfig {
   loginDomain?: string;
   /** OAuth client id for the authorize and token requests; defaults to the audience. */
   clientId: string;
+  /** Lower-cased usernames given the site-admin flag at login; undefined when unset. */
+  siteAdminUsernames?: string[];
+}
+
+/** Parses SITE_ADMIN_USERNAMES: comma-separated, trimmed, lower-cased; undefined when blank. */
+export function parseSiteAdminUsernames(
+  value: string | undefined,
+): string[] | undefined {
+  const names = (value ?? "")
+    .split(",")
+    .map((name) => name.trim().toLowerCase())
+    .filter((name) => name !== "");
+  return names.length > 0 ? names : undefined;
 }
 
 export function assertDevIssuerNotInProduction(): void {
@@ -67,6 +80,9 @@ export function getAuthConfig(): AuthConfig {
       devIssuerEnabled,
       loginDomain: loginDomain(devIssuerEnabled),
       clientId: process.env.AUTH_CLIENT_ID || audience,
+      siteAdminUsernames: parseSiteAdminUsernames(
+        process.env.SITE_ADMIN_USERNAMES,
+      ),
     };
   }
   return cached;

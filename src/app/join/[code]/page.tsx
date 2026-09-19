@@ -22,7 +22,6 @@ export default async function JoinCodePage({
       const event = await prisma.event.findUnique({
         where: { id: result.eventId },
         select: {
-          workspaceId: true,
           organizerUserId: true,
           organizerParticipates: true,
         },
@@ -32,7 +31,7 @@ export default async function JoinCodePage({
         event.organizerUserId === user.id &&
         !event.organizerParticipates
       ) {
-        redirect(`/w/${event.workspaceId}/events/${result.eventId}`);
+        redirect(`/e/${result.eventId}/manage`);
       }
     }
     redirect(`/e/${result.eventId}/respond`);

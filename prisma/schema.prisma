@@ -10,12 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum WorkspaceRole {
-  OWNER
-  ORGANIZER
-  PARTICIPANT
-}
-
 enum EventMode {
   MULTI_GROUP
   SINGLE_ACTIVITY
@@ -69,11 +63,11 @@ model User {
   dismissedDeviceZone String?
   // Free-text note shown alongside standing availability. Sensitive: never log.
   availabilityNote String?
+  // Site-wide admin, may manage any event; never shown to anyone else.
+  siteAdmin        Boolean  @default(false)
   createdAt        DateTime @default(now())
 
   identities           ExternalIdentity[]
-  ownedWorkspaces      Workspace[]
-  memberships          WorkspaceMember[]
   organizedEvents      Event[]                @relation("EventOrganizer")
   eventParticipations  EventParticipant[]
   standingAvailability StandingAvailability[]
@@ -96,37 +90,11 @@ model ExternalIdentity {
   @@index([userId])
 }
 
-model Workspace {
-  id          String   @id @default(cuid())
-  name        String
-  ownerUserId String
-  createdAt   DateTime @default(now())
-
-  owner   User              @relation(fields: [ownerUserId], references: [id])
-  members WorkspaceMember[]
-  events  Event[]
-
-  @@index([ownerUserId])
-}
-
-model WorkspaceMember {
-  workspaceId String
-  userId      String
-  role        WorkspaceRole
-
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
-  user      User      @relation(fields: [userId], references: [id])
-
-  @@id([workspaceId, userId])
-  @@index([userId])
-}
-
 model Event {
   id              String    @id @default(cuid())
-  workspaceId     String
   name            String
   mode            EventMode
-  organizerUserId String?
+  organizerUserId String
   // Whether the organizer also responds as a participant. Off: only their
   // availability is used and they are never asked to respond.
   organizerParticipates Boolean @default(false)
@@ -138,21 +106,19 @@ model Event {
   // Markdown shown to participants; null when blank. At most 10,000 characters.
   description String?
   // When set, responses/overlap/results are visible to participants too.
-  // Null = visible to the organizer and workspace admins only.
+  // Null = visible to the event's Organizer only.
   resultsRevealedAt DateTime?
   // When set, the event is hidden from lists and never editable by anyone.
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
 
-  workspace     Workspace           @relation(fields: [workspaceId], references: [id])
-  organizerUser User?               @relation("EventOrganizer", fields: [organizerUserId], references: [id])
+  organizerUser User                @relation("EventOrganizer", fields: [organizerUserId], references: [id])
   participants  EventParticipant[]
   availability  EventAvailability[]
   questions     Question[]
   answers       Answer[]
   invite        EventInvite?
 
-  @@index([workspaceId])
   @@index([organizerUserId])
 }
 

@@ -1,5 +1,6 @@
 import type { User } from "@prisma/client";
 import { prisma } from "@/adapters/db/client";
+import { getAuthConfig } from "./config";
 import { verifyIdToken, type VerifiedIdentity } from "./oidc";
 import { createSession } from "./session";
 
@@ -20,6 +21,39 @@ export async function loginWithIdToken(idToken: string): Promise<User> {
 async function upsertUserForIdentity(
   identity: VerifiedIdentity,
 ): Promise<User> {
+  const user = await findOrCreateUser(identity);
+  return syncSiteAdmin(user, identity);
+}
+
+// Sets siteAdmin from SITE_ADMIN_USERNAMES; with no list or no username the
+// row is left alone. The list and the username are never logged.
+async function syncSiteAdmin(
+  user: User,
+  identity: VerifiedIdentity,
+): Promise<User> {
+  const adminUsernames = getAuthConfig().siteAdminUsernames;
+  if (!adminUsernames || !identity.username) return user;
+  const siteAdmin = adminUsernames.includes(identity.username.toLowerCase());
+  if (siteAdmin === user.siteAdmin) return user;
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { id: user.id },
+      data: { siteAdmin },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "User",
+        entityId: user.id,
+        action: siteAdmin ? "site_admin_granted" : "site_admin_revoked",
+      },
+    });
+    return updated;
+  });
+}
+
+async function findOrCreateUser(identity: VerifiedIdentity): Promise<User> {
   const existing = await prisma.externalIdentity.findUnique({
     where: {
       issuer_subject: { issuer: identity.issuer, subject: identity.subject },

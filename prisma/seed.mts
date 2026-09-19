@@ -27,30 +27,36 @@ const USERS: {
   displayName: string;
   email: string;
   timeZone: string;
+  siteAdmin: boolean;
   standing: AvailabilityRange[];
 }[] = [
   {
     displayName: "Greta Master",
     email: "organizer@example.com",
     timeZone: "America/New_York",
+    // The local admin.
+    siteAdmin: true,
     standing: [range(WED, 36, 44)],
   },
   {
     displayName: "Pat Player",
     email: "player1@example.com",
     timeZone: "America/New_York",
+    siteAdmin: false,
     standing: [range(WED, 38, 46), range(SAT, 28, 34)],
   },
   {
     displayName: "Quinn Player",
     email: "player2@example.com",
     timeZone: "America/Chicago",
+    siteAdmin: false,
     standing: [range(WED, 36, 44), range(FRI, 44, 48), range(SAT, 26, 32)],
   },
   {
     displayName: "Robin Player",
     email: "player3@example.com",
     timeZone: "Europe/London",
+    siteAdmin: false,
     standing: [
       range(WED, 44, 48),
       range(THU, 0, 4),
@@ -66,11 +72,12 @@ async function main() {
         where: { email: u.email },
         // The zone applies on update too, so re-seeding an existing database
         // moves everyone to the designed zones.
-        update: { timeZone: u.timeZone },
+        update: { timeZone: u.timeZone, siteAdmin: u.siteAdmin },
         create: {
           displayName: u.displayName,
           email: u.email,
           timeZone: u.timeZone,
+          siteAdmin: u.siteAdmin,
         },
       }),
     ),
@@ -79,14 +86,15 @@ async function main() {
     [organizer, ...players].map((user) => [user.email, user]),
   );
 
-  // Nova belongs to no workspace and no event.
+  // Nova is on no event.
   await prisma.user.upsert({
     where: { email: "newcomer@example.com" },
-    update: { timeZone: "America/Los_Angeles" },
+    update: { timeZone: "America/Los_Angeles", siteAdmin: false },
     create: {
       displayName: "Nova Newcomer",
       email: "newcomer@example.com",
       timeZone: "America/Los_Angeles",
+      siteAdmin: false,
     },
   });
 
@@ -111,42 +119,15 @@ async function main() {
     }
   }
 
-  const workspaceName = "Seed Workspace";
-  const existingWorkspace = await prisma.workspace.findFirst({
-    where: { name: workspaceName, ownerUserId: organizer.id },
-  });
-  const workspace =
-    existingWorkspace ??
-    (await prisma.workspace.create({
-      data: { name: workspaceName, ownerUserId: organizer.id },
-    }));
-
-  await Promise.all(
-    [organizer, ...players].map((user, i) =>
-      prisma.workspaceMember.upsert({
-        where: {
-          workspaceId_userId: { workspaceId: workspace.id, userId: user.id },
-        },
-        update: {},
-        create: {
-          workspaceId: workspace.id,
-          userId: user.id,
-          role: i === 0 ? "OWNER" : "PARTICIPANT",
-        },
-      }),
-    ),
-  );
-
   const eventName = "Seed Campaign Kickoff";
   const existingEvent = await prisma.event.findFirst({
-    where: { workspaceId: workspace.id, name: eventName },
+    where: { name: eventName, organizerUserId: organizer.id },
   });
   // The event stays DRAFT and unrevealed.
   const event =
     existingEvent ??
     (await prisma.event.create({
       data: {
-        workspaceId: workspace.id,
         name: eventName,
         mode: "MULTI_GROUP",
         organizerUserId: organizer.id,
@@ -301,8 +282,8 @@ async function main() {
   }
 
   console.log(
-    `db:seed: workspace ${workspace.id}, event ${event.id}, ` +
-      `5 users (1 organizer, 1 without a workspace), ${questions.length} questions`,
+    `db:seed: event ${event.id}, ` +
+      `5 users (1 organizer and site admin, 1 on no event), ${questions.length} questions`,
   );
 }
 

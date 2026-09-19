@@ -44,16 +44,10 @@ export default async function ResponsesPage({
   });
   if (!event) notFound();
 
-  const membership = await prisma.workspaceMember.findUnique({
-    where: {
-      workspaceId_userId: { workspaceId: event.workspaceId, userId: user.id },
-    },
-  });
   const access = {
     viewerUserId: user.id,
     organizerUserId: event.organizerUserId,
-    viewerIsWorkspaceOrganizer:
-      membership?.role === "OWNER" || membership?.role === "ORGANIZER",
+    viewerIsSiteAdmin: user.siteAdmin,
   };
   const viewerIsManager = canManageEvent(access);
   const viewerParticipates = event.participants.some(

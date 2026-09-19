@@ -121,7 +121,7 @@ describe.skipIf(!hasDatabase)("respond routes against PostgreSQL", () => {
       ).PUT,
     };
 
-    // Fixtures hang off the seeded users and workspace; the event itself is
+    // Fixtures hang off the seeded users; the event itself is
     // created here and removed in afterAll so the seed data is left as is.
     const organizer = await m.prisma.user.findUniqueOrThrow({
       where: { email: "organizer@example.com" },
@@ -131,13 +131,9 @@ describe.skipIf(!hasDatabase)("respond routes against PostgreSQL", () => {
     });
     organizerId = organizer.id;
     playerId = player.id;
-    const workspace = await m.prisma.workspace.findFirstOrThrow({
-      where: { name: "Seed Workspace", ownerUserId: organizerId },
-    });
 
     const event = await m.prisma.event.create({
       data: {
-        workspaceId: workspace.id,
         name: eventName,
         mode: "SINGLE_ACTIVITY",
         organizerUserId: organizerId,

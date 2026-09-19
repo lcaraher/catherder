@@ -27,7 +27,7 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
     prisma: typeof import("@/adapters/db/client").prisma;
     login: typeof import("@/app/api/dev-auth/login/route").POST;
     redeemInvite: typeof import("@/adapters/db/invites").redeemInvite;
-    regenerateInvite: typeof import("@/app/w/[workspaceId]/events/actions").regenerateInvite;
+    regenerateInvite: typeof import("@/app/e/[eventId]/manage/actions").regenerateInvite;
     joinCodePage: typeof import("@/app/join/[code]/page").default;
     formatInviteCode: typeof import("@/domain/invites").formatInviteCode;
     generateInviteCode: typeof import("@/domain/invites").generateInviteCode;
@@ -39,7 +39,6 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
   let joinerId: string;
   let secondJoinerId: string;
   let thirdJoinerId: string;
-  let workspaceId: string;
   let eventId: string;
   let inviteId: string;
   let firstCode: string;
@@ -91,23 +90,18 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
       login: (await import("@/app/api/dev-auth/login/route")).POST,
       redeemInvite: (await import("@/adapters/db/invites")).redeemInvite,
       regenerateInvite: (
-        await import("@/app/w/[workspaceId]/events/actions")
+        await import("@/app/e/[eventId]/manage/actions")
       ).regenerateInvite,
       joinCodePage: (await import("@/app/join/[code]/page")).default,
       formatInviteCode: invites.formatInviteCode,
       generateInviteCode: invites.generateInviteCode,
     };
 
-    // The organizer and workspace are seeded; the joiner is created here so
-    // membership creation is exercised, and removed again in afterAll.
+    // The organizer is seeded; the joiner is created here and removed in afterAll.
     const organizer = await m.prisma.user.findUniqueOrThrow({
       where: { email: "organizer@example.com" },
     });
     organizerId = organizer.id;
-    const workspace = await m.prisma.workspace.findFirstOrThrow({
-      where: { name: "Seed Workspace", ownerUserId: organizerId },
-    });
-    workspaceId = workspace.id;
     const joiner = await m.prisma.user.upsert({
       where: { email: joinerEmail },
       update: {},
@@ -118,9 +112,6 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
       },
     });
     joinerId = joiner.id;
-    await m.prisma.workspaceMember.deleteMany({
-      where: { workspaceId, userId: joinerId },
-    });
     secondJoinerId = (
       await m.prisma.user.findUniqueOrThrow({
         where: { email: "player2@example.com" },
@@ -135,7 +126,6 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
     firstCode = m.generateInviteCode();
     const event = await m.prisma.event.create({
       data: {
-        workspaceId,
         name: eventName,
         mode: "SINGLE_ACTIVITY",
         organizerUserId: organizerId,
@@ -182,7 +172,6 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
       ]);
     }
     if (joinerId) {
-      await m.prisma.workspaceMember.deleteMany({ where: { userId: joinerId } });
       await m.prisma.user.delete({ where: { id: joinerId } });
     }
     await m?.prisma.$disconnect();
@@ -204,16 +193,11 @@ describe.skipIf(!hasDatabase)("invite redemption against PostgreSQL", () => {
     );
   });
 
-  it("joins the workspace and the event and records the redemption", async () => {
+  it("joins the event and records the redemption", async () => {
     // Typed lower-case with hyphen and spaces: normalization is part of the path.
     const typed = ` ${m.formatInviteCode(firstCode).toLowerCase()} `;
     const result = await m.redeemInvite({ userId: joinerId, rawCode: typed });
     expect(result).toEqual({ ok: true, eventId, alreadyParticipant: false });
-
-    const membership = await m.prisma.workspaceMember.findUniqueOrThrow({
-      where: { workspaceId_userId: { workspaceId, userId: joinerId } },
-    });
-    expect(membership.role).toBe("PARTICIPANT");
 
     const participant = await m.prisma.eventParticipant.findUniqueOrThrow({
       where: { eventId_userId: { eventId, userId: joinerId } },

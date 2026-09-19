@@ -1,3 +1,9 @@
+# The value is set by hand with the CLI and never enters the repo.
+# The parameter must exist before the first plan.
+data "aws_ssm_parameter" "site_admin_usernames" {
+  name = "/${local.name_prefix}/site-admin-usernames"
+}
+
 resource "aws_lambda_function" "app" {
   function_name = "${local.name_prefix}-app"
   description   = "Serves the application behind the HTTP API."
@@ -36,6 +42,7 @@ resource "aws_lambda_function" "app" {
       DATABASE_NAME           = aws_db_instance.postgres.db_name
       DATABASE_PORT           = tostring(aws_db_instance.postgres.port)
       DB_POOL_MAX             = "1"
+      SITE_ADMIN_USERNAMES    = data.aws_ssm_parameter.site_admin_usernames.value
     }
   }
 
