@@ -79,12 +79,7 @@ export default async function Home() {
     );
   }
 
-  const [memberships, participations, organizedEvents] = await Promise.all([
-    prisma.workspaceMember.findMany({
-      where: { userId: user.id },
-      select: { workspaceId: true },
-      orderBy: { workspace: { name: "asc" } },
-    }),
+  const [participations, organizedEvents] = await Promise.all([
     prisma.eventParticipant.findMany({
       where: { userId: user.id },
       include: {
@@ -151,18 +146,15 @@ export default async function Home() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      {memberships.length > 0 && (
-        // With one membership this creates straight there; with several, the
-        // form itself offers a destination picker. Non-members see nothing.
-        <div className="mb-6">
-          <Link
-            href={`/w/${memberships[0].workspaceId}/events/new`}
-            className="inline-block rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
-          >
-            New event
-          </Link>
-        </div>
-      )}
+      {/* Every signed-in person may start an event; the route picks where it goes. */}
+      <div className="mb-6">
+        <Link
+          href="/events/new"
+          className="inline-block rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
+        >
+          New event
+        </Link>
+      </div>
       {nothingWaiting ? (
         <p className="text-sm text-hint">
           Nothing is waiting for you right now — enjoy the quiet.

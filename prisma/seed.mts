@@ -79,6 +79,17 @@ async function main() {
     [organizer, ...players].map((user) => [user.email, user]),
   );
 
+  // Nova belongs to no workspace and no event.
+  await prisma.user.upsert({
+    where: { email: "newcomer@example.com" },
+    update: { timeZone: "America/Los_Angeles" },
+    create: {
+      displayName: "Nova Newcomer",
+      email: "newcomer@example.com",
+      timeZone: "America/Los_Angeles",
+    },
+  });
+
   // Standing availability: created only when the user has none, so hand
   // edits made after the first seed run are not clobbered.
   for (const u of USERS) {
@@ -291,7 +302,7 @@ async function main() {
 
   console.log(
     `db:seed: workspace ${workspace.id}, event ${event.id}, ` +
-      `4 users (1 organizer), ${questions.length} questions`,
+      `5 users (1 organizer, 1 without a workspace), ${questions.length} questions`,
   );
 }
 

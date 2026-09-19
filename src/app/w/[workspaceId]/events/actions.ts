@@ -99,14 +99,24 @@ function parseEventFields(
 }
 
 export async function createEvent(formData: FormData) {
-  const workspaceId = String(formData.get("workspaceId") ?? "");
-  // Any workspace member may create an event.
+  const postedWorkspaceId = String(formData.get("workspaceId") ?? "");
   const user = await requireUser();
-  const creatorMembership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: user.id } },
-  });
-  if (!creatorMembership) {
-    throw new ForbiddenError("workspace membership required");
+  if (postedWorkspaceId !== "") {
+    // Any workspace member may create an event.
+    const creatorMembership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: { workspaceId: postedWorkspaceId, userId: user.id },
+      },
+    });
+    if (!creatorMembership) {
+      throw new ForbiddenError("workspace membership required");
+    }
+  } else {
+    const membershipCount = await prisma.workspaceMember.count({
+      where: { userId: user.id },
+    });
+    // Closes the race where an invite was redeemed in another tab.
+    if (membershipCount !== 0) redirect("/events/new");
   }
 
   const mode = String(formData.get("mode") ?? "") as EventMode;
@@ -114,9 +124,11 @@ export async function createEvent(formData: FormData) {
     String(formData.get("organizerParticipates") ?? "") === "on";
 
   function fail(message: string): never {
-    redirect(
-      `/w/${workspaceId}/events/new?error=${encodeURIComponent(message)}`,
-    );
+    const formPath =
+      postedWorkspaceId === ""
+        ? "/events/new"
+        : `/w/${postedWorkspaceId}/events/new`;
+    redirect(`${formPath}?error=${encodeURIComponent(message)}`);
   }
 
   const parsed = parseEventFields(formData);
@@ -126,6 +138,17 @@ export async function createEvent(formData: FormData) {
   // A fresh invite is issued with the event; a code collision retries the whole transaction.
   const event = await withFreshInviteCode((inviteCode) =>
     prisma.$transaction(async (tx) => {
+      // A first event gets a workspace of its own, owned by the creator.
+      let workspaceId = postedWorkspaceId;
+      if (workspaceId === "") {
+        const workspace = await tx.workspace.create({
+          data: { name: user.displayName, ownerUserId: user.id },
+        });
+        await tx.workspaceMember.create({
+          data: { workspaceId: workspace.id, userId: user.id, role: "OWNER" },
+        });
+        workspaceId = workspace.id;
+      }
       // The creator owns every event they create; single activity has no
       // groups, so its size bounds are always null whatever the form sent.
       const created = await tx.event.create({
@@ -141,6 +164,17 @@ export async function createEvent(formData: FormData) {
             : {}),
         },
       });
+      if (postedWorkspaceId === "") {
+        await tx.auditEvent.create({
+          data: {
+            actorUserId: user.id,
+            entity: "Workspace",
+            entityId: workspaceId,
+            action: "created",
+            detail: { eventId: created.id },
+          },
+        });
+      }
       // The owner's participant row has role ORGANIZER in both modes, always.
       await tx.eventParticipant.create({
         data: {
@@ -190,7 +224,7 @@ export async function createEvent(formData: FormData) {
     }),
   );
 
-  redirect(eventPath(workspaceId, event.id));
+  redirect(eventPath(event.workspaceId, event.id));
 }
 
 // For events created before invites existed; a no-op once one exists.
