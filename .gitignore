@@ -150,6 +150,10 @@ infra/aws/terraform.tfvars
 !dev.tfvars
 !prod.tfvars
 
+# Playwright run output
+test-results/
+playwright-report/
+
 # Local agent and editor config
 CLAUDE.md
 AGENTS.md

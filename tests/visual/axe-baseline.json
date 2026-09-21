@@ -1,0 +1,161 @@
+[
+  {
+    "route": "/",
+    "state": "greta",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 1
+      },
+      {
+        "id": "page-has-heading-one",
+        "impact": "moderate",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/",
+    "state": "pat",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 1
+      },
+      {
+        "id": "page-has-heading-one",
+        "impact": "moderate",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/",
+    "state": "signed-out",
+    "violations": []
+  },
+  {
+    "route": "/admin",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/availability",
+    "state": "greta",
+    "violations": [
+      {
+        "id": "aria-prohibited-attr",
+        "impact": "serious",
+        "nodes": 168
+      },
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 26
+      }
+    ]
+  },
+  {
+    "route": "/e/<id>/manage",
+    "state": "greta",
+    "violations": [
+      {
+        "id": "aria-prohibited-attr",
+        "impact": "serious",
+        "nodes": 168
+      },
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 35
+      },
+      {
+        "id": "label",
+        "impact": "critical",
+        "nodes": 2
+      },
+      {
+        "id": "landmark-unique",
+        "impact": "moderate",
+        "nodes": 2
+      },
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/e/<id>/respond",
+    "state": "pat",
+    "violations": [
+      {
+        "id": "aria-prohibited-attr",
+        "impact": "serious",
+        "nodes": 336
+      },
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 24
+      }
+    ]
+  },
+  {
+    "route": "/e/<id>/responses",
+    "state": "greta",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 27
+      }
+    ]
+  },
+  {
+    "route": "/events/new",
+    "state": "greta",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/help",
+    "state": "signed-out",
+    "violations": []
+  },
+  {
+    "route": "/join",
+    "state": "signed-out",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/join/NOSUCHCODE0",
+    "state": "signed-out",
+    "violations": []
+  },
+  {
+    "route": "/nowhere",
+    "state": "signed-out",
+    "violations": [
+      {
+        "id": "page-has-heading-one",
+        "impact": "moderate",
+        "nodes": 1
+      }
+    ]
+  }
+]
