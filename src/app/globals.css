@@ -190,6 +190,11 @@
   }
 }
 
+/* The default Tailwind palette is removed so only the tokens below exist. */
+@theme {
+  --color-*: initial;
+}
+
 /* Expose every token to Tailwind so components can say bg-surface,
  * text-muted, border-edge, bg-avail, bg-heat-3, and so on. */
 @theme inline {
