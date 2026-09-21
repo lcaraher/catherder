@@ -1,5 +1,7 @@
 import type { User } from "@prisma/client";
 import { prisma } from "@/adapters/db/client";
+import { readThemeChoice, setThemeCookie } from "@/adapters/theme-cookie";
+import { resolveTheme } from "@/domain/theme";
 import { getAuthConfig } from "./config";
 import { verifyIdToken, type VerifiedIdentity } from "./oidc";
 import { createSession } from "./session";
@@ -13,9 +15,32 @@ const DEFAULT_TIME_ZONE = "UTC";
  */
 export async function loginWithIdToken(idToken: string): Promise<User> {
   const identity = await verifyIdToken(idToken);
-  const user = await upsertUserForIdentity(identity);
+  const user = await adoptCookieTheme(await upsertUserForIdentity(identity));
   await createSession(user.id);
+  await setThemeCookie(resolveTheme(user.theme));
   return user;
+}
+
+// A theme chosen while signed out becomes the account's theme at sign-in.
+async function adoptCookieTheme(user: User): Promise<User> {
+  const chosen = await readThemeChoice();
+  if (!chosen || chosen === user.theme) return user;
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { id: user.id },
+      data: { theme: chosen },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "User",
+        entityId: user.id,
+        action: "theme_changed",
+      },
+    });
+    return updated;
+  });
 }
 
 async function upsertUserForIdentity(

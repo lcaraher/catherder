@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { getSessionUser } from "@/adapters/auth";
+import { readThemeCookie } from "@/adapters/theme-cookie";
+import { THEMES } from "@/domain/theme";
+import { ThemeControls } from "@/components/theme-controls";
 
 export const metadata: Metadata = {
   title: "catherder",
@@ -10,10 +13,12 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await getSessionUser();
+  const theme = await readThemeCookie();
 
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">
+    <html lang="en" data-theme={theme} className="h-full antialiased">
+      {/* Bottom padding lets the last element scroll clear of the theme region. */}
+      <body className="min-h-full flex flex-col pb-20">
         {user && (
           <header className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
             <Link href="/">catherder</Link>
@@ -27,6 +32,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </header>
         )}
         {children}
+        <div
+          role="region"
+          aria-label="Theme"
+          className="fixed bottom-4 left-4 z-50"
+        >
+          <ThemeControls initialTheme={theme} themes={THEMES} />
+        </div>
       </body>
     </html>
   );

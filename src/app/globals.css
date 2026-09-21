@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 /* Named colour tokens for the whole app; components use only the role
- * utilities from the @theme block. Light on :root, dark declared twice below. */
+ * utilities from the @theme block. Light on :root, dark under [data-theme="dark"] below. */
 
 :root {
+  color-scheme: light;
   /* ----- Surfaces ----- */
   --surface: #ffffff; /* page background (body) */
   --surface-card: #ffffff; /* week-grid chrome: corner, day headers, time gutter */
@@ -88,9 +89,10 @@
   --organizer-mark: var(--badge-organizer-text);
 }
 
-/* Dark values. The two blocks below must stay identical: one for an explicit
- * [data-theme="dark"], one for system preference. Missing tokens keep :root values. */
+/* Dark values, applied only when data-theme is "dark". Missing tokens keep
+ * :root values. */
 [data-theme="dark"] {
+  color-scheme: dark;
   --surface: #0a0a0a;
   --surface-card: oklch(14.1% 0.005 285.823);
   --surface-muted: oklch(21% 0.006 285.885);
@@ -137,57 +139,6 @@
   --heat-4: oklch(49% 0.1 163);
   --heat-5: oklch(57% 0.1 163);
   --organizer-mark: var(--badge-organizer-text);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --surface: #0a0a0a;
-    --surface-card: oklch(14.1% 0.005 285.823);
-    --surface-muted: oklch(21% 0.006 285.885);
-    --surface-raised: oklch(27.4% 0.006 286.033);
-    --field: oklch(21% 0.006 285.885);
-    --selected: oklch(26.2% 0.051 172.552 / 50%);
-    --foreground: #ededed;
-    --muted: oklch(70.5% 0.015 286.067);
-    --disabled: oklch(37% 0.013 285.805);
-    --edge: oklch(27.4% 0.006 286.033);
-    --edge-strong: oklch(37% 0.013 285.805);
-    --btn-secondary-hover: oklch(21% 0.006 285.885);
-    --btn-danger-text: oklch(70.4% 0.191 22.216);
-    --btn-danger-border: oklch(44.4% 0.177 26.899);
-    --btn-danger-wash: oklch(25.8% 0.092 26.042);
-    --toggle-active: oklch(92% 0.004 286.32);
-    --toggle-active-text: oklch(21% 0.006 285.885);
-    --badge-draft: oklch(27.4% 0.006 286.033);
-    --badge-draft-text: oklch(70.5% 0.015 286.067);
-    --badge-open: oklch(37.8% 0.077 168.94 / 50%);
-    --badge-open-text: oklch(76.5% 0.177 163.223);
-    --badge-closed: oklch(39.6% 0.141 25.723 / 50%);
-    --badge-closed-text: oklch(70.4% 0.191 22.216);
-    --badge-organizer: oklch(38% 0.189 293.745 / 50%);
-    --badge-organizer-text: oklch(81.1% 0.111 293.571);
-    --status-unlocked: oklch(82.8% 0.189 84.429);
-    --notice-error: oklch(25.8% 0.092 26.042);
-    --notice-error-border: oklch(44.4% 0.177 26.899);
-    --notice-error-text: oklch(70.4% 0.191 22.216);
-    --notice-warn: oklch(27.9% 0.077 45.635 / 50%);
-    --notice-warn-border: oklch(55.5% 0.163 48.998);
-    --notice-warn-text: oklch(87.9% 0.169 91.605);
-    --notice-admin: oklch(28.3% 0.141 291.089 / 50%);
-    --notice-admin-border: oklch(38% 0.189 293.745);
-    --notice-admin-text: oklch(81.1% 0.111 293.571);
-    --tentative: oklch(41.4% 0.112 45.904 / 50%);
-    --tentative-border: oklch(76.9% 0.188 70.08);
-    --unavail: oklch(14.1% 0.005 285.823);
-    --grid-line: oklch(27.4% 0.006 286.033);
-    --grid-label: oklch(55.2% 0.016 285.938);
-    --heat-1: oklch(25% 0.1 163);
-    --heat-2: oklch(33% 0.1 163);
-    --heat-3: oklch(41% 0.1 163);
-    --heat-4: oklch(49% 0.1 163);
-    --heat-5: oklch(57% 0.1 163);
-    --organizer-mark: var(--badge-organizer-text);
-  }
 }
 
 /* The default Tailwind palette is removed so only the tokens below exist. */
