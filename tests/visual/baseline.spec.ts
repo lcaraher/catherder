@@ -8,6 +8,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import { THEMES } from "../../src/domain/theme";
 
 const EVENT_NAME = "Seed Campaign Kickoff";
 const ORGANIZER = "Greta Master";
@@ -74,6 +75,28 @@ test.afterAll(async () => {
   }
 });
 
+// Puts the seeded accounts back on the seed's theme, whichever project ran last.
+test.afterAll(async ({ browser }) => {
+  for (const displayName of [ORGANIZER, PARTICIPANT]) {
+    const context = await browser.newContext();
+    try {
+      const page = await context.newPage();
+      await signIn(page, displayName);
+      const saved = await page.request.post("/api/me/theme", {
+        data: { theme: "light" },
+      });
+      expect(saved.ok()).toBe(true);
+    } finally {
+      await context.close();
+    }
+  }
+});
+
+// The project's theme, from its name; only callable inside a test or hook.
+function projectTheme(): "light" | "dark" {
+  return test.info().project.name.startsWith("dark") ? "dark" : "light";
+}
+
 async function signIn(page: Page, displayName: string) {
   await page.goto("/dev-login");
   await page.getByRole("button", { name: displayName, exact: true }).click();
@@ -136,9 +159,21 @@ function captureState(
 
     test.beforeAll(async ({ browser }) => {
       if (options.needsSeed) seed ??= await readSeed(browser);
+      const theme = projectTheme();
       context = await browser.newContext();
       page = await context.newPage();
-      if (options.signInAs) await signIn(page, options.signInAs);
+      if (options.signInAs) {
+        await signIn(page, options.signInAs);
+        // Sets the account and the cookie, whatever the database held before.
+        const saved = await page.request.post("/api/me/theme", {
+          data: { theme },
+        });
+        expect(saved.ok()).toBe(true);
+      } else {
+        await context.addCookies([
+          { name: "catherder_theme", value: theme, domain: "localhost", path: "/" },
+        ]);
+      }
     });
 
     test.afterAll(async () => {
@@ -152,6 +187,42 @@ function captureState(
         await expect(page).toHaveScreenshot(shotName(route, state), {
           fullPage: true,
         });
+      });
+    }
+
+    if (!options.signInAs) {
+      // The attribute is in the first HTML response, so no theme flash.
+      test(`${title}: theme attribute in the initial HTML`, async ({ request }) => {
+        const dark = await request.get("/", {
+          headers: { cookie: "catherder_theme=dark" },
+        });
+        expect(await dark.text()).toContain('data-theme="dark"');
+        const none = await request.get("/");
+        expect(await none.text()).toContain('data-theme="light"');
+      });
+    }
+
+    if (!options.signInAs) {
+      // Own context: the choice must not reach the shared page's cookie.
+      test(`${title}: the dot opens a picker of every theme`, async ({ browser }) => {
+        const fresh = await browser.newContext();
+        try {
+          const visitor = await fresh.newPage();
+          await visitor.goto("/join");
+          await visitor.getByRole("button", { name: "More themes" }).click();
+          const picker = visitor.getByRole("group", { name: "Themes" });
+          await expect(picker.getByRole("button")).toHaveText(
+            THEMES.map((name) => new RegExp(`${name}$`, "i")),
+          );
+          await picker.getByRole("button", { name: "Dark" }).click();
+          await expect(visitor.locator("html")).toHaveAttribute(
+            "data-theme",
+            "dark",
+          );
+          await expect(picker).toBeHidden();
+        } finally {
+          await fresh.close();
+        }
       });
     }
 

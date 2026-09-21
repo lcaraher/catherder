@@ -25,19 +25,19 @@ export default defineConfig({
   projects: [
     {
       name: "light-phone",
-      use: { ...devices["Desktop Chrome"], viewport: phone, colorScheme: "light" },
+      use: { ...devices["Desktop Chrome"], viewport: phone },
     },
     {
       name: "light-desktop",
-      use: { ...devices["Desktop Chrome"], viewport: desktop, colorScheme: "light" },
+      use: { ...devices["Desktop Chrome"], viewport: desktop },
     },
     {
       name: "dark-phone",
-      use: { ...devices["Desktop Chrome"], viewport: phone, colorScheme: "dark" },
+      use: { ...devices["Desktop Chrome"], viewport: phone },
     },
     {
       name: "dark-desktop",
-      use: { ...devices["Desktop Chrome"], viewport: desktop, colorScheme: "dark" },
+      use: { ...devices["Desktop Chrome"], viewport: desktop },
     },
   ],
 });

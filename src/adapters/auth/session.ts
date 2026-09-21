@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { clearThemeCookie } from "@/adapters/theme-cookie";
 import { getAuthConfig } from "./config";
 
 const COOKIE_NAME = "catherder_session";
@@ -40,6 +41,8 @@ export async function readSessionUserId(): Promise<string | null> {
   }
 }
 
+// Also drops the theme cookie, so signed-out pages return to the default theme.
 export async function clearSession(): Promise<void> {
   (await cookies()).delete(COOKIE_NAME);
+  await clearThemeCookie();
 }
