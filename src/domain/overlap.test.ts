@@ -4,6 +4,8 @@ import type { AvailabilityRange } from "./availability.ts";
 import {
   collapseOverlapToHours,
   computeOverlapGrid,
+  heatRanges,
+  heatStep,
   splitOrganizer,
   type OverlapParticipant,
 } from "./overlap.ts";
@@ -295,5 +297,64 @@ describe("collapseOverlapToHours", () => {
       players: { available: ["a"], tentative: [] },
       organizer: null,
     });
+  });
+});
+
+describe("heatStep", () => {
+  // [available, counted, step]
+  const cases: [number, number, number][] = [
+    [1, 12, 1],
+    [2, 12, 1],
+    [3, 12, 2],
+    [4, 12, 2],
+    [5, 12, 3],
+    [6, 12, 3],
+    [8, 12, 4],
+    [10, 12, 5],
+    [12, 12, 5],
+    [1, 3, 2],
+    [2, 3, 4],
+    [3, 3, 5],
+    [1, 1, 5],
+  ];
+  for (const [available, counted, step] of cases) {
+    it(`${available} of ${counted} is step ${step}`, () => {
+      assert.equal(heatStep(available, counted), step);
+    });
+  }
+
+  it("is 0 when nobody is available", () => {
+    assert.equal(heatStep(0, 12), 0);
+  });
+
+  it("is 0 when nobody is counted", () => {
+    assert.equal(heatStep(0, 0), 0);
+    assert.equal(heatStep(2, 0), 0);
+  });
+
+  it("clamps an available count above the counted group to 5", () => {
+    assert.equal(heatStep(7, 3), 5);
+  });
+});
+
+describe("heatRanges", () => {
+  it("lists the counts behind each step for a group of 12", () => {
+    assert.deepEqual(heatRanges(12), ["", "1–2", "3–4", "5–7", "8–9", "10–12"]);
+  });
+
+  it("marks the steps a group of 3 never reaches", () => {
+    assert.deepEqual(heatRanges(3), ["", "—", "1", "—", "2", "3"]);
+  });
+
+  it("agrees with heatStep for every count", () => {
+    for (const counted of [1, 2, 3, 5, 7, 12, 40]) {
+      const ranges = heatRanges(counted);
+      for (let available = 1; available <= counted; available++) {
+        const [low, high = low] = ranges[heatStep(available, counted)]
+          .split("–")
+          .map(Number);
+        assert.ok(low <= available && available <= high);
+      }
+    }
   });
 });

@@ -42,7 +42,6 @@ export default async function AvailabilityPage() {
       <ClockFormatPicker initialFormat={user.clockFormat} />
       <AvailabilityGrid
         initialRanges={ranges}
-        initialNote={user.availabilityNote ?? ""}
         clockFormat={user.clockFormat}
       />
     </main>

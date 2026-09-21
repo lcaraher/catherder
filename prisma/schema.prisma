@@ -63,8 +63,6 @@ model User {
   // The device zone the user chose to ignore; cleared whenever the profile
   // zone changes.
   dismissedDeviceZone String?
-  // Free-text note shown alongside standing availability. Sensitive: never log.
-  availabilityNote String?
   // Site-wide admin, may manage any event; never shown to anyone else.
   siteAdmin        Boolean  @default(false)
   createdAt        DateTime @default(now())
@@ -146,8 +144,6 @@ model EventParticipant {
   userId         String
   role           EventParticipantRole
   responseStatus ResponseStatus
-  // Free-text note for this event. Sensitive: never log.
-  note           String?
   // Organizer-granted permission to keep editing while the event is CLOSED.
   // Null = no unlock granted.
   editUnlockedAt DateTime?

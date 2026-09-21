@@ -46,11 +46,6 @@
     "state": "greta",
     "violations": [
       {
-        "id": "aria-prohibited-attr",
-        "impact": "serious",
-        "nodes": 168
-      },
-      {
         "id": "color-contrast",
         "impact": "serious",
         "nodes": 26
@@ -61,11 +56,6 @@
     "route": "/e/<id>/manage",
     "state": "greta",
     "violations": [
-      {
-        "id": "aria-prohibited-attr",
-        "impact": "serious",
-        "nodes": 168
-      },
       {
         "id": "color-contrast",
         "impact": "serious",
@@ -92,11 +82,6 @@
     "route": "/e/<id>/respond",
     "state": "pat",
     "violations": [
-      {
-        "id": "aria-prohibited-attr",
-        "impact": "serious",
-        "nodes": 336
-      },
       {
         "id": "color-contrast",
         "impact": "serious",
