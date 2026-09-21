@@ -9,8 +9,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Replaces the caller's entire standing availability, note, and time zone
-// in one transaction, bumping the version.
+// Replaces the caller's entire standing availability, and the time zone when
+// one is sent, in one transaction, bumping the version.
 export async function PUT(request: Request) {
   const user = await getSessionUser();
   if (!user) {
@@ -29,21 +29,13 @@ export async function PUT(request: Request) {
   }
   // The zone is normally changed through /api/me/time-zone; this PUT only
   // updates it when a caller still sends one.
-  const { timeZone, note } = body as { timeZone?: unknown; note?: unknown };
+  const { timeZone } = body as { timeZone?: unknown };
   if (timeZone !== undefined && !isValidIanaTimeZone(timeZone)) {
     return NextResponse.json(
       { error: "timeZone must be a valid IANA time-zone name" },
       { status: 400 },
     );
   }
-  if (note !== undefined && note !== null && typeof note !== "string") {
-    return NextResponse.json(
-      { error: "note must be a string" },
-      { status: 400 },
-    );
-  }
-  const availabilityNote =
-    typeof note === "string" && note.trim().length > 0 ? note : null;
 
   const version = await prisma.$transaction(async (tx) => {
     const { _max } = await tx.standingAvailability.aggregate({
@@ -64,13 +56,9 @@ export async function PUT(request: Request) {
         })),
       });
     }
-    await tx.user.update({
-      where: { id: user.id },
-      data: {
-        ...(typeof timeZone === "string" ? { timeZone } : {}),
-        availabilityNote,
-      },
-    });
+    if (typeof timeZone === "string") {
+      await tx.user.update({ where: { id: user.id }, data: { timeZone } });
+    }
     return nextVersion;
   });
 

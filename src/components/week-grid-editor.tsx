@@ -41,6 +41,9 @@ interface Props {
 
 type Granularity = "half" | "hour";
 
+const CELL_FOCUS =
+  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
+
 function stateLabel(status: SlotStatus): string {
   if (status === "AVAILABLE") return "available";
   if (status === "TENTATIVE") return "tentative";
@@ -74,6 +77,9 @@ export function WeekGridEditor({
   const [confirmingClear, setConfirmingClear] = useState(false);
   // Hour mode by default; Half hour is the opt-in fine-grained view.
   const [granularity, setGranularity] = useState<Granularity>("hour");
+  // Roving tab index: the one cell that Tab reaches and the arrow keys move.
+  const [focusCell, setFocusCell] = useState({ weekday: 0, row: 0 });
+  const gridRef = useRef<HTMLDivElement>(null);
 
   // Latest ref: a new onChange identity never re-fires the mirror effect.
   const onChangeRef = useRef(onChange);
@@ -145,6 +151,69 @@ export function WeekGridEditor({
     stroke.current = null;
   }
 
+  // The focused cell keeps its time of day when the row height changes.
+  function changeGranularity(value: Granularity) {
+    if (value === granularity) return;
+    setFocusCell((prev) => ({
+      weekday: prev.weekday,
+      row: value === "hour" ? Math.floor(prev.row / 2) : prev.row * 2,
+    }));
+    setGranularity(value);
+  }
+
+  // A mouse click moves the roving focus too; keyboard clicks have detail 0.
+  function onClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.detail === 0) return;
+    const cell = cellAt(e.clientX, e.clientY);
+    if (cell) setFocusCell(cell);
+  }
+
+  function cellElement(cell: { weekday: number; row: number }) {
+    return gridRef.current?.querySelector<HTMLElement>(
+      `[data-w="${cell.weekday}"][data-r="${cell.row}"]`,
+    );
+  }
+
+  // The same step a click takes: a mixed hour cell cycles from empty.
+  function cycleCell(weekday: number, row: number) {
+    const slotIdxs = slotsForRow(row);
+    const current =
+      granularity === "half"
+        ? week[weekday][slotIdxs[0]]
+        : collapseHourCell(
+            week[weekday][slotIdxs[0]],
+            week[weekday][slotIdxs[1]],
+          );
+    const next = cycleStatus(current === "MIXED" ? null : current);
+    applySlots(weekday, slotIdxs, next);
+  }
+
+  // Arrow keys, Home and End move between cells; Space and Enter cycle one.
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-w]");
+    if (!el) return;
+    const weekday = Number(el.dataset.w);
+    const row = Number(el.dataset.r);
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      cycleCell(weekday, row);
+      return;
+    }
+    const lastRow = (granularity === "half" ? SLOTS_PER_DAY : 24) - 1;
+    const next = { weekday, row };
+    if (e.key === "ArrowLeft") next.weekday = Math.max(0, weekday - 1);
+    else if (e.key === "ArrowRight")
+      next.weekday = Math.min(WEEKDAY_COUNT - 1, weekday + 1);
+    else if (e.key === "ArrowUp") next.row = Math.max(0, row - 1);
+    else if (e.key === "ArrowDown") next.row = Math.min(lastRow, row + 1);
+    else if (e.key === "Home") next.row = 0;
+    else if (e.key === "End") next.row = lastRow;
+    else return;
+    e.preventDefault();
+    setFocusCell(next);
+    cellElement(next)?.focus();
+  }
+
   // Column toggle: a mixed day counts as empty (same rule as collapseHourCell),
   // so the next click always makes the whole day available.
   function nextDayStatus(weekday: number): SlotStatus {
@@ -178,6 +247,8 @@ export function WeekGridEditor({
   const rowCount = granularity === "half" ? SLOTS_PER_DAY : 24;
 
   function renderCell(weekday: number, row: number) {
+    const tabIndex =
+      focusCell.weekday === weekday && focusCell.row === row ? 0 : -1;
     const slotIdxs = slotsForRow(row);
     const first = week[weekday][slotIdxs[0]];
     const startSlot = slotIdxs[0];
@@ -188,10 +259,12 @@ export function WeekGridEditor({
       return (
         <div
           key={weekday}
+          role="gridcell"
+          tabIndex={tabIndex}
           data-w={weekday}
           data-r={row}
           aria-label={`${WEEKDAY_NAMES[weekday]} ${timeSpan}, ${stateLabel(first)}`}
-          className={`h-4 cursor-pointer ${bandClass(first)}`}
+          className={`h-4 cursor-pointer ${CELL_FOCUS} ${bandClass(first)}`}
         />
       );
     }
@@ -202,10 +275,12 @@ export function WeekGridEditor({
       return (
         <div
           key={weekday}
+          role="gridcell"
+          tabIndex={tabIndex}
           data-w={weekday}
           data-r={row}
           aria-label={`${WEEKDAY_NAMES[weekday]} ${timeSpan}, ${stateLabel(collapsed)}`}
-          className={`h-6 cursor-pointer ${bandClass(collapsed)}`}
+          className={`h-6 cursor-pointer ${CELL_FOCUS} ${bandClass(collapsed)}`}
         />
       );
     }
@@ -213,10 +288,12 @@ export function WeekGridEditor({
     return (
       <div
         key={weekday}
+        role="gridcell"
+        tabIndex={tabIndex}
         data-w={weekday}
         data-r={row}
         aria-label={`${WEEKDAY_NAMES[weekday]} ${timeSpan}, first half ${stateLabel(first)}, second half ${stateLabel(second)}`}
-        className="flex h-6 cursor-pointer flex-col"
+        className={`flex h-6 cursor-pointer flex-col ${CELL_FOCUS}`}
       >
         <div className={`h-1/2 ${bandClass(first)}`} />
         <div className={`h-1/2 ${bandClass(second)}`} />
@@ -242,7 +319,7 @@ export function WeekGridEditor({
             type="button"
             role="radio"
             aria-checked={granularity === value}
-            onClick={() => setGranularity(value)}
+            onClick={() => changeGranularity(value)}
             className={`px-3 py-1 ${
               granularity === value
                 ? "bg-toggle-active text-toggle-active-text"
@@ -257,7 +334,8 @@ export function WeekGridEditor({
       <ul className="mb-3 list-disc space-y-0.5 pl-5 text-xs text-muted">
         <li>
           Click a cell to cycle it between available, tentative, and not
-          available.
+          available. With a keyboard, Tab to the grid, move with the arrow keys
+          and press Space to cycle a cell.
         </li>
         <li>Drag to paint several cells at once.</li>
         <li>Click a day name to set that whole day.</li>
@@ -379,31 +457,40 @@ export function WeekGridEditor({
       </div>
 
       <div
+        ref={gridRef}
+        role="grid"
+        aria-label="Weekly availability editor"
         className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line"
         style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onClick={onClick}
+        onKeyDown={onKeyDown}
       >
-        <div className="bg-surface-card" />
-        {WEEKDAY_LABELS.map((label, weekday) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => toggleDay(weekday)}
-            aria-label={`${WEEKDAY_NAMES[weekday]}: set the whole day to ${stateLabel(nextDayStatus(weekday))}`}
-            className="bg-surface-card py-1 text-center text-xs font-medium text-muted hover:bg-btn-secondary-hover"
-          >
-            {label}
-          </button>
-        ))}
+        <div role="row" className="contents">
+          <div aria-hidden="true" className="bg-surface-card" />
+          {WEEKDAY_LABELS.map((label, weekday) => (
+            <div key={label} role="gridcell" className="contents">
+              <button
+                type="button"
+                onClick={() => toggleDay(weekday)}
+                aria-label={`${WEEKDAY_NAMES[weekday]}: set the whole day to ${stateLabel(nextDayStatus(weekday))}`}
+                className="bg-surface-card py-1 text-center text-xs font-medium text-muted hover:bg-btn-secondary-hover"
+              >
+                {label}
+              </button>
+            </div>
+          ))}
+        </div>
         {Array.from({ length: rowCount }, (_, row) => {
           const startSlot = granularity === "half" ? row : row * 2;
           const showLabel = granularity === "hour" || row % 2 === 0;
           return (
-            <div key={row} className="contents">
+            <div key={row} role="row" className="contents">
               <div
+                aria-hidden="true"
                 className={`flex items-center justify-end whitespace-nowrap bg-surface-card pr-2 text-[10px] text-grid-label ${
                   granularity === "half" ? "h-4" : "h-6"
                 }`}

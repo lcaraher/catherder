@@ -83,6 +83,7 @@ export function WeekGridDisplay({
             {WEEKDAY_LABELS.map((_, weekday) => (
               <div
                 key={weekday}
+                role="img"
                 aria-label={`${WEEKDAY_NAMES[weekday]} ${formatSlotLabel(slot, clockFormat)}–${formatSlotLabel(slot + 1, clockFormat)}, ${stateLabel(week[weekday][slot])}`}
                 className={`h-4 ${bandClass(week[weekday][slot])}`}
               />

@@ -254,3 +254,32 @@ export function collapseOverlapToHours(
     return hours;
   }) as OverlapGrid | SplitOverlapGrid;
 }
+
+export type HeatStep = 0 | 1 | 2 | 3 | 4 | 5;
+
+/** The heat step for a cell: the available count as a fifth of the counted group. */
+export function heatStep(available: number, counted: number): HeatStep {
+  if (available <= 0 || counted <= 0) return 0;
+  const step = Math.ceil((available * 5) / counted);
+  return Math.min(5, Math.max(1, step)) as HeatStep;
+}
+
+/**
+ * The available counts behind each step, indexed by step: "3–4", a single
+ * count, or "—" for a step no count reaches. Step 0 is blank.
+ */
+export function heatRanges(counted: number): string[] {
+  const ranges = [""];
+  for (let step = 1; step <= 5; step++) {
+    const counts: number[] = [];
+    for (let available = 1; available <= counted; available++) {
+      if (heatStep(available, counted) === step) counts.push(available);
+    }
+    const low = counts[0];
+    const high = counts[counts.length - 1];
+    ranges.push(
+      counts.length === 0 ? "—" : low === high ? `${low}` : `${low}–${high}`,
+    );
+  }
+  return ranges;
+}

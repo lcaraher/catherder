@@ -9,6 +9,7 @@ import {
   canViewQuestionAnswers,
 } from "@/domain/response-access";
 import { buildTimeZoneOptions } from "@/domain/time-zones";
+import { HeatLegend } from "@/components/heat-legend";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { OverlapGridView } from "@/components/overlap-grid";
 
@@ -200,7 +201,6 @@ export default async function ResponsesPage({
               <th className={th}>Time zone</th>
               <th className={th}>Status</th>
               <th className={th}>Submitted</th>
-              {viewerIsManager && <th className={th}>Note</th>}
             </tr>
           </thead>
           <tbody>
@@ -234,11 +234,6 @@ export default async function ResponsesPage({
                   <td className={`${td} text-xs text-muted`}>
                     {at ? submittedFormat.format(at) : ""}
                   </td>
-                  {viewerIsManager && (
-                    <td className={`${td} text-xs text-muted whitespace-pre-wrap`}>
-                      {participant.note ?? ""}
-                    </td>
-                  )}
                 </tr>
               );
             })}
@@ -252,12 +247,18 @@ export default async function ResponsesPage({
           Each cell shows available · tentative. Select a cell to see who is
           in it.
         </p>
+        <HeatLegend counted={respondents.length} />
         <OverlapGridView
           grid={grid}
           people={people}
           organizerUserId={event.organizerUserId}
           organizerHasAvailability={organizerHasAvailability}
           countOrganizer={event.organizerParticipates}
+          submittedCount={
+            respondents.filter(
+              (participant) => participant.responseStatus === "SUBMITTED",
+            ).length
+          }
           clockFormat={user.clockFormat}
         />
       </section>

@@ -8,10 +8,12 @@ import {
 } from "@/domain/availability";
 import {
   collapseOverlapToHours,
+  heatStep,
   splitOrganizer,
   type OverlapGrid,
   type SplitOverlapCell,
 } from "@/domain/overlap";
+import { HEAT_CLASSES } from "@/components/heat-legend";
 import { OrganizerBadge } from "@/components/organizer-badge";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -23,17 +25,6 @@ const WEEKDAY_NAMES = [
   "Friday",
   "Saturday",
   "Sunday",
-];
-
-// Heat colours by available count only, clamped to 5. Static list so
-// Tailwind sees every class.
-const HEAT_CLASSES = [
-  "bg-heat-0",
-  "bg-heat-1",
-  "bg-heat-2",
-  "bg-heat-3",
-  "bg-heat-4",
-  "bg-heat-5",
 ];
 
 // Organizer mark: solid border for available, dashed for tentative. Static
@@ -63,6 +54,8 @@ interface Props {
    * only as the anchor mark.
    */
   countOrganizer: boolean;
+  /** Submitted responses among the counted people; 0 leaves empty cells blank. */
+  submittedCount: number;
   /** The viewer's clock format, passed down from the page — never read here. */
   clockFormat: ClockFormat;
 }
@@ -79,6 +72,7 @@ export function OverlapGridView({
   organizerUserId,
   organizerHasAvailability,
   countOrganizer,
+  submittedCount,
   clockFormat,
 }: Props) {
   // Hour mode everywhere by default, matching the editors.
@@ -279,7 +273,7 @@ export function OverlapGridView({
                 const availableCount = cell.players.available.length;
                 const tentativeCount = cell.players.tentative.length;
                 const heat =
-                  HEAT_CLASSES[Math.min(availableCount, HEAT_CLASSES.length - 1)];
+                  HEAT_CLASSES[heatStep(availableCount, panelPeople.length)];
                 const organizerMark = cell.organizer
                   ? ORGANIZER_MARK_CLASSES[cell.organizer]
                   : "";
@@ -303,7 +297,9 @@ export function OverlapGridView({
                     className={`flex cursor-pointer items-center justify-center text-[10px] leading-none text-heat-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${heat} ${organizerMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
                   >
                     {availableCount === 0 && tentativeCount === 0
-                      ? ""
+                      ? submittedCount > 0
+                        ? "0"
+                        : ""
                       : `${availableCount} · ${tentativeCount}`}
                   </button>
                 );
