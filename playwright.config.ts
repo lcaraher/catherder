@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { THEMES } from "./src/domain/theme";
 
 const phone = { width: 390, height: 844 };
 const desktop = { width: 1280, height: 800 };
@@ -22,22 +23,15 @@ export default defineConfig({
       stylePath: "tests/visual/screenshot.css",
     },
   },
-  projects: [
+  // One phone and one desktop project per theme, named "<theme>-<width>".
+  projects: THEMES.flatMap((theme) => [
     {
-      name: "light-phone",
+      name: `${theme}-phone`,
       use: { ...devices["Desktop Chrome"], viewport: phone },
     },
     {
-      name: "light-desktop",
+      name: `${theme}-desktop`,
       use: { ...devices["Desktop Chrome"], viewport: desktop },
     },
-    {
-      name: "dark-phone",
-      use: { ...devices["Desktop Chrome"], viewport: phone },
-    },
-    {
-      name: "dark-desktop",
-      use: { ...devices["Desktop Chrome"], viewport: desktop },
-    },
-  ],
+  ]),
 });

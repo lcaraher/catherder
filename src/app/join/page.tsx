@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Pane } from "@/components/pane";
+import { PRIMARY } from "@/components/button-classes";
 import { openInviteCode } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +15,9 @@ export default async function JoinPage({
 
   return (
     <main className="flex flex-1 items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+      <Pane as="div" className="w-full max-w-sm">
         <h1 className="mb-1 text-2xl font-semibold">Join an event</h1>
-        <p className="mb-6 text-sm text-hint">
+        <p className="mb-6 text-sm font-medium text-hint">
           Type the code the organizer gave you. Capitals and hyphens do not
           matter.
         </p>
@@ -41,18 +43,18 @@ export default async function JoinPage({
           <div>
             <button
               type="submit"
-              className="rounded bg-btn-primary px-4 py-2 font-medium text-on-primary hover:bg-btn-primary-hover"
+              className={PRIMARY}
             >
               Continue
             </button>
           </div>
         </form>
         <p className="mt-6 text-sm">
-          <Link href="/" className="text-hint hover:underline">
+          <Link href="/" className="text-hint">
             ← Home
           </Link>
         </p>
-      </div>
+      </Pane>
     </main>
   );
 }

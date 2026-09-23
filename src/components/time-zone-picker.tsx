@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
+import { Pane } from "@/components/pane";
+import { SECONDARY_SM } from "@/components/button-classes";
 import {
   matchesZoneQuery,
   type TimeZoneGroup,
@@ -20,8 +22,6 @@ interface Props {
   hint?: string;
 }
 
-const smallButton =
-  "rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40";
 
 // The device zone never changes within a visit; the server snapshot is
 // null so server HTML and the hydration render agree.
@@ -120,7 +120,7 @@ export function TimeZonePicker({
     deviceZone !== null && deviceZone !== zoneId && deviceZone !== dismissedZone;
 
   return (
-    <div className="mb-6 rounded border border-edge p-3 text-sm">
+    <Pane as="div" className="mb-6 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-muted">
           Your time zone:
@@ -129,7 +129,7 @@ export function TimeZonePicker({
         <button
           type="button"
           onClick={() => setOpen((was) => !was)}
-          className={smallButton}
+          className={SECONDARY_SM}
         >
           {open ? "Close" : "Change"}
         </button>
@@ -150,14 +150,14 @@ export function TimeZonePicker({
             type="button"
             disabled={saving}
             onClick={() => save(deviceZone)}
-            className={smallButton}
+            className={SECONDARY_SM}
           >
             Use {cityOf(deviceZone)}
           </button>
           <button
             type="button"
             onClick={() => dismissDeviceZone(deviceZone)}
-            className={smallButton}
+            className={SECONDARY_SM}
           >
             Keep {cityOf(zoneId)}
           </button>
@@ -208,6 +208,6 @@ export function TimeZonePicker({
           </div>
         </div>
       )}
-    </div>
+    </Pane>
   );
 }

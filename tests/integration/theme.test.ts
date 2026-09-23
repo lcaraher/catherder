@@ -18,6 +18,11 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
+// The font loader is a Next compiler step; here it only has to hand back a class.
+vi.mock("next/font/local", () => ({
+  default: () => ({ className: "", variable: "" }),
+}));
+
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 
 describe.skipIf(!hasDatabase)("account theme against PostgreSQL", () => {
@@ -144,35 +149,35 @@ describe.skipIf(!hasDatabase)("account theme against PostgreSQL", () => {
   });
 
   it("saving a theme updates the row, the audit trail and the cookie", async () => {
-    const response = await postTheme("dark");
+    const response = await postTheme("regal");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
 
-    expect(await storedTheme()).toBe("dark");
+    expect(await storedTheme()).toBe("regal");
     const rows = await auditRows();
     expect(rows).toHaveLength(1);
     expect(rows[0].actorUserId).toBe(userId);
     // The audit row never holds the chosen value.
     expect(rows[0].detail).toBeNull();
-    expect(cookieJar.get("catherder_theme")).toBe("dark");
+    expect(cookieJar.get("catherder_theme")).toBe("regal");
   });
 
   it("refuses an unknown theme and changes nothing", async () => {
     const response = await postTheme("auto");
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: "theme must be one of: light, dark",
+      error: "theme must be one of: aurora, light, chillpill, regal",
     });
 
-    expect(await storedTheme()).toBe("dark");
+    expect(await storedTheme()).toBe("regal");
     expect(await auditRows()).toHaveLength(1);
-    expect(cookieJar.get("catherder_theme")).toBe("dark");
+    expect(cookieJar.get("catherder_theme")).toBe("regal");
   });
 
   it("signing in with no cookie mirrors the account and leaves it unchanged", async () => {
     await loginAs(userId);
-    expect(cookieJar.get("catherder_theme")).toBe("dark");
-    expect(await storedTheme()).toBe("dark");
+    expect(cookieJar.get("catherder_theme")).toBe("regal");
+    expect(await storedTheme()).toBe("regal");
     expect(await auditRows()).toHaveLength(1);
   });
 
@@ -184,7 +189,7 @@ describe.skipIf(!hasDatabase)("account theme against PostgreSQL", () => {
 
     expect(cookieJar.get("catherder_theme")).toBe("light");
     expect(cookieJar.has("catherder_session")).toBe(false);
-    expect(await storedTheme()).toBe("dark");
+    expect(await storedTheme()).toBe("regal");
     expect(await auditRows()).toHaveLength(1);
   });
 
@@ -193,35 +198,35 @@ describe.skipIf(!hasDatabase)("account theme against PostgreSQL", () => {
       where: { id: userId },
       data: { theme: "light" },
     });
-    await loginAs(userId, "dark");
+    await loginAs(userId, "regal");
 
-    expect(await storedTheme()).toBe("dark");
+    expect(await storedTheme()).toBe("regal");
     const rows = await auditRows();
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.actorUserId === userId)).toBe(true);
     expect(rows.every((row) => row.detail === null)).toBe(true);
-    expect(cookieJar.get("catherder_theme")).toBe("dark");
+    expect(cookieJar.get("catherder_theme")).toBe("regal");
   });
 
   it("signing in ignores an unknown cookie value", async () => {
     await loginAs(userId, "auto");
-    expect(await storedTheme()).toBe("dark");
+    expect(await storedTheme()).toBe("regal");
     expect(await auditRows()).toHaveLength(2);
-    expect(cookieJar.get("catherder_theme")).toBe("dark");
+    expect(cookieJar.get("catherder_theme")).toBe("regal");
   });
 
   it("logging out drops the theme cookie and pages return to the default", async () => {
     await loginAs(userId);
-    expect(cookieJar.get("catherder_theme")).toBe("dark");
-    expect(await renderedTheme()).toBe("dark");
+    expect(cookieJar.get("catherder_theme")).toBe("regal");
+    expect(await renderedTheme()).toBe("regal");
 
     const response = await m.logout();
     expect(response.status).toBe(303);
     expect(cookieJar.has("catherder_session")).toBe(false);
     expect(cookieJar.has("catherder_theme")).toBe(false);
-    expect(await renderedTheme()).toBe("light");
+    expect(await renderedTheme()).toBe("aurora");
     // The account keeps its theme; only the browser forgets it.
-    expect(await storedTheme()).toBe("dark");
+    expect(await storedTheme()).toBe("regal");
   });
 
   it("a signed-out flip after logout is adopted at the next sign-in", async () => {
@@ -231,14 +236,14 @@ describe.skipIf(!hasDatabase)("account theme against PostgreSQL", () => {
     });
     const before = (await auditRows()).length;
 
-    const response = await postTheme("dark");
+    const response = await postTheme("regal");
     expect(response.status).toBe(200);
-    expect(await renderedTheme()).toBe("dark");
+    expect(await renderedTheme()).toBe("regal");
     expect(await storedTheme()).toBe("light");
 
     await loginAs(userId, cookieJar.get("catherder_theme"));
-    expect(await storedTheme()).toBe("dark");
+    expect(await storedTheme()).toBe("regal");
     expect(await auditRows()).toHaveLength(before + 1);
-    expect(cookieJar.get("catherder_theme")).toBe("dark");
+    expect(cookieJar.get("catherder_theme")).toBe("regal");
   });
 });

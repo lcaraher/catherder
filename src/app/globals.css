@@ -1,144 +1,447 @@
 @import "tailwindcss";
 
 /* Named colour tokens for the whole app; components use only the role
- * utilities from the @theme block. Light on :root, dark under [data-theme="dark"] below. */
+ * utilities from the @theme block. :root holds the default theme (Aurora). */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   /* ----- Surfaces ----- */
-  --surface: #ffffff; /* page background (body) */
-  --surface-card: #ffffff; /* week-grid chrome: corner, day headers, time gutter */
-  --surface-muted: oklch(98.5% 0 none); /* muted panels (read-only notice), list-row hover */
-  --surface-raised: oklch(96.7% 0.001 286.375); /* sticky group headings, inline code chips */
-  --field: transparent; /* form inputs, selects, textareas */
-  --selected: oklch(97.9% 0.021 166.113); /* currently-selected option row (time-zone picker) */
+  --surface: #0b0f14; /* page background (body) */
+  --surface-card: #121a24; /* week-grid chrome: corner, day headers, time gutter */
+  --surface-muted: #141c28; /* muted panels (read-only notice), list-row hover */
+  --surface-raised: #171f2b; /* sticky group headings, inline code chips */
+  --field: #10161d; /* form inputs, selects, textareas */
+  --selected: #153d41; /* currently-selected option row (time-zone picker) */
 
   /* ----- Text ----- */
-  --foreground: #171717; /* primary text (body default) */
-  --muted: oklch(44.2% 0.017 285.786); /* secondary text: labels, legends, instructions */
-  --hint: oklch(55.2% 0.016 285.938); /* hints, empty states, breadcrumbs, subtitles */
-  --faint: oklch(70.5% 0.015 286.067); /* faint metadata: counters, question meta, "Saving…" */
-  --disabled: oklch(87.1% 0.006 286.286); /* disabled control labels (copy-day source) */
-  --on-primary: #ffffff; /* text on solid primary and danger buttons */
-  --error: oklch(57.7% 0.245 27.325); /* inline error text under forms */
+  --foreground: #e6ecf2; /* primary text (body default) */
+  --muted: #c6cfd8; /* secondary text: labels, legends, instructions */
+  --hint: #9aa6b2; /* hints, empty states, breadcrumbs, subtitles */
+  --faint: #8f9aa5; /* faint metadata: counters, question meta, "Saving…" */
+  --disabled: #585c62; /* disabled control labels (copy-day source) */
+  --on-primary: #0b0f14; /* text on solid primary and danger buttons */
+  --error: #ff8f8f; /* inline error text under forms */
 
   /* ----- Borders ----- */
-  --edge: oklch(92% 0.004 286.32); /* default borders: cards, rows, sections */
-  --edge-strong: oklch(87.1% 0.006 286.286); /* stronger borders: inputs, small buttons */
-  --ring: oklch(59.6% 0.145 163.225); /* focus ring: overlap-grid cells (selected outline and focus-visible) */
+  --edge: #32373c; /* default borders: cards, rows, sections */
+  --edge-strong: #63676d; /* stronger borders: inputs, small buttons */
+  --ring: #1fb8a6; /* focus ring: overlap-grid cells (selected outline and focus-visible) */
 
   /* ----- Buttons ----- */
-  --btn-primary: oklch(59.6% 0.145 163.225); /* primary action background */
-  --btn-primary-hover: oklch(69.6% 0.17 162.48); /* primary action hover background */
+  --btn-primary: #1fb8a6; /* primary action background */
+  --btn-primary-hover: #2fcbb8; /* primary action hover background */
   --btn-secondary: transparent; /* secondary buttons are outline-only */
-  --btn-secondary-hover: oklch(96.7% 0.001 286.375); /* secondary button hover background */
-  --btn-secondary-text: var(--muted); /* secondary button text, where set explicitly */
-  --btn-danger: oklch(57.7% 0.245 27.325); /* solid danger background (Close event) */
-  --btn-danger-hover: oklch(63.7% 0.237 25.331); /* solid danger hover background */
-  --btn-danger-text: oklch(57.7% 0.245 27.325); /* outline danger text (Clear week, reload) */
-  --btn-danger-border: oklch(80.8% 0.114 19.571); /* outline danger border */
-  --btn-danger-wash: oklch(97.1% 0.013 17.38); /* outline danger hover background */
-  --toggle-active: oklch(27.4% 0.006 286.033); /* selected segment of the granularity toggle */
-  --toggle-active-text: #ffffff; /* text on the selected toggle segment */
+  --btn-secondary-hover: #1d2126; /* secondary button hover background */
+  --btn-secondary-text: var(--foreground); /* secondary button text, where set explicitly */
+  --btn-danger: #ff8f8f; /* solid danger background (Close event) */
+  --btn-danger-hover: #fb9d9e; /* solid danger hover background */
+  --btn-danger-text: #ff8f8f; /* outline danger text (Clear week, reload) */
+  --btn-danger-border: #ce7576; /* outline danger border */
+  --btn-danger-wash: #281e23; /* outline danger hover background */
+  --toggle-active: #1fb8a6; /* selected segment of the granularity toggle */
+  --toggle-active-text: #0b0f14; /* text on the selected toggle segment */
 
   /* ----- Status badges ----- */
-  --badge-draft: oklch(96.7% 0.001 286.375); /* DRAFT badge background */
-  --badge-draft-text: oklch(44.2% 0.017 285.786); /* DRAFT badge text */
-  --badge-open: oklch(95% 0.052 163.051); /* OPEN badge background */
-  --badge-open-text: oklch(50.8% 0.118 165.612); /* OPEN badge text */
-  --badge-closed: oklch(93.6% 0.032 17.717); /* CLOSED badge background */
-  --badge-closed-text: oklch(50.5% 0.213 27.518); /* CLOSED badge text */
-  --badge-organizer: oklch(94.3% 0.029 294.588); /* Organizer chip background */
-  --badge-organizer-text: oklch(49.1% 0.27 292.581); /* Organizer chip text */
-  --status-invited: oklch(70.5% 0.015 286.067); /* INVITED response-status text */
-  --status-submitted: oklch(59.6% 0.145 163.225); /* SUBMITTED status, "Saved ✓" feedback */
-  --status-unlocked: oklch(66.6% 0.179 58.318); /* "Unlocked for editing" text */
+  --badge-draft: #171f2b; /* DRAFT badge background */
+  --badge-draft-text: #c6cfd8; /* DRAFT badge text */
+  --badge-open: #143339; /* OPEN badge background */
+  --badge-open-text: #1fb8a6; /* OPEN badge text */
+  --badge-closed: #382d35; /* CLOSED badge background */
+  --badge-closed-text: #ff8f8f; /* CLOSED badge text */
+  --badge-organizer: #3a3e54; /* Organizer chip background */
+  --badge-organizer-text: #c9bcff; /* Organizer chip text */
+  --status-invited: #9aa6b2; /* INVITED response-status text */
+  --status-submitted: #1fb8a6; /* SUBMITTED status, "Saved ✓" feedback */
+  --status-unlocked: #f0c674; /* "Unlocked for editing" text */
 
   /* ----- Notices (banner panels) ----- */
-  --notice-error: oklch(97.1% 0.013 17.38); /* error banner background */
-  --notice-error-border: oklch(80.8% 0.114 19.571); /* error banner border */
-  --notice-error-text: oklch(50.5% 0.213 27.518); /* error banner text */
-  --notice-warn: oklch(98.7% 0.022 95.277); /* device-zone suggestion background */
-  --notice-warn-border: oklch(87.9% 0.169 91.605); /* device-zone suggestion border */
-  --notice-warn-text: oklch(47.3% 0.137 46.201); /* device-zone suggestion text */
-  --notice-admin: oklch(96.9% 0.016 293.756); /* organizer-override banner background */
-  --notice-admin-border: oklch(89.4% 0.057 293.283); /* organizer-override banner border */
-  --notice-admin-text: oklch(49.1% 0.27 292.581); /* organizer-override banner text */
+  --notice-error: #3d2f37; /* error banner background */
+  --notice-error-border: #ff8f8f; /* error banner border */
+  --notice-error-text: #ff8f8f; /* error banner text */
+  --notice-warn: #3a3932; /* device-zone suggestion background */
+  --notice-warn-border: #f0c674; /* device-zone suggestion border */
+  --notice-warn-text: #f0c674; /* device-zone suggestion text */
+  --notice-admin: #33374b; /* organizer-override banner background */
+  --notice-admin-border: #c9bcff; /* organizer-override banner border */
+  --notice-admin-text: #c9bcff; /* organizer-override banner text */
 
   /* ----- Availability states ----- */
-  --avail: oklch(69.6% 0.17 162.48); /* available fill */
-  --tentative: oklch(92.4% 0.12 95.746); /* tentative fill */
-  --tentative-border: oklch(55.5% 0.163 48.998); /* dashed tentative outline */
-  --unavail: #ffffff; /* not-available fill */
+  --avail: #1fb8a6; /* available fill */
+  --tentative: #605640; /* tentative fill */
+  --tentative-border: #f0c674; /* dashed tentative outline */
+  --unavail: #171f2b; /* not-available fill */
   --split-band: var(--tentative-border); /* divider inside the hour-view split cell */
-  --grid-line: oklch(92% 0.004 286.32); /* the 1px lines between grid cells */
-  --grid-label: oklch(70.5% 0.015 286.067); /* time gutter labels */
+  --grid-line: #32373c; /* the 1px lines between grid cells */
+  --grid-label: #9aa6b2; /* time gutter labels */
 
-  /* Heat ramp for the overlap grid: one hue varying in lightness; --heat-0
-   * is the not-available fill, --heat-text the printed count. */
-  --heat-0: var(--unavail);
-  --heat-1: oklch(93% 0.1 163);
-  --heat-2: oklch(85% 0.1 163);
-  --heat-3: oklch(77% 0.1 163);
-  --heat-4: oklch(69% 0.1 163);
-  --heat-5: oklch(61% 0.1 163);
-  --heat-text: var(--foreground);
+  /* Heat ramp for the overlap grid; --heat-0 is the not-available fill,
+   * --heat-text-N the count printed on step N. */
+  --heat-0: #171f2b;
+  --heat-1: #423887;
+  --heat-2: #434e98;
+  --heat-3: #3e6ba2;
+  --heat-4: #318ea7;
+  --heat-5: #1fb8a6;
+  --heat-text: #e6ecf2;
+  --heat-text-0: #e6ecf2;
+  --heat-text-1: #e6ecf2;
+  --heat-text-2: #e6ecf2;
+  --heat-text-3: #e6ecf2;
+  --heat-text-4: #0b0f14;
+  --heat-text-5: #0b0f14;
 
   /* Border marking overlap cells where the organizer is available (solid) or
    * tentative (dashed); follows the organizer badge text colour. */
-  --organizer-mark: var(--badge-organizer-text);
+  --organizer-mark: #c9bcff;
+
+  /* ----- Accent gradient and header glow ----- */
+  --accent-gradient-a: #1fb8a6; /* first stop of the accent gradient */
+  --accent-gradient-b: #8468ff; /* second stop; equal to the first on flat themes */
+  --glow-a: rgba(31,184,166,.32); /* left header wash; transparent on flat themes */
+  --glow-b: rgba(124,92,255,.34); /* right header wash */
+  --link-hover: #1fb8a6; /* link text on hover */
+  /* Reserved for the multi-group fit map; unused. */
+  --fit-yes: var(--status-submitted);
+  --fit-partial: var(--status-unlocked);
+  --fit-no: var(--error);
+  --hover-wash: #ffffff; /* hover layer over heat tiles; the same in every theme */
 }
 
-/* Dark values, applied only when data-theme is "dark". Missing tokens keep
- * :root values. */
-[data-theme="dark"] {
+/* Values per theme; a theme block sets every token so nothing falls through. */
+/* Chill Pill */
+[data-theme="chillpill"] {
   color-scheme: dark;
-  --surface: #0a0a0a;
-  --surface-card: oklch(14.1% 0.005 285.823);
-  --surface-muted: oklch(21% 0.006 285.885);
-  --surface-raised: oklch(27.4% 0.006 286.033);
-  --field: oklch(21% 0.006 285.885);
-  --selected: oklch(26.2% 0.051 172.552 / 50%);
-  --foreground: #ededed;
-  --muted: oklch(70.5% 0.015 286.067);
-  --disabled: oklch(37% 0.013 285.805);
-  --edge: oklch(27.4% 0.006 286.033);
-  --edge-strong: oklch(37% 0.013 285.805);
-  --btn-secondary-hover: oklch(21% 0.006 285.885);
-  --btn-danger-text: oklch(70.4% 0.191 22.216);
-  --btn-danger-border: oklch(44.4% 0.177 26.899);
-  --btn-danger-wash: oklch(25.8% 0.092 26.042);
-  --toggle-active: oklch(92% 0.004 286.32);
-  --toggle-active-text: oklch(21% 0.006 285.885);
-  --badge-draft: oklch(27.4% 0.006 286.033);
-  --badge-draft-text: oklch(70.5% 0.015 286.067);
-  --badge-open: oklch(37.8% 0.077 168.94 / 50%);
-  --badge-open-text: oklch(76.5% 0.177 163.223);
-  --badge-closed: oklch(39.6% 0.141 25.723 / 50%);
-  --badge-closed-text: oklch(70.4% 0.191 22.216);
-  --badge-organizer: oklch(38% 0.189 293.745 / 50%);
-  --badge-organizer-text: oklch(81.1% 0.111 293.571);
-  --status-unlocked: oklch(82.8% 0.189 84.429);
-  --notice-error: oklch(25.8% 0.092 26.042);
-  --notice-error-border: oklch(44.4% 0.177 26.899);
-  --notice-error-text: oklch(70.4% 0.191 22.216);
-  --notice-warn: oklch(27.9% 0.077 45.635 / 50%);
-  --notice-warn-border: oklch(55.5% 0.163 48.998);
-  --notice-warn-text: oklch(87.9% 0.169 91.605);
-  --notice-admin: oklch(28.3% 0.141 291.089 / 50%);
-  --notice-admin-border: oklch(38% 0.189 293.745);
-  --notice-admin-text: oklch(81.1% 0.111 293.571);
-  --tentative: oklch(41.4% 0.112 45.904 / 50%);
-  --tentative-border: oklch(76.9% 0.188 70.08);
-  --unavail: oklch(14.1% 0.005 285.823);
-  --grid-line: oklch(27.4% 0.006 286.033);
-  --grid-label: oklch(55.2% 0.016 285.938);
-  --heat-1: oklch(25% 0.1 163);
-  --heat-2: oklch(33% 0.1 163);
-  --heat-3: oklch(41% 0.1 163);
-  --heat-4: oklch(49% 0.1 163);
-  --heat-5: oklch(57% 0.1 163);
-  --organizer-mark: var(--badge-organizer-text);
+  --surface: #0e0e10;
+  --surface-card: #1a1a1e;
+  --surface-muted: #202024;
+  --surface-raised: #26262b;
+  --field: #141417;
+  --selected: #294746;
+  --foreground: #f2f2f4;
+  --muted: #c9c9cf;
+  --hint: #9d9da6;
+  --faint: #92929a;
+  --disabled: #5e5e60;
+  --on-primary: #0e0e10;
+  --error: #ff8f8f;
+  --edge: #373739;
+  --edge-strong: #69696b;
+  --ring: #5ee6d6;
+  --btn-primary: #5ee6d6;
+  --btn-primary-hover: #84eee2;
+  --btn-secondary: transparent;
+  --btn-secondary-hover: #202022;
+  --btn-secondary-text: var(--foreground);
+  --btn-danger: #ff8f8f;
+  --btn-danger-hover: #fd9e9e;
+  --btn-danger-text: #ff8f8f;
+  --btn-danger-border: #cf7576;
+  --btn-danger-wash: #2b1d1f;
+  --toggle-active: #5ee6d6;
+  --toggle-active-text: #0e0e10;
+  --badge-draft: #26262b;
+  --badge-draft-text: #c9c9cf;
+  --badge-open: #253b3b;
+  --badge-open-text: #5ee6d6;
+  --badge-closed: #3f2d30;
+  --badge-closed-text: #ff8f8f;
+  --badge-organizer: #3f3950;
+  --badge-organizer-text: #c4a8ff;
+  --status-invited: #9d9da6;
+  --status-submitted: #5ee6d6;
+  --status-unlocked: #f0c674;
+  --notice-error: #432f32;
+  --notice-error-border: #ff8f8f;
+  --notice-error-text: #ff8f8f;
+  --notice-warn: #41392d;
+  --notice-warn-border: #f0c674;
+  --notice-warn-text: #f0c674;
+  --notice-admin: #393446;
+  --notice-admin-border: #c4a8ff;
+  --notice-admin-text: #c4a8ff;
+  --avail: #5ee6d6;
+  --tentative: #65563c;
+  --tentative-border: #f0c674;
+  --unavail: #26262b;
+  --split-band: var(--tentative-border);
+  --grid-line: #373739;
+  --grid-label: #9d9da6;
+  --heat-0: #26262b;
+  --heat-1: #294746;
+  --heat-2: #37706b;
+  --heat-3: #449890;
+  --heat-4: #52c1b5;
+  --heat-5: #5ee6d6;
+  --heat-text: #f2f2f4;
+  --heat-text-0: #f2f2f4;
+  --heat-text-1: #f2f2f4;
+  --heat-text-2: #f2f2f4;
+  --heat-text-3: #0e0e10;
+  --heat-text-4: #0e0e10;
+  --heat-text-5: #0e0e10;
+  --organizer-mark: #c4a8ff;
+  --accent-gradient-a: var(--btn-primary);
+  --accent-gradient-b: var(--btn-primary);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --link-hover: #a8d8ff;
+  /* Reserved for the multi-group fit map; unused. */
+  --fit-yes: var(--status-submitted);
+  --fit-partial: var(--status-unlocked);
+  --fit-no: var(--error);
+
+}
+
+/* Light */
+[data-theme="light"] {
+  color-scheme: light;
+  --surface: #e4d7ba;
+  --surface-card: #f7f1e4;
+  --surface-muted: #f2eada;
+  --surface-raised: #ece3cf;
+  --field: #fbf7ee;
+  --selected: #d0cabf;
+  --foreground: #1c1a17;
+  --muted: #2a2724;
+  --hint: #46413a;
+  --faint: #534d44;
+  --disabled: #9e9581;
+  --on-primary: #f7f1e4;
+  --error: #a12a1e;
+  --edge: #1c1a17;
+  --edge-strong: #1c1a17;
+  --ring: #1c1a17;
+  --btn-primary: #1c1a17;
+  --btn-primary-hover: #2f3a7a;
+  --btn-secondary: transparent;
+  --btn-secondary-hover: #d4c8ad;
+  --btn-secondary-text: var(--foreground);
+  --btn-danger: #a12a1e;
+  --btn-danger-hover: #8d281d;
+  --btn-danger-text: #8a1f14;
+  --btn-danger-border: #ae4d3d;
+  --btn-danger-wash: #dcc2a7;
+  --toggle-active: #1c1a17;
+  --toggle-active-text: #f7f1e4;
+  --badge-draft: #ece3cf;
+  --badge-draft-text: #2a2724;
+  --badge-open: #d7d4d3;
+  --badge-open-text: #1f2a5c;
+  --badge-closed: #e9d1c4;
+  --badge-closed-text: #7a1a10;
+  --badge-organizer: #c7c2b7;
+  --badge-organizer-text: #1c1a17;
+  --status-invited: #46413a;
+  --status-submitted: #2f3a7a;
+  --status-unlocked: #7a4a00;
+  --notice-error: #e8cdc0;
+  --notice-error-border: #a12a1e;
+  --notice-error-text: #7a1a10;
+  --notice-warn: #e0d3bb;
+  --notice-warn-border: #7a4a00;
+  --notice-warn-text: #5a3600;
+  --notice-admin: #d0cabf;
+  --notice-admin-border: #1c1a17;
+  --notice-admin-text: #1c1a17;
+  --avail: #2f3a7a;
+  --tentative: #cbb794;
+  --tentative-border: #7a4a00;
+  --unavail: #ece3cf;
+  --split-band: var(--tentative-border);
+  --grid-line: #1c1a17;
+  --grid-label: #46413a;
+  --heat-0: #ece3cf;
+  --heat-1: #d7d4d3;
+  --heat-2: #b3b3c0;
+  --heat-3: #8f92ad;
+  --heat-4: #636a96;
+  --heat-5: #2f3a7a;
+  --heat-text: #1c1a17;
+  --heat-text-0: #1c1a17;
+  --heat-text-1: #1c1a17;
+  --heat-text-2: #1c1a17;
+  --heat-text-3: #1c1a17;
+  --heat-text-4: #f7f1e4;
+  --heat-text-5: #f7f1e4;
+  --organizer-mark: #1c1a17;
+  --accent-gradient-a: var(--btn-primary);
+  --accent-gradient-b: var(--btn-primary);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --link-hover: #2f3a7a;
+  /* Reserved for the multi-group fit map; unused. */
+  --fit-yes: var(--status-submitted);
+  --fit-partial: var(--status-unlocked);
+  --fit-no: var(--error);
+
+}
+
+/* Aurora */
+[data-theme="aurora"] {
+  color-scheme: dark;
+  --surface: #0b0f14;
+  --surface-card: #121a24;
+  --surface-muted: #141c28;
+  --surface-raised: #171f2b;
+  --field: #10161d;
+  --selected: #153d41;
+  --foreground: #e6ecf2;
+  --muted: #c6cfd8;
+  --hint: #9aa6b2;
+  --faint: #8f9aa5;
+  --disabled: #585c62;
+  --on-primary: #0b0f14;
+  --error: #ff8f8f;
+  --edge: #32373c;
+  --edge-strong: #63676d;
+  --ring: #1fb8a6;
+  --btn-primary: #1fb8a6;
+  --btn-primary-hover: #2fcbb8;
+  --btn-secondary: transparent;
+  --btn-secondary-hover: #1d2126;
+  --btn-secondary-text: var(--foreground);
+  --btn-danger: #ff8f8f;
+  --btn-danger-hover: #fb9d9e;
+  --btn-danger-text: #ff8f8f;
+  --btn-danger-border: #ce7576;
+  --btn-danger-wash: #281e23;
+  --toggle-active: #1fb8a6;
+  --toggle-active-text: #0b0f14;
+  --badge-draft: #171f2b;
+  --badge-draft-text: #c6cfd8;
+  --badge-open: #143339;
+  --badge-open-text: #1fb8a6;
+  --badge-closed: #382d35;
+  --badge-closed-text: #ff8f8f;
+  --badge-organizer: #3a3e54;
+  --badge-organizer-text: #c9bcff;
+  --status-invited: #9aa6b2;
+  --status-submitted: #1fb8a6;
+  --status-unlocked: #f0c674;
+  --notice-error: #3d2f37;
+  --notice-error-border: #ff8f8f;
+  --notice-error-text: #ff8f8f;
+  --notice-warn: #3a3932;
+  --notice-warn-border: #f0c674;
+  --notice-warn-text: #f0c674;
+  --notice-admin: #33374b;
+  --notice-admin-border: #c9bcff;
+  --notice-admin-text: #c9bcff;
+  --avail: #1fb8a6;
+  --tentative: #605640;
+  --tentative-border: #f0c674;
+  --unavail: #171f2b;
+  --split-band: var(--tentative-border);
+  --grid-line: #32373c;
+  --grid-label: #9aa6b2;
+  --heat-0: #171f2b;
+  --heat-1: #423887;
+  --heat-2: #434e98;
+  --heat-3: #3e6ba2;
+  --heat-4: #318ea7;
+  --heat-5: #1fb8a6;
+  --heat-text: #e6ecf2;
+  --heat-text-0: #e6ecf2;
+  --heat-text-1: #e6ecf2;
+  --heat-text-2: #e6ecf2;
+  --heat-text-3: #e6ecf2;
+  --heat-text-4: #0b0f14;
+  --heat-text-5: #0b0f14;
+  --organizer-mark: #c9bcff;
+  --accent-gradient-a: #1fb8a6;
+  --accent-gradient-b: #8468ff;
+  --glow-a: rgba(31,184,166,.32);
+  --glow-b: rgba(124,92,255,.34);
+  --link-hover: #1fb8a6;
+  /* Reserved for the multi-group fit map; unused. */
+  --fit-yes: var(--status-submitted);
+  --fit-partial: var(--status-unlocked);
+  --fit-no: var(--error);
+
+}
+
+/* Regal ASF */
+[data-theme="regal"] {
+  color-scheme: dark;
+  --surface: #1a1230;
+  --surface-card: #271d48;
+  --surface-muted: #2d2252;
+  --surface-raised: #33285c;
+  --field: #1f1739;
+  --selected: #513f50;
+  --foreground: #f0ebfa;
+  --muted: #d3cbe8;
+  --hint: #b3a8d1;
+  --faint: #a79cc4;
+  --disabled: #655e77;
+  --on-primary: #1a1230;
+  --error: #ff8a8a;
+  --edge: #413954;
+  --edge-strong: #706981;
+  --ring: #e8b86d;
+  --btn-primary: #e8b86d;
+  --btn-primary-hover: #f2c885;
+  --btn-secondary: transparent;
+  --btn-secondary-hover: #2b2340;
+  --btn-secondary-text: var(--foreground);
+  --btn-danger: #ff8a8a;
+  --btn-danger-hover: #fd999b;
+  --btn-danger-text: #ff8a8a;
+  --btn-danger-border: #d17278;
+  --btn-danger-wash: #35203b;
+  --toggle-active: #e8b86d;
+  --toggle-active-text: #1a1230;
+  --badge-draft: #33285c;
+  --badge-draft-text: #d3cbe8;
+  --badge-open: #353b59;
+  --badge-open-text: #7fd8b4;
+  --badge-closed: #4a2e53;
+  --badge-closed-text: #ff8a8a;
+  --badge-organizer: #513f50;
+  --badge-organizer-text: #e8b86d;
+  --status-invited: #b3a8d1;
+  --status-submitted: #7fd8b4;
+  --status-unlocked: #f2c885;
+  --notice-error: #4e3154;
+  --notice-error-border: #ff8a8a;
+  --notice-error-text: #ff8a8a;
+  --notice-warn: #4c3c53;
+  --notice-warn-border: #f2c885;
+  --notice-warn-text: #f2c885;
+  --notice-admin: #4a394f;
+  --notice-admin-border: #e8b86d;
+  --notice-admin-text: #e8b86d;
+  --avail: #7fd8b4;
+  --tentative: #6e595d;
+  --tentative-border: #f2c885;
+  --unavail: #33285c;
+  --split-band: var(--tentative-border);
+  --grid-line: #413954;
+  --grid-label: #b3a8d1;
+  --heat-0: #33285c;
+  --heat-1: #3a4660;
+  --heat-2: #4c6c75;
+  --heat-3: #5e918b;
+  --heat-4: #6fb6a1;
+  --heat-5: #7fd8b4;
+  --heat-text: #f0ebfa;
+  --heat-text-0: #f0ebfa;
+  --heat-text-1: #f0ebfa;
+  --heat-text-2: #f0ebfa;
+  --heat-text-3: #1a1230;
+  --heat-text-4: #1a1230;
+  --heat-text-5: #1a1230;
+  --organizer-mark: #e8b86d;
+  --accent-gradient-a: var(--btn-primary);
+  --accent-gradient-b: var(--btn-primary);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --link-hover: #e8b86d;
+  /* Reserved for the multi-group fit map; unused. */
+  --fit-yes: var(--status-submitted);
+  --fit-partial: var(--status-unlocked);
+  --fit-no: var(--error);
+
 }
 
 /* The default Tailwind palette is removed so only the tokens below exist. */
@@ -211,11 +514,154 @@
   --color-heat-4: var(--heat-4);
   --color-heat-5: var(--heat-5);
   --color-heat-text: var(--heat-text);
+  --color-heat-text-0: var(--heat-text-0);
+  --color-heat-text-1: var(--heat-text-1);
+  --color-heat-text-2: var(--heat-text-2);
+  --color-heat-text-3: var(--heat-text-3);
+  --color-heat-text-4: var(--heat-text-4);
+  --color-heat-text-5: var(--heat-text-5);
   --color-organizer-mark: var(--organizer-mark);
+  --color-accent-gradient-a: var(--accent-gradient-a);
+  --color-accent-gradient-b: var(--accent-gradient-b);
+  --color-glow-a: var(--glow-a);
+  --color-glow-b: var(--glow-b);
+  --color-link-hover: var(--link-hover);
+  --color-fit-yes: var(--fit-yes);
+  --color-fit-partial: var(--fit-partial);
+  --color-fit-no: var(--fit-no);
+  --color-hover-wash: var(--hover-wash);
+
+  --font-wordmark: var(--font-wordmark);
+  --font-heading: var(--font-heading);
+  --font-small: var(--font-small);
+  --font-body: var(--font-body);
+  --font-digits: var(--font-digits);
+  --font-pixel: var(--font-pixel);
+
+  /* Tile grids: the gap between cells and each cell's corner radius. */
+  --spacing-tile-gap: 3px;
+  --radius-tile: 5px;
+  --radius-card: 8px;
+}
+
+/* Hairline inside a marked overlap cell, in the cell's own digit colour. */
+@utility tile-mark {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+/* Hover wash over a heat tile: a translucent foreground layer that leaves the
+ * count and the organizer border visible. */
+@utility tile-hover {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: var(--hover-wash);
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  &:hover::after {
+    opacity: 0.14;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+/* Border width of the restyled native controls. */
+@utility border-control {
+  border-width: 1.5px;
+}
+
+/* Checkmark inside a checked checkbox, drawn from the on-primary token. */
+@utility control-check {
+  display: grid;
+  place-content: center;
+  &::before {
+    content: "";
+    width: 0.3125rem;
+    height: 0.5625rem;
+    margin-bottom: 0.125rem;
+    border: solid var(--on-primary);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+  }
+  &:checked::before {
+    transform: rotate(45deg) scale(1);
+  }
+}
+
+/* Dot inside a checked radio, drawn from the primary token. */
+@utility control-dot {
+  display: grid;
+  place-content: center;
+  &::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--btn-primary);
+    transform: scale(0);
+  }
+  &:checked::before {
+    transform: scale(1);
+  }
+}
+
+/* Accent gradient as a fill; a flat accent on themes whose two stops match. */
+@utility accent-gradient-fill {
+  background-image: linear-gradient(100deg, var(--accent-gradient-a), var(--accent-gradient-b));
+}
+
+/* Accent gradient as a border: the card surface fills the padding box, the
+ * gradient the border box. Pair with a border width utility. */
+@utility accent-gradient-border {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--surface-card), var(--surface-card)) padding-box,
+    linear-gradient(100deg, var(--accent-gradient-a), var(--accent-gradient-b)) border-box;
+}
+
+/* Hover wash inside a gradient-bordered button; a background would be hidden
+ * under the padding-box layer, so it is an inset shadow. */
+@utility wash-hover {
+  &:hover {
+    box-shadow: inset 0 0 0 100vmax var(--btn-secondary-hover);
+  }
+}
+
+/* Two soft washes at the top corners; transparent on flat themes. */
+@utility header-glow {
+  background-image:
+    radial-gradient(55% 28% at 12% 0%, var(--glow-a), transparent 70%),
+    radial-gradient(50% 26% at 88% 0%, var(--glow-b), transparent 70%);
+  background-repeat: no-repeat;
 }
 
 body {
-  background: var(--surface);
+  background-color: var(--surface);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+main a:not(.no-underline) {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+main a:not(.no-underline):hover {
+  color: var(--link-hover);
 }

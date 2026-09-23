@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pane } from "@/components/pane";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
@@ -40,6 +41,7 @@ export default async function JoinCodePage({
   // Unknown, closed, and archived all read the same.
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <Pane as="div">
       <div className="rounded border border-notice-error-border bg-notice-error px-3 py-2 text-sm text-notice-error-text">
         <p className="mb-2">This invite isn&rsquo;t valid right now.</p>
         <p className="flex items-center gap-4">
@@ -51,6 +53,7 @@ export default async function JoinCodePage({
           </Link>
         </p>
       </div>
+      </Pane>
     </main>
   );
 }

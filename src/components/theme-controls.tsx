@@ -2,16 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Theme } from "@/domain/theme";
+import { DEFAULT_THEME, THEME_NAMES, type Theme } from "@/domain/theme";
 
 const FOCUS_RING =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
-const label = (theme: Theme) => theme[0].toUpperCase() + theme.slice(1);
-
 /**
- * A light/dark switch with a dot beneath it that opens a picker of every
- * theme. Each choice is saved, then the route refreshes to re-render the theme.
+ * A light/not-light switch with a dot beneath it that opens a picker of
+ * every theme. Each choice is saved, then the route refreshes to re-render the theme.
  */
 export function ThemeControls({
   initialTheme,
@@ -103,19 +101,19 @@ export function ThemeControls({
       <button
         type="button"
         role="switch"
-        aria-checked={theme === "dark"}
+        aria-checked={theme !== "light"}
         aria-label="Dark theme"
-        onClick={() => save(theme === "dark" ? "light" : "dark")}
+        onClick={() => save(theme === "light" ? DEFAULT_THEME : "light")}
         className={`flex items-center gap-2 rounded py-1 ${FOCUS_RING}`}
       >
-        <span className="flex h-4 w-7 items-center rounded-full border border-edge-strong bg-surface-raised">
+        <span className="flex h-4 w-7 items-center rounded-full accent-gradient-fill">
           <span
-            className={`ml-px h-3 w-3 rounded-full bg-foreground transition-transform motion-reduce:transition-none ${
-              theme === "dark" ? "translate-x-3" : "translate-x-0"
+            className={`ml-px h-3 w-3 rounded-full bg-surface transition-transform motion-reduce:transition-none ${
+              theme !== "light" ? "translate-x-3" : "translate-x-0"
             }`}
           />
         </span>
-        <span className="text-xs text-hint">{label(theme)}</span>
+        <span className="text-xs whitespace-nowrap text-hint">{THEME_NAMES[theme]}</span>
       </button>
       <button
         ref={dot}
@@ -133,7 +131,7 @@ export function ThemeControls({
           id="theme-picker"
           role="group"
           aria-label="Themes"
-          className="absolute bottom-full left-0 mb-2 flex flex-col rounded border border-edge bg-surface-card p-1 text-sm"
+          className="absolute bottom-full left-0 mb-2 flex min-w-36 flex-col rounded border border-edge bg-surface-card p-1 text-sm"
         >
           {themes.map((option) => (
             <button
@@ -141,12 +139,12 @@ export function ThemeControls({
               type="button"
               aria-current={option === theme ? "true" : undefined}
               onClick={() => choose(option)}
-              className={`flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-surface-muted ${FOCUS_RING}`}
+              className={`flex items-center gap-2 rounded px-2 py-1 text-left whitespace-nowrap hover:bg-surface-muted ${FOCUS_RING}`}
             >
               <span aria-hidden="true" className="w-4">
                 {option === theme ? "✓" : ""}
               </span>
-              {label(option)}
+              {THEME_NAMES[option]}
             </button>
           ))}
         </div>

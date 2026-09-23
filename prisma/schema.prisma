@@ -59,7 +59,7 @@ model User {
   // storage stays slot-based local wall-clock regardless.
   clockFormat ClockFormat @default(TWELVE_HOUR)
   // Colour theme name. A string, not an enum, so a new theme is code only.
-  theme String @default("light")
+  theme String @default("aurora")
   // The device zone the user chose to ignore; cleared whenever the profile
   // zone changes.
   dismissedDeviceZone String?

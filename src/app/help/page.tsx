@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pane } from "@/components/pane";
 
 // Public help page: no sign-in needed, it holds no data. Section text marked
 // as placeholder is to be rewritten — headings are the real structure.
@@ -37,18 +38,22 @@ const SECTIONS: { heading: string; body: string }[] = [
 export default function HelpPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <p className="mb-2 text-sm">
-        <Link href="/" className="text-hint hover:underline">
-          ← Home
-        </Link>
-      </p>
-      <h1 className="mb-6 text-2xl font-semibold">How do?</h1>
+      <Pane as="div" className="mb-6">
+        <p className="mb-2 text-sm">
+          <Link href="/" className="text-hint">
+            ← Home
+          </Link>
+        </p>
+        <h1 className="text-2xl font-semibold">How do?</h1>
+      </Pane>
       <div className="flex flex-col gap-6">
         {SECTIONS.map((section) => (
-          <section key={section.heading}>
-            <h2 className="mb-1 text-lg font-medium">{section.heading}</h2>
+          <Pane key={section.heading}>
+            <h2 className="mb-2 border-b border-edge pb-2 text-lg font-medium">
+              {section.heading}
+            </h2>
             <p className="text-sm text-muted">{section.body}</p>
-          </section>
+          </Pane>
         ))}
       </div>
     </main>

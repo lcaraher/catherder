@@ -2,13 +2,13 @@
  * Chip marking the event's Organizer: a line-drawn crown in the badge
  * tokens. Placeholder artwork for the design pass.
  */
-export function OrganizerBadge() {
+export function OrganizerBadge({ className = "" }: { className?: string }) {
   return (
     <span
       role="img"
       aria-label="Organizer"
       title="Organizer"
-      className="inline-flex items-center rounded bg-badge-organizer px-1.5 py-0.5 text-badge-organizer-text"
+      className={`inline-flex items-center rounded bg-badge-organizer px-1.5 py-0.5 text-badge-organizer-text ${className}`}
     >
       <svg
         viewBox="0 0 16 16"

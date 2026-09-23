@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { setThemeCookie } from "@/adapters/theme-cookie";
-import { isTheme } from "@/domain/theme";
+import { isTheme, THEMES } from "@/domain/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const theme = body?.theme;
   if (!isTheme(theme)) {
     return NextResponse.json(
-      { error: "theme must be one of: light, dark" },
+      { error: `theme must be one of: ${THEMES.join(", ")}` },
       { status: 400 },
     );
   }

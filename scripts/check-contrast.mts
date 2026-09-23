@@ -40,12 +40,12 @@ const PAIRS: Pair[] = [
   ["notice-warn-text", "notice-warn", 4.5, "text"],
   ["notice-admin-text", "notice-admin", 4.5, "text"],
   ["grid-label", "surface-card", 4.5, "text"],
-  ["heat-text", "heat-0", 4.5, "text"],
-  ["heat-text", "heat-1", 4.5, "text"],
-  ["heat-text", "heat-2", 4.5, "text"],
-  ["heat-text", "heat-3", 4.5, "text"],
-  ["heat-text", "heat-4", 4.5, "text"],
-  ["heat-text", "heat-5", 4.5, "text"],
+  ["heat-text-0", "heat-0", 4.5, "text"],
+  ["heat-text-1", "heat-1", 4.5, "text"],
+  ["heat-text-2", "heat-2", 4.5, "text"],
+  ["heat-text-3", "heat-3", 4.5, "text"],
+  ["heat-text-4", "heat-4", 4.5, "text"],
+  ["heat-text-5", "heat-5", 4.5, "text"],
   ["edge-strong", "surface", 3, "ui"],
   ["ring", "surface", 3, "ui"],
   ["ring", "surface-card", 3, "ui"],
@@ -57,11 +57,11 @@ const PAIRS: Pair[] = [
   ["tentative-border", "tentative", 3, "ui"],
   ["tentative-border", "surface-card", 3, "ui"],
   ["avail", "unavail", 3, "ui"],
-  ["organizer-mark", "heat-1", 3, "ui"],
-  ["organizer-mark", "heat-2", 3, "ui"],
-  ["organizer-mark", "heat-3", 3, "ui"],
-  ["organizer-mark", "heat-4", 3, "ui"],
-  ["organizer-mark", "heat-5", 3, "ui"],
+  ["organizer-mark", "surface-card", 3, "ui"],
+  ["organizer-mark", "heat-0", 3, "ui"],
+  ["on-primary", "accent-gradient-a", 4.5, "text"],
+  ["on-primary", "accent-gradient-b", 4.5, "text"],
+  ["foreground", "accent-gradient-a", 0, "info"],
   ["disabled", "surface", 0, "info"],
   ["edge", "surface", 0, "info"],
   ["grid-line", "surface-card", 0, "info"],
@@ -210,8 +210,8 @@ function main(): number {
   if (!selfCheck()) return 2;
 
   const { root, themes } = readThemes(readFileSync(CSS_PATH, "utf8"));
-  // :root alone is the light theme until a [data-theme="light"] block exists.
-  const all: [string, Tokens][] = [[themes.has("light") ? ":root" : "light", new Map()], ...themes];
+  // Every [data-theme] block sets every token; :root only supplies fallbacks.
+  const all: [string, Tokens][] = [...themes];
   const width = Math.max(...PAIRS.map(([fg, bg]) => fg.length + bg.length + 1));
   let failed = false;
 

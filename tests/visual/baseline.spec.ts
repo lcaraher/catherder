@@ -8,15 +8,21 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
-import { THEMES } from "../../src/domain/theme";
+import {
+  DEFAULT_THEME,
+  THEME_NAMES,
+  THEMES,
+  type Theme,
+} from "../../src/domain/theme";
 
 const EVENT_NAME = "Seed Campaign Kickoff";
+const DENSE_EVENT_NAME = "Seed Dense Session";
 const ORGANIZER = "Greta Master";
 const PARTICIPANT = "Pat Player";
 const AXE_PROJECT = "light-desktop";
 const IMPACTS = ["critical", "serious", "moderate", "minor"] as const;
 
-// Routes are templates; <id> is filled in from the home page.
+// Routes are templates; <id> and <dense> are filled in from the home page.
 const SIGNED_OUT = ["/", "/join", "/join/NOSUCHCODE0", "/help", "/nowhere"];
 const AS_ORGANIZER = [
   "/",
@@ -25,6 +31,7 @@ const AS_ORGANIZER = [
   "/admin",
   "/e/<id>/manage",
   "/e/<id>/responses",
+  "/e/<dense>/responses",
 ];
 const AS_PARTICIPANT = ["/", "/e/<id>/respond"];
 // /dev-login and a valid /join link are not captured: the first lists whatever
@@ -34,6 +41,7 @@ const ROUTE_COUNT =
 
 interface Seed {
   eventId: string;
+  denseEventId: string;
 }
 
 interface AxeEntry {
@@ -83,7 +91,7 @@ test.afterAll(async ({ browser }) => {
       const page = await context.newPage();
       await signIn(page, displayName);
       const saved = await page.request.post("/api/me/theme", {
-        data: { theme: "light" },
+        data: { theme: DEFAULT_THEME },
       });
       expect(saved.ok()).toBe(true);
     } finally {
@@ -92,9 +100,10 @@ test.afterAll(async ({ browser }) => {
   }
 });
 
-// The project's theme, from its name; only callable inside a test or hook.
-function projectTheme(): "light" | "dark" {
-  return test.info().project.name.startsWith("dark") ? "dark" : "light";
+// The project's theme is the part of its name before the hyphen; only
+// callable inside a test or hook.
+function projectTheme(): Theme {
+  return test.info().project.name.split("-")[0] as Theme;
 }
 
 async function signIn(page: Page, displayName: string) {
@@ -103,18 +112,25 @@ async function signIn(page: Page, displayName: string) {
   await page.waitForURL("/");
 }
 
-// Reads the seed event's id from the home page, then creates the event's
-// invite on the manage page when it has none.
+// The event's id from its manage link on the home page.
+async function readEventId(page: Page, name: string): Promise<string> {
+  const href = await page
+    .locator('a[href^="/e/"][href$="/manage"]', { hasText: name })
+    .getAttribute("href");
+  const eventId = href?.match(/^\/e\/([^/]+)\/manage$/)?.[1];
+  if (!eventId) throw new Error(`no manage link for "${name}" on /`);
+  return eventId;
+}
+
+// Reads both seed events' ids from the home page, then creates the first
+// event's invite on its manage page when it has none.
 async function readSeed(browser: Browser): Promise<Seed> {
   const context = await browser.newContext();
   try {
     const page = await context.newPage();
     await signIn(page, ORGANIZER);
-    const href = await page
-      .locator('a[href^="/e/"][href$="/manage"]', { hasText: EVENT_NAME })
-      .getAttribute("href");
-    const eventId = href?.match(/^\/e\/([^/]+)\/manage$/)?.[1];
-    if (!eventId) throw new Error(`no manage link for "${EVENT_NAME}" on /`);
+    const eventId = await readEventId(page, EVENT_NAME);
+    const denseEventId = await readEventId(page, DENSE_EVENT_NAME);
 
     await page.goto(`/e/${eventId}/manage`);
     const create = page.getByRole("button", { name: "Create invite", exact: true });
@@ -123,7 +139,7 @@ async function readSeed(browser: Browser): Promise<Seed> {
     await expect(
       page.getByRole("button", { name: "Regenerate", exact: true }),
     ).toBeVisible();
-    return { eventId };
+    return { eventId, denseEventId };
   } finally {
     await context.close();
   }
@@ -132,10 +148,13 @@ async function readSeed(browser: Browser): Promise<Seed> {
 function resolveRoute(route: string): string {
   if (!route.includes("<")) return route;
   if (!seed) throw new Error("seed event was not read");
-  return route.replace("<id>", seed.eventId);
+  return route
+    .replace("<id>", seed.eventId)
+    .replace("<dense>", seed.denseEventId);
 }
 
-// "/e/<id>/manage" + "greta" gives "e-manage-greta.png"; "/" gives "home-…".
+// "/e/<id>/manage" + "greta" gives "e-manage-greta.png"; "/" gives "home-…";
+// "/e/<dense>/responses" keeps its placeholder: "e-dense-responses-greta.png".
 function shotName(route: string, state: string): string {
   const slug = route
     .replace("<id>/", "")
@@ -193,12 +212,12 @@ function captureState(
     if (!options.signInAs) {
       // The attribute is in the first HTML response, so no theme flash.
       test(`${title}: theme attribute in the initial HTML`, async ({ request }) => {
-        const dark = await request.get("/", {
-          headers: { cookie: "catherder_theme=dark" },
+        const regal = await request.get("/", {
+          headers: { cookie: "catherder_theme=regal" },
         });
-        expect(await dark.text()).toContain('data-theme="dark"');
+        expect(await regal.text()).toContain('data-theme="regal"');
         const none = await request.get("/");
-        expect(await none.text()).toContain('data-theme="light"');
+        expect(await none.text()).toContain('data-theme="aurora"');
       });
     }
 
@@ -212,12 +231,12 @@ function captureState(
           await visitor.getByRole("button", { name: "More themes" }).click();
           const picker = visitor.getByRole("group", { name: "Themes" });
           await expect(picker.getByRole("button")).toHaveText(
-            THEMES.map((name) => new RegExp(`${name}$`, "i")),
+            THEMES.map((name) => new RegExp(`${THEME_NAMES[name]}$`)),
           );
-          await picker.getByRole("button", { name: "Dark" }).click();
+          await picker.getByRole("button", { name: "Regal ASF" }).click();
           await expect(visitor.locator("html")).toHaveAttribute(
             "data-theme",
-            "dark",
+            "regal",
           );
           await expect(picker).toBeHidden();
         } finally {

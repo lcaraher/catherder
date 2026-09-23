@@ -4,11 +4,6 @@
     "state": "greta",
     "violations": [
       {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 1
-      },
-      {
         "id": "page-has-heading-one",
         "impact": "moderate",
         "nodes": 1
@@ -19,11 +14,6 @@
     "route": "/",
     "state": "pat",
     "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 1
-      },
       {
         "id": "page-has-heading-one",
         "impact": "moderate",
@@ -44,23 +34,17 @@
   {
     "route": "/availability",
     "state": "greta",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 26
-      }
-    ]
+    "violations": []
+  },
+  {
+    "route": "/e/<dense>/responses",
+    "state": "greta",
+    "violations": []
   },
   {
     "route": "/e/<id>/manage",
     "state": "greta",
     "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 35
-      },
       {
         "id": "label",
         "impact": "critical",
@@ -81,35 +65,17 @@
   {
     "route": "/e/<id>/respond",
     "state": "pat",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 24
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/e/<id>/responses",
     "state": "greta",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 27
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/events/new",
     "state": "greta",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 1
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/help",
@@ -119,13 +85,7 @@
   {
     "route": "/join",
     "state": "signed-out",
-    "violations": [
-      {
-        "id": "color-contrast",
-        "impact": "serious",
-        "nodes": 1
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/join/NOSUCHCODE0",

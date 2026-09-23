@@ -13,8 +13,11 @@ import {
   type OverlapGrid,
   type SplitOverlapCell,
 } from "@/domain/overlap";
-import { HEAT_CLASSES } from "@/components/heat-legend";
+import { HEAT_CLASSES, HEAT_TEXT_CLASSES } from "@/components/heat-legend";
+import { Checkbox } from "@/components/form-controls";
 import { OrganizerBadge } from "@/components/organizer-badge";
+import { Legend } from "@/components/legend";
+import { Segmented } from "@/components/segmented";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_NAMES = [
@@ -125,24 +128,24 @@ export function OverlapGridView({
     return (
       <ul className="flex flex-col gap-0.5">
         {organizerStatus && organizer && (
-          <li className="flex items-center gap-2">
+          <li>
             <span
-              className={`inline-block h-3 w-3 shrink-0 rounded-sm ${ORGANIZER_MARK_CLASSES[organizerStatus]}`}
+              className={`mr-2 inline-block h-3 w-3 align-middle rounded-sm ${ORGANIZER_MARK_CLASSES[organizerStatus]}`}
               aria-hidden="true"
             />
-            <span>{organizer.displayName}</span>
-            <OrganizerBadge />
-            <span className="text-xs text-hint">{organizer.timeZone}</span>
+            <span className="break-words">{organizer.displayName}</span>
+            <OrganizerBadge className="ml-2 align-middle" />
+            <span className="ml-2 text-xs text-hint">{organizer.timeZone}</span>
           </li>
         )}
         {rest.map((userId) => {
           const person = personById.get(userId);
           if (!person) return null;
           return (
-            <li key={userId} className="flex items-center gap-2">
-              <span>{person.displayName}</span>
-              {person.isOrganizer && <OrganizerBadge />}
-              <span className="text-xs text-hint">{person.timeZone}</span>
+            <li key={userId}>
+              <span className="break-words">{person.displayName}</span>
+              {person.isOrganizer && <OrganizerBadge className="ml-2 align-middle" />}
+              <span className="ml-2 text-xs text-hint">{person.timeZone}</span>
             </li>
           );
         })}
@@ -156,42 +159,23 @@ export function OverlapGridView({
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div
-          className="inline-flex overflow-hidden rounded border border-edge-strong text-sm"
-          role="radiogroup"
-          aria-label="Grid granularity"
-        >
-          {(
-            [
-              ["half", "Half hour"],
-              ["hour", "Hour"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={granularity === value}
-              onClick={() => {
-                setGranularity(value);
-                setSelected(null);
-              }}
-              className={`px-3 py-1 ${
-                granularity === value
-                  ? "bg-toggle-active text-toggle-active-text"
-                  : "hover:bg-btn-secondary-hover"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          label="Grid granularity"
+          options={[
+            { value: "half", label: "Half hour" },
+            { value: "hour", label: "Hour" },
+          ]}
+          value={granularity}
+          onChange={(value) => {
+            setGranularity(value as Granularity);
+            setSelected(null);
+          }}
+        />
 
         {organizerUserId !== null && (
           <div className="flex items-center gap-2 text-sm">
             <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={organizerOnly}
                 disabled={!organizerHasAvailability}
                 onChange={(e) => {
@@ -211,7 +195,7 @@ export function OverlapGridView({
       </div>
 
       {organizerUserId !== null && (
-        <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+        <Legend className="mb-3 font-medium text-muted">
           <li className="flex items-center gap-1.5">
             <span
               className={`inline-block h-3.5 w-3.5 rounded-sm ${ORGANIZER_MARK_CLASSES.AVAILABLE}`}
@@ -228,15 +212,15 @@ export function OverlapGridView({
             />
             Organizer tentative
           </li>
-        </ul>
+        </Legend>
       )}
 
-      <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line">
-        <div className="bg-surface-card" />
+      <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-tile-gap">
+        <div />
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="bg-surface-card py-1 text-center text-xs font-medium text-muted"
+            className="py-1 text-center font-small text-xs tracking-wide text-hint uppercase"
           >
             {label}
           </div>
@@ -246,7 +230,7 @@ export function OverlapGridView({
           return (
             <div key={row} className="contents">
               <div
-                className={`flex items-center justify-end whitespace-nowrap bg-surface-card pr-2 text-[10px] text-grid-label ${
+                className={`flex items-center justify-end whitespace-nowrap pr-2 font-digits text-[10px] text-grid-label ${
                   granularity === "half" ? "h-4" : "h-6"
                 }`}
               >
@@ -265,17 +249,17 @@ export function OverlapGridView({
                       key={weekday}
                       role="img"
                       aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, outside organizer availability`}
-                      className={`bg-heat-0 ${height}`}
+                      className={`rounded-tile bg-heat-0 font-digits tile-hover ${height}`}
                     />
                   );
                 }
 
                 const availableCount = cell.players.available.length;
                 const tentativeCount = cell.players.tentative.length;
-                const heat =
-                  HEAT_CLASSES[heatStep(availableCount, panelPeople.length)];
+                const step = heatStep(availableCount, panelPeople.length);
+                const heat = `${HEAT_CLASSES[step]} ${HEAT_TEXT_CLASSES[step]}`;
                 const organizerMark = cell.organizer
-                  ? ORGANIZER_MARK_CLASSES[cell.organizer]
+                  ? `${ORGANIZER_MARK_CLASSES[cell.organizer]} tile-mark`
                   : "";
                 const organizerLabel =
                   cell.organizer === "AVAILABLE"
@@ -294,7 +278,7 @@ export function OverlapGridView({
                     }
                     aria-pressed={isSelected}
                     aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, ${availableCount} available, ${tentativeCount} tentative${organizerLabel}`}
-                    className={`flex cursor-pointer items-center justify-center text-[10px] leading-none text-heat-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${heat} ${organizerMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
+                    className={`flex cursor-pointer items-center justify-center rounded-tile font-digits text-[10px] leading-none tile-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${heat} ${organizerMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
                   >
                     {availableCount === 0 && tentativeCount === 0
                       ? submittedCount > 0

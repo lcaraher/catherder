@@ -1,4 +1,5 @@
 import { requireUser } from "@/adapters/auth";
+import { Pane } from "@/components/pane";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot } from "@/domain/availability";
 import {
@@ -32,7 +33,9 @@ export default async function AvailabilityPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <h1 className="mb-6 text-2xl font-semibold">Weekly availability</h1>
+      <Pane as="div" className="mb-6">
+        <h1 className="text-2xl font-semibold">Weekly availability</h1>
+      </Pane>
       <TimeZonePicker
         groups={zoneGroups}
         initialZoneId={user.timeZone}
@@ -40,10 +43,12 @@ export default async function AvailabilityPage() {
         hint="Hours in the grid below are based on your personal time. Please ensure the correct time zone for you is set so that the schedule is interpreted to the event organizer's own time zone correctly."
       />
       <ClockFormatPicker initialFormat={user.clockFormat} />
-      <AvailabilityGrid
-        initialRanges={ranges}
-        clockFormat={user.clockFormat}
-      />
+      <Pane>
+        <AvailabilityGrid
+          initialRanges={ranges}
+          clockFormat={user.clockFormat}
+        />
+      </Pane>
     </main>
   );
 }
