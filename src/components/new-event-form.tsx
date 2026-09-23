@@ -1,4 +1,5 @@
 import { createEvent } from "@/app/e/[eventId]/manage/actions";
+import { PRIMARY } from "@/components/button-classes";
 import { NewEventFields } from "@/components/new-event-fields";
 
 const inputClass =
@@ -24,7 +25,7 @@ export function NewEventForm({ error }: { error?: string }) {
         <div>
           <button
             type="submit"
-            className="rounded bg-btn-primary px-4 py-2 font-medium text-on-primary hover:bg-btn-primary-hover"
+            className={PRIMARY}
           >
             Create event
           </button>

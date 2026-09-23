@@ -1,5 +1,7 @@
 "use client";
 
+import { DANGER_SM, SECONDARY_SM } from "@/components/button-classes";
+
 interface Props {
   /** The updateQuestionOption server action, passed down from the page. */
   updateAction: (formData: FormData) => void | Promise<void>;
@@ -54,7 +56,7 @@ export function QuestionOptionRow({
         />
         <button
           type="submit"
-          className="rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40"
+          className={SECONDARY_SM}
         >
           Save
         </button>
@@ -76,7 +78,7 @@ export function QuestionOptionRow({
         <button
           type="submit"
           aria-label={`Remove option ${initialLabel}`}
-          className="rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40"
+          className={DANGER_SM}
         >
           Remove
         </button>

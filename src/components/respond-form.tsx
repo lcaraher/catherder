@@ -9,6 +9,9 @@ import {
   type AvailabilityRange,
   type ClockFormat,
 } from "@/domain/availability";
+import { Checkbox, Radio, Select } from "@/components/form-controls";
+import { Pane } from "@/components/pane";
+import { DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useWeekGrid } from "@/components/use-week-grid";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
@@ -52,9 +55,6 @@ type SubmitStatus = "idle" | "submitting" | "submitted" | "error";
 
 const inputClass =
   "rounded border border-edge-strong bg-field px-3 py-2 text-sm";
-
-const smallButton =
-  "rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover disabled:opacity-50";
 
 function buildAnswerState(
   questions: QuestionDto[],
@@ -220,7 +220,7 @@ export function RespondForm({
           type="button"
           onClick={submit}
           disabled={status === "submitting" || status === "submitted"}
-          className="rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover disabled:opacity-50"
+          className={`${PRIMARY} text-sm`}
         >
           {status === "submitting"
             ? "Submitting…"
@@ -272,7 +272,7 @@ export function RespondForm({
         key={question.id}
         className="rounded border border-edge p-4"
       >
-        <p className="mb-3 text-sm font-medium">
+        <p className="mb-3 font-small text-sm font-medium">
           {index + 1}. {question.prompt}
           {question.required && (
             <span className="ml-2 text-xs font-normal text-hint">required</span>
@@ -283,8 +283,7 @@ export function RespondForm({
           <div className="flex flex-col gap-1 text-sm">
             {question.options.map((option) => (
               <label key={option.id} className="flex items-center gap-2">
-                <input
-                  type="radio"
+                <Radio
                   name={`q-${question.id}`}
                   checked={answer.optionIds[0] === option.id}
                   onChange={() =>
@@ -296,8 +295,7 @@ export function RespondForm({
             ))}
             {question.allowOther && (
               <label className="flex items-center gap-2">
-                <input
-                  type="radio"
+                <Radio
                   name={`q-${question.id}`}
                   checked={answer.other}
                   onChange={() =>
@@ -335,8 +333,7 @@ export function RespondForm({
               const checked = answer.optionIds.includes(option.id);
               return (
                 <label key={option.id} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={checked}
                     onChange={(e) =>
                       update(question.id, {
@@ -352,8 +349,7 @@ export function RespondForm({
             })}
             {question.allowOther && (
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={answer.other}
                   onChange={(e) =>
                     update(
@@ -405,7 +401,7 @@ export function RespondForm({
                 className="flex items-center justify-between gap-2"
               >
                 {option.label}
-                <select
+                <Select
                   value={answer.ranks[option.id] ?? ""}
                   onChange={(e) => {
                     const ranks = { ...answer.ranks };
@@ -413,7 +409,7 @@ export function RespondForm({
                     else ranks[option.id] = Number(e.target.value);
                     update(question.id, { ranks });
                   }}
-                  className={inputClass}
+                  className="px-3 py-2 text-sm"
                 >
                   <option value="">—</option>
                   {question.options.map((_, rank) => (
@@ -421,7 +417,7 @@ export function RespondForm({
                       {rank + 1}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             ))}
             {Object.keys(answer.ranks).length > 0 && (
@@ -441,6 +437,7 @@ export function RespondForm({
 
   return (
     <div>
+      <Pane>
       <WeekGridEditor
         key={gridKey}
         {...gridProps}
@@ -456,14 +453,14 @@ export function RespondForm({
                 <button
                   type="button"
                   onClick={reloadFromStanding}
-                  className="rounded border border-btn-danger-border px-3 py-1 text-btn-danger-text hover:bg-btn-danger-wash"
+                  className={DANGER_SM}
                 >
                   Yes, replace
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingReload(false)}
-                  className={smallButton}
+                  className={SECONDARY_SM}
                 >
                   Cancel
                 </button>
@@ -472,7 +469,7 @@ export function RespondForm({
               <button
                 type="button"
                 onClick={() => setConfirmingReload(true)}
-                className={`${smallButton} text-muted`}
+                className={SECONDARY_SM}
               >
                 Reload from my saved availability
               </button>
@@ -480,12 +477,13 @@ export function RespondForm({
           </div>
         }
       />
+      </Pane>
 
       {questions.length > 0 && (
-        <section className="mt-6">
-          <h2 className="mb-3 text-lg font-medium">Questions</h2>
+        <Pane className="mt-6">
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Questions</h2>
           <ul className="flex flex-col gap-3">{questions.map(renderQuestion)}</ul>
-        </section>
+        </Pane>
       )}
 
       {submitControls("mt-6")}

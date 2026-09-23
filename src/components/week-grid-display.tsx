@@ -6,6 +6,7 @@ import {
   type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
+import { Legend } from "@/components/legend";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_NAMES = [
@@ -50,7 +51,7 @@ export function WeekGridDisplay({
 
   return (
     <div>
-      <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+      <Legend className="mb-3 font-medium text-muted">
         <li className="flex items-center gap-1.5">
           <span className="inline-block h-3.5 w-3.5 rounded-sm bg-avail" />
           Available
@@ -63,21 +64,21 @@ export function WeekGridDisplay({
           <span className="inline-block h-3.5 w-3.5 rounded-sm border border-edge-strong bg-unavail" />
           Not available
         </li>
-      </ul>
+      </Legend>
 
-      <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line">
-        <div className="bg-surface-card" />
+      <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-tile-gap">
+        <div />
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="bg-surface-card py-1 text-center text-xs font-medium text-muted"
+            className="py-1 text-center font-small text-xs tracking-wide text-hint uppercase"
           >
             {label}
           </div>
         ))}
         {Array.from({ length: SLOTS_PER_DAY }, (_, slot) => (
           <div key={slot} className="contents">
-            <div className="flex h-4 items-center justify-end whitespace-nowrap bg-surface-card pr-2 text-[10px] text-grid-label">
+            <div className="flex h-4 items-center justify-end whitespace-nowrap pr-2 font-digits text-[10px] text-grid-label">
               {slot % 2 === 0 ? formatSlotLabel(slot, clockFormat) : ""}
             </div>
             {WEEKDAY_LABELS.map((_, weekday) => (
@@ -85,7 +86,7 @@ export function WeekGridDisplay({
                 key={weekday}
                 role="img"
                 aria-label={`${WEEKDAY_NAMES[weekday]} ${formatSlotLabel(slot, clockFormat)}–${formatSlotLabel(slot + 1, clockFormat)}, ${stateLabel(week[weekday][slot])}`}
-                className={`h-4 ${bandClass(week[weekday][slot])}`}
+                className={`h-4 rounded-tile tile-hover ${bandClass(week[weekday][slot])}`}
               />
             ))}
           </div>

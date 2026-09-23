@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { PRIMARY } from "@/components/button-classes";
 import {
   cellsToRanges,
   weekFromRanges,
@@ -62,7 +63,7 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
           type="button"
           onClick={save}
           disabled={saveStatus === "saving"}
-          className="rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover disabled:opacity-50"
+          className={`${PRIMARY} text-sm`}
         >
           {saveStatus === "saving" ? "Saving…" : "Save"}
         </button>

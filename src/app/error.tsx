@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Pane } from "@/components/pane";
 
 /** Generic error boundary; never shows the error's message or stack. */
 export default function ErrorPage({
@@ -13,6 +14,7 @@ export default function ErrorPage({
   void error;
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <Pane as="div">
       <div className="rounded border border-notice-error-border bg-notice-error px-3 py-2 text-sm text-notice-error-text">
         <p className="mb-2">Something went wrong.</p>
         <p className="flex items-center gap-4">
@@ -24,6 +26,7 @@ export default function ErrorPage({
           </Link>
         </p>
       </div>
+      </Pane>
     </main>
   );
 }

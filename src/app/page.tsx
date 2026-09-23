@@ -2,6 +2,9 @@ import Link from "next/link";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { canEditResponse } from "@/domain/response-access";
+import { statusLabel } from "@/domain/status-label";
+import { Pane } from "@/components/pane";
+import { PRIMARY } from "@/components/button-classes";
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: "bg-badge-draft text-badge-draft-text",
@@ -32,7 +35,7 @@ function EventRow({
     <li>
       <Link
         href={href}
-        className="flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted"
+        className="no-underline flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted"
       >
         <span className="min-w-0">
           <span className="block truncate font-medium">{name}</span>
@@ -47,7 +50,7 @@ function EventRow({
           <span
             className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
           >
-            {status}
+            {statusLabel(status)}
           </span>
         </span>
       </Link>
@@ -67,14 +70,16 @@ export default async function Home() {
   const user = await getSessionUser();
   if (!user) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-2">
-        <h1 className="text-3xl font-semibold">catherder</h1>
-        <a href="/login" className="text-sm underline">
-          Sign in
-        </a>
-        <Link href="/join" className="text-sm text-hint hover:underline">
-          Have an invite code?
-        </Link>
+      <main className="flex flex-1 flex-col items-center justify-center px-4">
+        <Pane as="div" className="flex flex-col items-center gap-2 px-8 py-6">
+          <h1 className="text-3xl font-semibold">catherder</h1>
+          <a href="/login" className="text-sm">
+            Sign in
+          </a>
+          <Link href="/join" className="text-sm text-hint">
+            Have an invite code?
+          </Link>
+        </Pane>
       </main>
     );
   }
@@ -149,7 +154,7 @@ export default async function Home() {
       <div className="mb-6">
         <Link
           href="/events/new"
-          className="inline-block rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
+          className={`${PRIMARY} no-underline inline-block text-sm`}
         >
           New event
         </Link>
@@ -159,10 +164,10 @@ export default async function Home() {
           Nothing is waiting for you right now — enjoy the quiet.
         </p>
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
           {needsResponse.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-medium">Needs your response</h2>
+            <Pane>
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Needs your response</h2>
               <ul className="flex flex-col gap-2">
                 {needsResponse.map((p) => (
                   <EventRow
@@ -174,12 +179,12 @@ export default async function Home() {
                   />
                 ))}
               </ul>
-            </section>
+            </Pane>
           )}
 
           {submitted.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-medium">Your responses</h2>
+            <Pane>
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Your responses</h2>
               <ul className="flex flex-col gap-2">
                 {submitted.map((p) => (
                   <EventRow
@@ -205,12 +210,12 @@ export default async function Home() {
                   />
                 ))}
               </ul>
-            </section>
+            </Pane>
           )}
 
           {activeOrganized.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-medium">Events you run</h2>
+            <Pane>
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Events you run</h2>
               <ul className="flex flex-col gap-2">
                 {activeOrganized.map((event) => (
                   <EventRow
@@ -222,7 +227,7 @@ export default async function Home() {
                   />
                 ))}
               </ul>
-            </section>
+            </Pane>
           )}
 
         </div>

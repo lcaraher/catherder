@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DANGER, DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import {
   cellsToRanges,
   emptyWeek,
@@ -22,9 +23,6 @@ interface Props {
   /** The viewer's clock format, passed down from the page — never read here. */
   clockFormat: ClockFormat;
 }
-
-const smallButton =
-  "rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover disabled:opacity-50";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -99,14 +97,14 @@ export function OrganizerAvailabilityEditor({
                 <button
                   type="button"
                   onClick={reloadFromStanding}
-                  className="rounded border border-btn-danger-border px-3 py-1 text-btn-danger-text hover:bg-btn-danger-wash"
+                  className={DANGER_SM}
                 >
                   Yes, replace
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingReload(false)}
-                  className={smallButton}
+                  className={SECONDARY_SM}
                 >
                   Cancel
                 </button>
@@ -115,7 +113,7 @@ export function OrganizerAvailabilityEditor({
               <button
                 type="button"
                 onClick={() => setConfirmingReload(true)}
-                className={`${smallButton} text-muted`}
+                className={SECONDARY_SM}
               >
                 Reload from my saved availability
               </button>
@@ -128,7 +126,7 @@ export function OrganizerAvailabilityEditor({
           type="button"
           onClick={() => put(weekRef.current)}
           disabled={status === "saving"}
-          className="rounded bg-btn-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-btn-primary-hover disabled:opacity-50"
+          className={`${PRIMARY} text-sm`}
         >
           {status === "saving" ? "Saving…" : "Save"}
         </button>
@@ -136,7 +134,7 @@ export function OrganizerAvailabilityEditor({
           type="button"
           onClick={clear}
           disabled={status === "saving"}
-          className="rounded border border-btn-danger-border px-3 py-1.5 text-sm text-btn-danger-text hover:bg-btn-danger-wash disabled:opacity-50"
+          className={DANGER}
         >
           Clear
         </button>

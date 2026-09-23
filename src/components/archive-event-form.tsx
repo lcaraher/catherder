@@ -1,5 +1,7 @@
 "use client";
 
+import { DANGER_SM } from "@/components/button-classes";
+
 interface Props {
   /** The archiveEvent server action, passed down from the page. */
   action: (formData: FormData) => void | Promise<void>;
@@ -24,7 +26,7 @@ export function ArchiveEventForm({ action, eventId }: Props) {
       <input type="hidden" name="eventId" value={eventId} />
       <button
         type="submit"
-        className="rounded border border-btn-danger-border px-2 py-1 text-xs text-btn-danger-text hover:bg-btn-danger-wash"
+        className={DANGER_SM}
       >
         Archive event
       </button>

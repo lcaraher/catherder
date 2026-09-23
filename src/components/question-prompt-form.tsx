@@ -1,5 +1,7 @@
 "use client";
 
+import { SECONDARY_SM } from "@/components/button-classes";
+
 interface Props {
   /** The updateQuestionPrompt server action, passed down from the page. */
   action: (formData: FormData) => void | Promise<void>;
@@ -46,7 +48,7 @@ export function QuestionPromptForm({
       />
       <button
         type="submit"
-        className="rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40"
+        className={SECONDARY_SM}
       >
         Save prompt
       </button>

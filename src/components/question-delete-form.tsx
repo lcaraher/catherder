@@ -1,5 +1,7 @@
 "use client";
 
+import { DANGER_SM } from "@/components/button-classes";
+
 interface Props {
   /** The deleteQuestion server action, passed down from the page. */
   action: (formData: FormData) => void | Promise<void>;
@@ -25,7 +27,7 @@ export function QuestionDeleteForm({ action, questionId, answerCount }: Props) {
       <input type="hidden" name="questionId" value={questionId} />
       <button
         type="submit"
-        className="rounded border border-btn-danger-border px-2 py-1 text-xs text-btn-danger-text hover:bg-btn-danger-wash"
+        className={DANGER_SM}
       >
         Delete
       </button>

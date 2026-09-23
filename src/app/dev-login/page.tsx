@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { SECONDARY } from "@/components/button-classes";
 import { isDevIssuerEnabled, safeReturnPath } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 
@@ -28,7 +29,7 @@ export default async function DevLoginPage({
                 {next && <input type="hidden" name="next" value={next} />}
                 <button
                   type="submit"
-                  className="w-full rounded border border-edge-strong px-4 py-2 text-left hover:bg-btn-secondary-hover"
+                  className={`${SECONDARY} w-full px-4 py-2 text-left`}
                 >
                   <span className="font-medium">{user.displayName}</span>
                 </button>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Checkbox, Select } from "@/components/form-controls";
+import { SECONDARY_SM } from "@/components/button-classes";
 
 const inputClass =
   "w-full rounded border border-edge-strong bg-field px-3 py-2 text-sm";
@@ -18,27 +20,28 @@ export function NewEventFields() {
         <label htmlFor="mode" className="mb-1 block text-muted">
           Mode
         </label>
-        <select
+        <Select
           id="mode"
           name="mode"
           value={mode}
           onChange={(e) => setMode(e.target.value)}
-          className={inputClass}
+          className="px-3 py-2 text-sm"
+          wrapperClassName="w-full"
         >
           <option value="MULTI_GROUP">Multi-group activity</option>
           <option value="SINGLE_ACTIVITY">Single activity</option>
-        </select>
+        </Select>
       </div>
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2 text-muted">
-          <input type="checkbox" name="organizerParticipates" />
+          <Checkbox name="organizerParticipates" />
           Organizer also participates
         </label>
         <button
           type="button"
           aria-label="What does this do?"
           title="When on, the organizer takes part like any other member: they answer the questions and submit their availability for this event. When off, only their availability is used, and they are never asked to respond."
-          className="rounded border border-edge-strong px-2 py-0.5 text-xs hover:bg-btn-secondary-hover"
+          className={SECONDARY_SM}
         >
           ?
         </button>

@@ -14,6 +14,10 @@ import {
   type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
+import { Checkbox, Select } from "@/components/form-controls";
+import { Legend } from "@/components/legend";
+import { Segmented } from "@/components/segmented";
+import { DANGER_SM, PRIMARY_SM, SECONDARY_SM } from "@/components/button-classes";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_NAMES = [
@@ -264,7 +268,7 @@ export function WeekGridEditor({
           data-w={weekday}
           data-r={row}
           aria-label={`${WEEKDAY_NAMES[weekday]} ${timeSpan}, ${stateLabel(first)}`}
-          className={`h-4 cursor-pointer ${CELL_FOCUS} ${bandClass(first)}`}
+          className={`h-4 cursor-pointer rounded-tile ${CELL_FOCUS} ${bandClass(first)}`}
         />
       );
     }
@@ -280,7 +284,7 @@ export function WeekGridEditor({
           data-w={weekday}
           data-r={row}
           aria-label={`${WEEKDAY_NAMES[weekday]} ${timeSpan}, ${stateLabel(collapsed)}`}
-          className={`h-6 cursor-pointer ${CELL_FOCUS} ${bandClass(collapsed)}`}
+          className={`h-6 cursor-pointer rounded-tile ${CELL_FOCUS} ${bandClass(collapsed)}`}
         />
       );
     }
@@ -293,7 +297,7 @@ export function WeekGridEditor({
         data-w={weekday}
         data-r={row}
         aria-label={`${WEEKDAY_NAMES[weekday]} ${timeSpan}, first half ${stateLabel(first)}, second half ${stateLabel(second)}`}
-        className={`flex h-6 cursor-pointer flex-col ${CELL_FOCUS}`}
+        className={`flex h-6 cursor-pointer flex-col overflow-hidden rounded-tile ${CELL_FOCUS}`}
       >
         <div className={`h-1/2 ${bandClass(first)}`} />
         <div className={`h-1/2 ${bandClass(second)}`} />
@@ -303,33 +307,16 @@ export function WeekGridEditor({
 
   return (
     <div>
-      <div
-        className="mb-3 inline-flex overflow-hidden rounded border border-edge-strong text-sm"
-        role="radiogroup"
-        aria-label="Grid granularity"
-      >
-        {(
-          [
-            ["half", "Half hour"],
-            ["hour", "Hour"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={granularity === value}
-            onClick={() => changeGranularity(value)}
-            className={`px-3 py-1 ${
-              granularity === value
-                ? "bg-toggle-active text-toggle-active-text"
-                : "hover:bg-btn-secondary-hover"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        label="Grid granularity"
+        className="mb-3"
+        options={[
+          { value: "half", label: "Half hour" },
+          { value: "hour", label: "Hour" },
+        ]}
+        value={granularity}
+        onChange={(value) => changeGranularity(value as Granularity)}
+      />
 
       <ul className="mb-3 list-disc space-y-0.5 pl-5 text-xs text-muted">
         <li>
@@ -345,7 +332,7 @@ export function WeekGridEditor({
         </li>
       </ul>
 
-      <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
+      <Legend className="mb-3 font-medium text-muted">
         <li className="flex items-center gap-1.5">
           <span className="inline-block h-3.5 w-3.5 rounded-sm bg-avail" />
           Available
@@ -365,13 +352,13 @@ export function WeekGridEditor({
           </span>
           Hour view split cell: top = first half hour, bottom = second half hour
         </li>
-      </ul>
+      </Legend>
 
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <label htmlFor="copy-source" className="text-muted">
           Copy
         </label>
-        <select
+        <Select
           id="copy-source"
           value={copySource}
           onChange={(e) => {
@@ -381,14 +368,14 @@ export function WeekGridEditor({
               prev.map((on, day) => (day === source ? false : on)),
             );
           }}
-          className="rounded border border-edge-strong bg-field px-2 py-1"
+          className="px-2 py-1"
         >
           {WEEKDAY_NAMES.map((name, day) => (
             <option key={name} value={day}>
               {name}
             </option>
           ))}
-        </select>
+        </Select>
         <span className="text-muted">to</span>
         {WEEKDAY_LABELS.map((label, day) => (
           <label
@@ -399,8 +386,7 @@ export function WeekGridEditor({
                 : "text-muted"
             }`}
           >
-            <input
-              type="checkbox"
+            <Checkbox
               checked={copyTargets[day]}
               disabled={day === copySource}
               onChange={(e) =>
@@ -416,7 +402,7 @@ export function WeekGridEditor({
           type="button"
           onClick={applyCopy}
           disabled={!copyTargets.some(Boolean)}
-          className="rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover disabled:opacity-50"
+          className={PRIMARY_SM}
         >
           Apply
         </button>
@@ -430,14 +416,14 @@ export function WeekGridEditor({
               <button
                 type="button"
                 onClick={confirmClear}
-                className="rounded border border-btn-danger-border px-3 py-1 text-btn-danger-text hover:bg-btn-danger-wash"
+                className={DANGER_SM}
               >
                 Yes
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmingClear(false)}
-                className="rounded border border-edge-strong px-3 py-1 hover:bg-btn-secondary-hover"
+                className={SECONDARY_SM}
               >
                 Cancel
               </button>
@@ -447,7 +433,7 @@ export function WeekGridEditor({
               type="button"
               onClick={() => setConfirmingClear(true)}
               disabled={weekIsEmpty}
-              className="rounded border border-edge-strong px-3 py-1 text-muted hover:bg-btn-secondary-hover disabled:opacity-50"
+              className={SECONDARY_SM}
             >
               Clear week
             </button>
@@ -460,7 +446,7 @@ export function WeekGridEditor({
         ref={gridRef}
         role="grid"
         aria-label="Weekly availability editor"
-        className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-px rounded border border-grid-line bg-grid-line"
+        className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-tile-gap"
         style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -470,14 +456,14 @@ export function WeekGridEditor({
         onKeyDown={onKeyDown}
       >
         <div role="row" className="contents">
-          <div aria-hidden="true" className="bg-surface-card" />
+          <div aria-hidden="true" />
           {WEEKDAY_LABELS.map((label, weekday) => (
             <div key={label} role="gridcell" className="contents">
               <button
                 type="button"
                 onClick={() => toggleDay(weekday)}
                 aria-label={`${WEEKDAY_NAMES[weekday]}: set the whole day to ${stateLabel(nextDayStatus(weekday))}`}
-                className="bg-surface-card py-1 text-center text-xs font-medium text-muted hover:bg-btn-secondary-hover"
+                className="rounded-tile py-1 text-center font-small text-xs tracking-wide text-hint uppercase hover:bg-btn-secondary-hover"
               >
                 {label}
               </button>
@@ -491,7 +477,7 @@ export function WeekGridEditor({
             <div key={row} role="row" className="contents">
               <div
                 aria-hidden="true"
-                className={`flex items-center justify-end whitespace-nowrap bg-surface-card pr-2 text-[10px] text-grid-label ${
+                className={`flex items-center justify-end whitespace-nowrap pr-2 font-digits text-[10px] text-grid-label ${
                   granularity === "half" ? "h-4" : "h-6"
                 }`}
               >

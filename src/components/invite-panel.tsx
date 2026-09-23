@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DANGER_SM, SECONDARY_SM } from "@/components/button-classes";
 
 interface Props {
   eventId: string;
@@ -12,8 +13,6 @@ interface Props {
   regenerateAction: (formData: FormData) => void | Promise<void>;
 }
 
-const smallButton =
-  "rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
@@ -33,7 +32,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       type="button"
       onClick={copy}
       aria-label={label}
-      className={smallButton}
+      className={SECONDARY_SM}
     >
       {state === "copied"
         ? "Copied"
@@ -83,7 +82,7 @@ export function InvitePanel({
           <input type="hidden" name="eventId" value={eventId} />
           <button
             type="submit"
-            className="rounded border border-btn-danger-border px-2 py-1 text-xs text-btn-danger-text hover:bg-btn-danger-wash"
+            className={DANGER_SM}
           >
             Regenerate
           </button>

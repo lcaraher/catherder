@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pane } from "@/components/pane";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
@@ -67,7 +68,7 @@ export default async function RespondPage({
     resultsRevealedAt: event.resultsRevealedAt,
   });
   const resultsLink = showResultsLink && (
-    <p className="mb-4 text-sm">
+    <p className="mt-3 text-sm">
       <Link href={`/e/${eventId}/responses`} className="underline">
         See shared results
       </Link>
@@ -93,7 +94,7 @@ export default async function RespondPage({
     include: { choices: true, text: true },
   });
   const description = event.description !== null && (
-    <div className="mb-6 rounded border border-edge p-3">
+    <div className="mt-3 border-t border-edge pt-3">
       <EventDescription text={event.description} />
     </div>
   );
@@ -109,14 +110,16 @@ export default async function RespondPage({
 
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-        <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
-        <p className="mb-6 rounded border border-edge bg-surface-muted px-3 py-2 text-sm text-muted">
+        <Pane as="div" className="mb-6">
+        <h1 className="mb-3 text-2xl font-semibold">{event.name}</h1>
+        <p className="rounded border border-edge bg-surface-muted px-3 py-2 text-sm font-medium text-muted">
           {event.archivedAt !== null
             ? "This event has been archived."
             : "Editing is closed because this event is not open for responses. If you need to change your response, ask the organizer to unlock it for you."}
         </p>
         {description}
         {resultsLink}
+        </Pane>
 
         {!hasSubmission ? (
           <p className="text-sm text-hint">
@@ -124,18 +127,22 @@ export default async function RespondPage({
           </p>
         ) : (
           <>
-            <h2 className="mb-3 text-lg font-medium">Your availability</h2>
-            <p className="mb-3 text-sm text-hint">
-              Times are based in your time zone ({user.timeZone}).
-            </p>
-            <WeekGridDisplay
-              ranges={toRanges(eventRows)}
-              clockFormat={user.clockFormat}
-            />
+            <Pane>
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">
+                Your availability
+              </h2>
+              <p className="mb-3 text-sm font-medium text-hint">
+                Times are based in your time zone ({user.timeZone}).
+              </p>
+              <WeekGridDisplay
+                ranges={toRanges(eventRows)}
+                clockFormat={user.clockFormat}
+              />
+            </Pane>
 
             {event.questions.length > 0 && (
-              <section className="mt-6">
-                <h2 className="mb-3 text-lg font-medium">Your answers</h2>
+              <Pane className="mt-6">
+                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Your answers</h2>
                 <ul className="flex flex-col gap-3">
                   {event.questions.map((question, index) => {
                     const answer = answersByQuestion.get(question.id);
@@ -180,7 +187,7 @@ export default async function RespondPage({
                     );
                   })}
                 </ul>
-              </section>
+              </Pane>
             )}
           </>
         )}
@@ -221,8 +228,9 @@ export default async function RespondPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <Pane as="div" className="mb-6">
       <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
-      <p className="mb-6 text-sm text-hint">
+      <p className="text-sm font-medium text-hint">
         Adjust your availability for this event (If your &lsquo;My
         Availability&rsquo; page is filled in, it will pre-fill those saved
         times here; changes here apply to this event only), then answer the
@@ -230,6 +238,7 @@ export default async function RespondPage({
       </p>
       {description}
       {resultsLink}
+      </Pane>
       <TimeZonePicker
         groups={zoneGroups}
         initialZoneId={user.timeZone}

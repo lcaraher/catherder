@@ -10,9 +10,10 @@ describe("isTheme", () => {
   }
 
   const rejected: [string, unknown][] = [
+    ['"dark"', "dark"],
     ["an empty string", ""],
     ['"auto"', "auto"],
-    ['upper-case "DARK"', "DARK"],
+    ['upper-case "CHILLPILL"', "CHILLPILL"],
     ["undefined", undefined],
     ["a number", 1],
   ];
@@ -30,7 +31,7 @@ describe("resolveTheme", () => {
     });
   }
 
-  for (const value of ["", "auto", "DARK", undefined]) {
+  for (const value of ["dark", "", "auto", "CHILLPILL", undefined]) {
     it(`returns the default for ${JSON.stringify(value)}`, () => {
       assert.equal(resolveTheme(value), DEFAULT_THEME);
     });

@@ -30,11 +30,16 @@ import {
   updateQuestionPrompt,
 } from "./actions";
 import { ArchiveEventForm } from "@/components/archive-event-form";
+import { Segmented } from "@/components/segmented";
+import { DANGER_SM, PRIMARY_SM, SECONDARY_SM } from "@/components/button-classes";
 import { EventDescription } from "@/components/event-description";
 import { EventDescriptionForm } from "@/components/event-description-form";
 import { InvitePanel } from "@/components/invite-panel";
 import { OrganizerAvailabilityEditor } from "@/components/organizer-availability-editor";
+import { Checkbox, Select } from "@/components/form-controls";
 import { OrganizerBadge } from "@/components/organizer-badge";
+import { Pane } from "@/components/pane";
+import { statusLabel } from "@/domain/status-label";
 import { QuestionDeleteForm } from "@/components/question-delete-form";
 import { QuestionOptionRow } from "@/components/question-option-row";
 import { QuestionPromptForm } from "@/components/question-prompt-form";
@@ -59,21 +64,10 @@ const STATUS_STYLES: Record<string, string> = {
   CLOSED: "bg-badge-closed text-badge-closed-text",
 };
 
-const smallButton =
-  "rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40";
 const inputClass =
   "rounded border border-edge-strong bg-field px-2 py-1 text-sm";
-
-// One segment of a two-segment control, in the style of the Half hour / Hour
-// toggle; the selected segment uses the toggle-active tokens.
-const segmentClass = (active: boolean) =>
-  `inline-flex items-center gap-1.5 px-2 py-1 ${
-    active
-      ? "bg-toggle-active text-toggle-active-text"
-      : "hover:bg-btn-secondary-hover"
-  }`;
-const segmentGroupClass =
-  "inline-flex overflow-hidden rounded border border-edge-strong text-xs";
+// Select draws its own border and radius.
+const selectClass = "px-2 py-1 text-sm";
 
 // Line-drawn eye / crossed-out eye for the per-question answer visibility
 // toggle. Stroke follows the button's text colour; no literal colours.
@@ -190,8 +184,9 @@ export default async function EventPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <Pane as="div" className="mb-6">
       <p className="mb-2 text-sm">
-        <Link href="/" className="text-hint hover:underline">
+        <Link href="/" className="text-hint">
           ← Events
         </Link>
       </p>
@@ -200,15 +195,15 @@ export default async function EventPage({
         <span
           className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[event.status]}`}
         >
-          {event.status}
+          {statusLabel(event.status)}
         </span>
         {event.archivedAt !== null && (
           <span className="rounded bg-badge-draft px-2 py-0.5 text-xs font-medium text-badge-draft-text">
-            ARCHIVED
+            {statusLabel("ARCHIVED")}
           </span>
         )}
       </div>
-      <p className="mb-4 text-sm text-hint">
+      <p className="text-sm font-medium text-hint">
         {MODE_LABELS[event.mode]}
         {" · Organizer: "}
         <span className="font-medium">{event.organizerUser.displayName}</span>{" "}
@@ -217,6 +212,7 @@ export default async function EventPage({
         {event.minGroupSize !== null && ` · min ${event.minGroupSize}`}
         {event.maxGroupSize !== null && ` · max ${event.maxGroupSize}`}
       </p>
+      </Pane>
 
       {adminOverride && (
         <p className="mb-4 rounded border border-notice-admin-border bg-notice-admin px-3 py-2 text-sm text-notice-admin-text">
@@ -234,14 +230,14 @@ export default async function EventPage({
         </p>
       )}
 
-      <div className="mb-8 flex items-center gap-2">
+      <div className="mb-6 flex items-center gap-2">
         {event.status !== "OPEN" ? (
           <form action={setEventStatus}>
             <input type="hidden" name="eventId" value={event.id} />
             <input type="hidden" name="status" value="OPEN" />
             <button
               type="submit"
-              className="rounded bg-btn-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
+              className={PRIMARY_SM}
             >
               Open event
             </button>
@@ -252,7 +248,7 @@ export default async function EventPage({
             <input type="hidden" name="status" value="CLOSED" />
             <button
               type="submit"
-              className="rounded bg-btn-danger px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-btn-danger-hover"
+              className={DANGER_SM}
             >
               Close event
             </button>
@@ -260,7 +256,7 @@ export default async function EventPage({
         )}
         <Link
           href={`/e/${event.id}/responses`}
-          className="rounded border border-edge-strong px-3 py-1.5 text-sm hover:bg-btn-secondary-hover"
+          className={`${SECONDARY_SM} no-underline`}
         >
           View responses
         </Link>
@@ -274,8 +270,8 @@ export default async function EventPage({
         )}
       </div>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-medium">Invite people</h2>
+      <Pane className="mb-6">
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Invite people</h2>
         {event.invite ? (
           <InvitePanel
             eventId={event.id}
@@ -287,7 +283,7 @@ export default async function EventPage({
           <div className="flex flex-wrap items-center gap-3 rounded border border-edge p-3 text-sm">
             <form action={createInvite}>
               <input type="hidden" name="eventId" value={event.id} />
-              <button type="submit" className={smallButton}>
+              <button type="submit" className={SECONDARY_SM}>
                 Create invite
               </button>
             </form>
@@ -296,10 +292,10 @@ export default async function EventPage({
             </span>
           </div>
         )}
-      </section>
+      </Pane>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-medium">Description</h2>
+      <Pane className="mb-6">
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Description</h2>
         <div className="flex flex-col gap-3 rounded border border-edge p-3">
           <EventDescriptionForm
             action={updateEventDescription}
@@ -312,10 +308,10 @@ export default async function EventPage({
             </div>
           )}
         </div>
-      </section>
+      </Pane>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-medium">Results sharing</h2>
+      <Pane className="mb-6">
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Results sharing</h2>
         <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
           <p className="text-muted">
             {event.resultsRevealedAt
@@ -333,7 +329,7 @@ export default async function EventPage({
                   <input type="hidden" name="eventId" value={event.id} />
                   <button
                     type="submit"
-                    className="rounded bg-btn-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-btn-primary-hover"
+                    className={PRIMARY_SM}
                   >
                     Close event and share results
                   </button>
@@ -345,7 +341,7 @@ export default async function EventPage({
                     name="revealed"
                     value={event.resultsRevealedAt ? "false" : "true"}
                   />
-                  <button type="submit" className={smallButton}>
+                  <button type="submit" className={SECONDARY_SM}>
                     {event.resultsRevealedAt
                       ? "Hide results again"
                       : "Share now (participants can still edit)"}
@@ -362,7 +358,7 @@ export default async function EventPage({
                   name="revealed"
                   value={event.resultsRevealedAt ? "false" : "true"}
                 />
-                <button type="submit" className={smallButton}>
+                <button type="submit" className={SECONDARY_SM}>
                   {event.resultsRevealedAt
                     ? "Hide results again"
                     : "Share results with participants"}
@@ -371,10 +367,10 @@ export default async function EventPage({
             </div>
           )}
         </div>
-      </section>
+      </Pane>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-medium">Edit event</h2>
+      <Pane className="mb-6">
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Edit event</h2>
         <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
         <form action={updateEvent} className="flex flex-col gap-3">
           <input type="hidden" name="eventId" value={event.id} />
@@ -454,24 +450,23 @@ export default async function EventPage({
               </label>
               {/* Options are this event's participants; updateEvent rejects
                   anyone else. */}
-              <select
+              <Select
                 id="edit-organizerUserId"
                 name="organizerUserId"
                 defaultValue={event.organizerUserId}
-                className={inputClass}
+                className={selectClass}
               >
                 {event.participants.map((participant) => (
                   <option key={participant.userId} value={participant.userId}>
                     {participant.user.displayName}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 text-muted">
-              <input
-                type="checkbox"
+              <Checkbox
                 name="organizerParticipates"
                 defaultChecked={event.organizerParticipates}
               />
@@ -481,7 +476,7 @@ export default async function EventPage({
               type="button"
               aria-label="What does this do?"
               title="When on, the organizer takes part like any other member: they answer the questions and submit their availability for this event. When off, only their availability is used, and they are never asked to respond."
-              className={smallButton}
+              className={SECONDARY_SM}
             >
               ?
             </button>
@@ -491,7 +486,7 @@ export default async function EventPage({
             change it later, and it does not limit what participants submit.
           </p>
           <div>
-            <button type="submit" className={smallButton}>
+            <button type="submit" className={SECONDARY_SM}>
               Save changes
             </button>
           </div>
@@ -510,7 +505,7 @@ export default async function EventPage({
             <>
               <form action={unarchiveEvent}>
                 <input type="hidden" name="eventId" value={event.id} />
-                <button type="submit" className={smallButton}>
+                <button type="submit" className={SECONDARY_SM}>
                   Unarchive
                 </button>
               </form>
@@ -521,10 +516,10 @@ export default async function EventPage({
           )}
         </div>
         </div>
-      </section>
+      </Pane>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-medium">Participants</h2>
+      <Pane className="mb-6">
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Participants</h2>
         {!event.organizerParticipates && (
           <p className="mb-3 flex items-center gap-2 text-sm">
             Organized by{" "}
@@ -541,14 +536,18 @@ export default async function EventPage({
             {rosterRows.map((participant) => (
               <li
                 key={participant.userId}
-                className="flex items-center justify-between rounded border border-edge px-3 py-2 text-sm"
+                className="flex items-start justify-between gap-3 rounded border border-edge px-3 py-2 text-sm"
               >
-                <span className="flex items-center gap-2">
-                  {participant.user.displayName}
+                <span className="min-w-0">
+                  <span className="break-words">
+                    {participant.user.displayName}
+                  </span>
                   {participant.role === "ORGANIZER" ? (
-                    <OrganizerBadge />
+                    <OrganizerBadge className="ml-2 align-middle" />
                   ) : (
-                    <span className="text-xs text-faint">Player</span>
+                    <span className="ml-2 align-middle text-xs text-faint">
+                      Player
+                    </span>
                   )}
                 </span>
                 <span className="flex items-center gap-3">
@@ -559,7 +558,7 @@ export default async function EventPage({
                         : "text-status-invited"
                     }`}
                   >
-                    {participant.responseStatus}
+                    {statusLabel(participant.responseStatus)}
                   </span>
                   {participant.editUnlockedAt ? (
                     // A stale unlock must always be clearable, whatever the
@@ -579,7 +578,7 @@ export default async function EventPage({
                         <button
                           type="submit"
                           aria-label={`Re-lock editing for ${participant.user.displayName}`}
-                          className={smallButton}
+                          className={SECONDARY_SM}
                         >
                           Re-lock
                         </button>
@@ -600,7 +599,7 @@ export default async function EventPage({
                         <button
                           type="submit"
                           aria-label={`Unlock editing for ${participant.user.displayName}`}
-                          className={smallButton}
+                          className={SECONDARY_SM}
                         >
                           Unlock for editing
                         </button>
@@ -618,7 +617,7 @@ export default async function EventPage({
                       <button
                         type="submit"
                         aria-label={`Remove ${participant.user.displayName}`}
-                        className={smallButton}
+                        className={DANGER_SM}
                       >
                         Remove
                       </button>
@@ -629,11 +628,11 @@ export default async function EventPage({
             ))}
           </ul>
         )}
-      </section>
+      </Pane>
 
       {viewerManagesOwnAvailability && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-medium">
+        <Pane className="mb-6">
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">
             Your availability for this event
           </h2>
           {organizerAvailabilityRanges.length === 0 && (
@@ -649,11 +648,11 @@ export default async function EventPage({
             standingRanges={organizerStandingRanges}
             clockFormat={user.clockFormat}
           />
-        </section>
+        </Pane>
       )}
 
-      <section>
-        <h2 className="mb-3 text-lg font-medium">Questions</h2>
+      <Pane>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Questions</h2>
         {event.questions.length === 0 ? (
           <p className="mb-4 text-sm text-hint">No questions yet.</p>
         ) : (
@@ -692,7 +691,7 @@ export default async function EventPage({
                         type="submit"
                         disabled={index === 0}
                         aria-label="Move question up"
-                        className={smallButton}
+                        className={SECONDARY_SM}
                       >
                         ↑
                       </button>
@@ -704,7 +703,7 @@ export default async function EventPage({
                         type="submit"
                         disabled={index === event.questions.length - 1}
                         aria-label="Move question down"
-                        className={smallButton}
+                        className={SECONDARY_SM}
                       >
                         ↓
                       </button>
@@ -725,95 +724,89 @@ export default async function EventPage({
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   {/* The clicked segment carries the value; the action is a
                       no-op when it is already the current state. */}
-                  <form
+                  <Segmented
+                    label="Answer visibility"
+                    size="sm"
                     action={setQuestionAnswersRevealed}
-                    className={segmentGroupClass}
-                    aria-label="Answer visibility"
+                    name="revealed"
+                    value={String(question.answersRevealed)}
+                    options={[
+                      {
+                        value: "false",
+                        label: (
+                          <>
+                            <EyeIcon open={false} />
+                            Hidden from participants
+                          </>
+                        ),
+                        title:
+                          "Participants cannot see answers to this question even once results are shared.",
+                      },
+                      {
+                        value: "true",
+                        label: (
+                          <>
+                            <EyeIcon open={true} />
+                            Visible to participants
+                          </>
+                        ),
+                        title:
+                          "Participants can see everyone's answers to this question once results are shared.",
+                      },
+                    ]}
                   >
                     <input type="hidden" name="questionId" value={question.id} />
-                    <button
-                      type="submit"
-                      name="revealed"
-                      value="false"
-                      aria-pressed={!question.answersRevealed}
-                      title="Participants cannot see answers to this question even once results are shared."
-                      className={segmentClass(!question.answersRevealed)}
-                    >
-                      <EyeIcon open={false} />
-                      Hidden from participants
-                    </button>
-                    <button
-                      type="submit"
-                      name="revealed"
-                      value="true"
-                      aria-pressed={question.answersRevealed}
-                      title="Participants can see everyone's answers to this question once results are shared."
-                      className={segmentClass(question.answersRevealed)}
-                    >
-                      <EyeIcon open={true} />
-                      Visible to participants
-                    </button>
-                  </form>
-                  <form
+                  </Segmented>
+                  <Segmented
+                    label="Answer requirement"
+                    size="sm"
                     action={setQuestionRequired}
-                    className={segmentGroupClass}
-                    aria-label="Answer requirement"
+                    name="required"
+                    value={String(question.required)}
+                    options={[
+                      {
+                        value: "false",
+                        label: "Optional",
+                        title: "Participants may leave this question unanswered.",
+                      },
+                      {
+                        value: "true",
+                        label: "Required",
+                        title:
+                          "Participants cannot submit a response without answering this question.",
+                      },
+                    ]}
                   >
                     <input type="hidden" name="questionId" value={question.id} />
-                    <button
-                      type="submit"
-                      name="required"
-                      value="false"
-                      aria-pressed={!question.required}
-                      title="Participants may leave this question unanswered."
-                      className={segmentClass(!question.required)}
-                    >
-                      Optional
-                    </button>
-                    <button
-                      type="submit"
-                      name="required"
-                      value="true"
-                      aria-pressed={question.required}
-                      title="Participants cannot submit a response without answering this question."
-                      className={segmentClass(question.required)}
-                    >
-                      Required
-                    </button>
-                  </form>
+                  </Segmented>
                   {(question.type === "SINGLE_CHOICE" ||
                     question.type === "MULTI_CHOICE") && (
-                    <form
+                    <Segmented
+                      label="Other answer"
+                      size="sm"
                       action={setQuestionAllowOther}
-                      className={segmentGroupClass}
-                      aria-label="Other answer"
+                      name="allowOther"
+                      value={String(question.allowOther)}
+                      options={[
+                        {
+                          value: "false",
+                          label: "No Other",
+                          title: "Participants pick from the listed options only.",
+                        },
+                        {
+                          value: "true",
+                          label: "Allow Other",
+                          title:
+                            "Participants may pick Other and type their own short answer.",
+                        },
+                      ]}
                     >
                       <input
                         type="hidden"
                         name="questionId"
                         value={question.id}
                       />
-                      <button
-                        type="submit"
-                        name="allowOther"
-                        value="false"
-                        aria-pressed={!question.allowOther}
-                        title="Participants pick from the listed options only."
-                        className={segmentClass(!question.allowOther)}
-                      >
-                        No Other
-                      </button>
-                      <button
-                        type="submit"
-                        name="allowOther"
-                        value="true"
-                        aria-pressed={question.allowOther}
-                        title="Participants may pick Other and type their own short answer."
-                        className={segmentClass(question.allowOther)}
-                      >
-                        Allow Other
-                      </button>
-                    </form>
+                    </Segmented>
                   )}
                 </div>
                 {question.type !== "TEXT" && (
@@ -841,7 +834,7 @@ export default async function EventPage({
                         placeholder="New option"
                         className={`flex-1 ${inputClass}`}
                       />
-                      <button type="submit" className={smallButton}>
+                      <button type="submit" className={SECONDARY_SM}>
                         Add option
                       </button>
                     </form>
@@ -856,12 +849,12 @@ export default async function EventPage({
         <h3 className="mb-2 text-sm font-medium">Add a question</h3>
         <form action={addQuestion} className="flex flex-col gap-2 text-sm">
           <input type="hidden" name="eventId" value={event.id} />
-          <select name="type" className={inputClass}>
+          <Select name="type" className={selectClass}>
             <option value="SINGLE_CHOICE">Single choice</option>
             <option value="MULTI_CHOICE">Multiple choice</option>
             <option value="TEXT">Text</option>
             <option value="RANKING">Ranking</option>
-          </select>
+          </Select>
           <input name="prompt" placeholder="Prompt" required className={inputClass} />
           <textarea
             name="options"
@@ -870,12 +863,12 @@ export default async function EventPage({
             className={inputClass}
           />
           <div>
-            <button type="submit" className={smallButton}>
+            <button type="submit" className={SECONDARY_SM}>
               Add question
             </button>
           </div>
         </form>
-      </section>
+      </Pane>
     </main>
   );
 }

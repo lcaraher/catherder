@@ -9,14 +9,17 @@ import {
   canViewQuestionAnswers,
 } from "@/domain/response-access";
 import { buildTimeZoneOptions } from "@/domain/time-zones";
+import { HalfHourNote } from "@/components/half-hour-note";
 import { HeatLegend } from "@/components/heat-legend";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { OverlapGridView } from "@/components/overlap-grid";
+import { Pane } from "@/components/pane";
+import { statusLabel } from "@/domain/status-label";
 
 export const dynamic = "force-dynamic";
 
-const th = "py-1 pr-4 text-xs font-medium text-muted";
-const td = "border-t border-edge py-1.5 pr-4 align-top";
+const th = "py-1 pr-4 font-small text-xs font-medium text-muted";
+const td = "border-t border-edge py-2 pr-4 align-top";
 
 export default async function ResponsesPage({
   params,
@@ -65,7 +68,9 @@ export default async function ResponsesPage({
     // Deliberately bare: no names, no counts, nothing about the responses.
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-        <h1 className="mb-4 text-2xl font-semibold">{event.name}</h1>
+        <Pane as="div" className="mb-6">
+          <h1 className="text-2xl font-semibold">{event.name}</h1>
+        </Pane>
         <p className="rounded border border-notice-warn-border bg-notice-warn px-3 py-2 text-sm text-notice-warn-text">
           Results have not been shared yet. The organizer will share them when
           response collection is done.
@@ -159,11 +164,18 @@ export default async function ResponsesPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <Pane as="div" className="mb-6">
       <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
-      <p className="mb-4 text-sm text-hint">
-        Times are shown in your time zone ({viewerZoneLabel})
-        {viewerApproximated && " (shown to the nearest half hour)"}.
+      <p className="text-sm font-medium text-hint">
+        Times are shown in your time zone ({viewerZoneLabel}).
+        {viewerApproximated && (
+          <>
+            {" "}
+            <HalfHourNote />
+          </>
+        )}
       </p>
+      </Pane>
 
       {isAdminOverride(access) && event.organizerUser && (
         <p className="mb-4 rounded border border-notice-admin-border bg-notice-admin px-3 py-2 text-sm text-notice-admin-text">
@@ -175,8 +187,8 @@ export default async function ResponsesPage({
         </p>
       )}
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-medium">Participants</h2>
+      <Pane className="mb-6">
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Participants</h2>
         {event.organizerUser && (
           <p className="mb-3 flex items-center gap-2 text-sm">
             Organized by{" "}
@@ -200,7 +212,7 @@ export default async function ResponsesPage({
               <th className={th}>Name</th>
               <th className={th}>Time zone</th>
               <th className={th}>Status</th>
-              <th className={th}>Submitted</th>
+              <th className={`${th} text-right`}>Submitted</th>
             </tr>
           </thead>
           <tbody>
@@ -212,15 +224,21 @@ export default async function ResponsesPage({
               return (
                 <tr key={participant.userId}>
                   <td className={td}>
-                    <span className="flex items-center gap-2">
+                    <span className="break-words">
                       {participant.user.displayName}
-                      {participant.role === "ORGANIZER" && <OrganizerBadge />}
                     </span>
+                    {participant.role === "ORGANIZER" && (
+                      <OrganizerBadge className="ml-2 align-middle" />
+                    )}
                   </td>
-                  <td className={`${td} text-muted`}>
+                  <td className={`${td} font-medium text-muted`}>
                     {participant.user.timeZone}
-                    {approximatedIds.has(participant.userId) &&
-                      " (shown to the nearest half hour)"}
+                    {approximatedIds.has(participant.userId) && (
+                      <>
+                        {" "}
+                        <HalfHourNote />
+                      </>
+                    )}
                   </td>
                   <td
                     className={`${td} text-xs ${
@@ -229,9 +247,9 @@ export default async function ResponsesPage({
                         : "text-status-invited"
                     }`}
                   >
-                    {participant.responseStatus}
+                    {statusLabel(participant.responseStatus)}
                   </td>
-                  <td className={`${td} text-xs text-muted`}>
+                  <td className={`${td} text-right text-xs font-medium tabular-nums whitespace-nowrap text-muted`}>
                     {at ? submittedFormat.format(at) : ""}
                   </td>
                 </tr>
@@ -239,10 +257,10 @@ export default async function ResponsesPage({
             })}
           </tbody>
         </table>
-      </section>
+      </Pane>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-medium">Overlap</h2>
+      <Pane className="mb-6">
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Overlap</h2>
         <p className="mb-3 text-xs text-hint">
           Each cell shows available · tentative. Select a cell to see who is
           in it.
@@ -261,11 +279,11 @@ export default async function ResponsesPage({
           }
           clockFormat={user.clockFormat}
         />
-      </section>
+      </Pane>
 
       {event.questions.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-lg font-medium">Questions</h2>
+        <Pane>
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Questions</h2>
           <div className="flex flex-col gap-4">
             {event.questions.map((question, index) => {
               const visible = canViewQuestionAnswers({
@@ -301,10 +319,12 @@ export default async function ResponsesPage({
                           ?.text?.text.trim();
                         return (
                           <li key={participant.userId}>
-                            <span className="flex items-center gap-2 text-xs text-muted">
-                              {participant.user.displayName}
+                            <span className="text-xs text-muted">
+                              <span className="break-words">
+                                {participant.user.displayName}
+                              </span>
                               {participant.role === "ORGANIZER" && (
-                                <OrganizerBadge />
+                                <OrganizerBadge className="ml-2 align-middle" />
                               )}
                             </span>
                             {text ? (
@@ -364,12 +384,12 @@ export default async function ResponsesPage({
                             return (
                               <tr key={participant.userId}>
                                 <td className={td}>
-                                  <span className="flex items-center gap-2">
+                                  <span className="break-words">
                                     {participant.user.displayName}
-                                    {participant.role === "ORGANIZER" && (
-                                      <OrganizerBadge />
-                                    )}
                                   </span>
+                                  {participant.role === "ORGANIZER" && (
+                                    <OrganizerBadge className="ml-2 align-middle" />
+                                  )}
                                 </td>
                                 <td className={td}>
                                   {display ?? (
@@ -455,7 +475,7 @@ export default async function ResponsesPage({
               );
             })}
           </div>
-        </section>
+        </Pane>
       )}
     </main>
   );

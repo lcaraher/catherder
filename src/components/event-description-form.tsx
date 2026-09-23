@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SECONDARY_SM } from "@/components/button-classes";
 import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
 
 interface Props {
@@ -35,7 +36,7 @@ export function EventDescriptionForm({ action, eventId, initialText }: Props) {
       <div>
         <button
           type="submit"
-          className="rounded border border-edge-strong px-2 py-1 text-xs hover:bg-btn-secondary-hover disabled:opacity-40"
+          className={SECONDARY_SM}
         >
           Save
         </button>

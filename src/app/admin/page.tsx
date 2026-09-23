@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { statusLabel } from "@/domain/status-label";
+import { Pane } from "@/components/pane";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,9 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <h1 className="mb-6 text-2xl font-semibold">All events</h1>
+      <Pane as="div" className="mb-6">
+        <h1 className="text-2xl font-semibold">All events</h1>
+      </Pane>
       {events.length === 0 ? (
         <p className="text-sm text-hint">No events yet.</p>
       ) : (
@@ -38,7 +42,7 @@ export default async function AdminPage() {
             <li key={event.id}>
               <Link
                 href={`/e/${event.id}/manage`}
-                className="flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted"
+                className="no-underline flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted"
               >
                 <span className="min-w-0">
                   <span className="block truncate font-medium">
@@ -55,7 +59,7 @@ export default async function AdminPage() {
                   <span
                     className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[event.status]}`}
                   >
-                    {event.status}
+                    {statusLabel(event.status)}
                   </span>
                 </span>
               </Link>

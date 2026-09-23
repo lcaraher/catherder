@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { ClockFormat } from "@/domain/availability";
+import { Radio } from "@/components/form-controls";
+import { Pane } from "@/components/pane";
 
 const OPTIONS: { value: ClockFormat; label: string }[] = [
   { value: "TWELVE_HOUR", label: "12-hour (7:30 PM)" },
@@ -48,13 +50,12 @@ export function ClockFormatPicker({
   }
 
   return (
-    <fieldset className="mb-6 rounded border border-edge p-3 text-sm">
+    <Pane as="fieldset" className="mb-6 text-sm">
       <legend className="px-1 text-muted">Clock format</legend>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
         {OPTIONS.map((option) => (
           <label key={option.value} className="flex items-center gap-2">
-            <input
-              type="radio"
+            <Radio
               name="clock-format"
               checked={format === option.value}
               disabled={saving}
@@ -69,6 +70,6 @@ export function ClockFormatPicker({
         Applies after the page reloads.
       </p>
       {error && <p className="mt-1 text-xs text-error">{error}</p>}
-    </fieldset>
+    </Pane>
   );
 }

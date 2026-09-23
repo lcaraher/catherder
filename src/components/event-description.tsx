@@ -75,7 +75,7 @@ const components: Components = {
     </div>
   ),
   th: ({ children }) => (
-    <th className="border border-edge px-2 py-1 text-left font-medium">
+    <th className="border border-edge px-2 py-1 text-left font-small font-medium">
       {children}
     </th>
   ),
