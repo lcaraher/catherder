@@ -57,7 +57,7 @@ const fontClasses = [wordmark, heading, small, body, digits, pixel]
   .map((font) => font.variable)
   .join(" ");
 
-const navLink = "font-small font-medium hover:text-link-hover hover:underline";
+const navLink = "font-small font-medium nav-comet";
 
 export const metadata: Metadata = {
   title: "catherder",
@@ -76,7 +76,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="header-glow flex min-h-full flex-col">
         {user && (
-          <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-edge bg-surface-card px-4 py-3 text-sm">
+          <header className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-edge bg-surface-card px-4 py-3 text-sm">
             <Link
               href="/"
               className="inline-flex items-center font-wordmark text-xl font-extrabold"
