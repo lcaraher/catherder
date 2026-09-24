@@ -12,7 +12,12 @@ export function Footer() {
         <Link href="/help#about" className="pixel-pointer">
           About
         </Link>
-        <a href="#" aria-disabled="true" title="Coming later">
+        <a
+          href="#"
+          aria-disabled="true"
+          title="Coming later"
+          className="pixel-pointer cursor-not-allowed"
+        >
           Support the cats
         </a>
         <span>made for friends</span>

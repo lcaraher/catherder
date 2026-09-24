@@ -139,7 +139,9 @@ export function OrganizerAvailabilityEditor({
           Clear
         </button>
         {status === "saved" && (
-          <span className="text-sm text-status-submitted">Saved ✓</span>
+          <span className="text-sm text-status-submitted">
+            Saved <span className="pop-in">✓</span>
+          </span>
         )}
         {status === "error" && (
           <span className="text-sm text-error">{errorMessage}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 const FOCUS_RING =
   "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
@@ -28,8 +28,8 @@ interface Props {
 }
 
 /**
- * A row of two or more segments with one active. The active segment carries
- * the accent fill; the others are plain.
+ * A row of two or more equal-width segments with one active. The accent fill
+ * sits behind the labels and slides to the active segment.
  */
 export function Segmented({
   label,
@@ -42,18 +42,33 @@ export function Segmented({
   size = "md",
   className = "",
 }: Props) {
-  const group = `inline-flex overflow-hidden rounded border border-edge-strong ${
+  const group = `segmented overflow-hidden rounded border border-edge-strong ${
     size === "sm" ? "text-xs" : "text-sm"
   } ${className}`;
   const segment = (active: boolean) =>
-    `inline-flex items-center gap-1.5 ${size === "sm" ? "px-2 py-1" : "px-3 py-1"} ${FOCUS_RING} ${
-      active ? "accent-gradient-fill text-on-primary" : "hover:bg-btn-secondary-hover"
+    `relative z-10 inline-flex items-center justify-center gap-1.5 ${size === "sm" ? "px-2 py-1" : "px-3 py-1"} ${FOCUS_RING} ${
+      active ? "text-on-primary" : "hover:bg-btn-secondary-hover"
     }`;
+  const index = options.findIndex((option) => option.value === value);
+  const groupStyle = { "--n": options.length } as CSSProperties;
+  const highlight = index >= 0 && (
+    <span
+      aria-hidden="true"
+      className="segmented-highlight accent-gradient-fill"
+      style={{ "--index": index } as CSSProperties}
+    />
+  );
 
   if (action) {
     return (
-      <form action={action} className={group} aria-label={label}>
+      <form
+        action={action}
+        className={group}
+        style={groupStyle}
+        aria-label={label}
+      >
         {children}
+        {highlight}
         {options.map((option) => (
           <button
             key={option.value}
@@ -72,7 +87,13 @@ export function Segmented({
   }
 
   return (
-    <div role="radiogroup" aria-label={label} className={group}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={group}
+      style={groupStyle}
+    >
+      {highlight}
       {options.map((option) => (
         <button
           key={option.value}

@@ -68,7 +68,9 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
           {saveStatus === "saving" ? "Saving…" : "Save"}
         </button>
         {saveStatus === "saved" && (
-          <span className="text-sm text-status-submitted">Saved ✓</span>
+          <span className="text-sm text-status-submitted">
+            Saved <span className="pop-in">✓</span>
+          </span>
         )}
         {saveStatus === "error" && (
           <span className="text-sm text-error">

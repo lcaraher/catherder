@@ -35,7 +35,7 @@ function EventRow({
     <li>
       <Link
         href={href}
-        className="no-underline flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted"
+        className="no-underline flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted row-edge"
       >
         <span className="min-w-0">
           <span className="block truncate font-medium">{name}</span>

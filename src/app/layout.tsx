@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Link from "next/link";
@@ -58,6 +59,7 @@ const fontClasses = [wordmark, heading, small, body, digits, pixel]
   .join(" ");
 
 const navLink = "font-small font-medium nav-comet";
+const WORDMARK = "catherder";
 
 export const metadata: Metadata = {
   title: "catherder",
@@ -79,10 +81,19 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <header className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-edge bg-surface-card px-4 py-3 text-sm">
             <Link
               href="/"
-              className="inline-flex items-center font-wordmark text-xl font-extrabold"
+              className="letter-hop inline-flex items-center font-wordmark text-xl font-extrabold"
             >
               <Logo size={28} className="mr-2" />
-              catherder
+              <span className="sr-only">{WORDMARK}</span>
+              {[...WORDMARK].map((letter, i) => (
+                <span
+                  key={i}
+                  aria-hidden="true"
+                  style={{ "--i": i } as CSSProperties}
+                >
+                  {letter}
+                </span>
+              ))}
             </Link>
             <Link href="/availability" className={navLink}>
               Availability
