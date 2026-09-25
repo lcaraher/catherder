@@ -10,6 +10,7 @@ import {
 } from "@/domain/response-access";
 import { buildTimeZoneOptions } from "@/domain/time-zones";
 import { HalfHourNote } from "@/components/half-hour-note";
+import { ZoneChip } from "@/components/zone-chip";
 import { HeatLegend } from "@/components/heat-legend";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { OverlapGridView } from "@/components/overlap-grid";
@@ -167,13 +168,8 @@ export default async function ResponsesPage({
       <Pane as="div" className="mb-6">
       <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
       <p className="text-sm font-medium text-hint">
-        Times are shown in your time zone ({viewerZoneLabel}).
-        {viewerApproximated && (
-          <>
-            {" "}
-            <HalfHourNote />
-          </>
-        )}
+        Times are shown in your time zone:{" "}
+        <ZoneChip label={viewerZoneLabel} approximated={viewerApproximated} />
       </p>
       </Pane>
 

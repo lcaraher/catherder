@@ -4,7 +4,8 @@ import { prisma } from "@/adapters/db/client";
 import { canEditResponse } from "@/domain/response-access";
 import { statusLabel } from "@/domain/status-label";
 import { Pane } from "@/components/pane";
-import { PRIMARY } from "@/components/button-classes";
+import { PRIMARY, SECONDARY_SM } from "@/components/button-classes";
+import { ResultsIcon } from "@/components/results-icon";
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: "bg-badge-draft text-badge-draft-text",
@@ -57,8 +58,9 @@ function EventRow({
       {resultsHref && (
         <Link
           href={resultsHref}
-          className="mt-1 inline-block text-xs text-hint underline"
+          className={`${SECONDARY_SM} mt-1 no-underline inline-flex items-center gap-1.5`}
         >
+          <ResultsIcon />
           See shared results
         </Link>
       )}

@@ -230,7 +230,7 @@ export function RespondForm({
         </button>
         {status === "submitted" && (
           <span className="text-sm text-status-submitted">
-            Response submitted ✓
+            Response submitted <span className="pop-in">✓</span>
           </span>
         )}
         {status === "error" && (

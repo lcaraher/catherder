@@ -16,8 +16,11 @@ import {
 import { ClockFormatPicker } from "@/components/clock-format-picker";
 import { EventDescription } from "@/components/event-description";
 import { RespondForm } from "@/components/respond-form";
+import { ResultsIcon } from "@/components/results-icon";
+import { SECONDARY_SM } from "@/components/button-classes";
 import { TimeZonePicker } from "@/components/time-zone-picker";
 import { WeekGridDisplay } from "@/components/week-grid-display";
+import { ZoneChip } from "@/components/zone-chip";
 
 export const dynamic = "force-dynamic";
 
@@ -68,8 +71,12 @@ export default async function RespondPage({
     resultsRevealedAt: event.resultsRevealedAt,
   });
   const resultsLink = showResultsLink && (
-    <p className="mt-3 text-sm">
-      <Link href={`/e/${eventId}/responses`} className="underline">
+    <p className="mt-3">
+      <Link
+        href={`/e/${eventId}/responses`}
+        className={`${SECONDARY_SM} no-underline inline-flex items-center gap-1.5`}
+      >
+        <ResultsIcon />
         See shared results
       </Link>
     </p>
@@ -132,7 +139,13 @@ export default async function RespondPage({
                 Your availability
               </h2>
               <p className="mb-3 text-sm font-medium text-hint">
-                Times are based in your time zone ({user.timeZone}).
+                Times are based in your time zone:{" "}
+                <ZoneChip
+                  label={
+                    buildTimeZoneOptions([user.timeZone])[0]?.label ??
+                    user.timeZone
+                  }
+                />
               </p>
               <WeekGridDisplay
                 ranges={toRanges(eventRows)}
