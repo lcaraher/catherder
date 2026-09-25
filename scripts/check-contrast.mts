@@ -18,6 +18,7 @@ const PAIRS: Pair[] = [
   ["muted", "surface-muted", 4.5, "text"],
   ["muted", "surface-raised", 4.5, "text"],
   ["hint", "surface", 4.5, "text"],
+  ["hint", "surface-raised", 4.5, "text"],
   ["faint", "surface", 4.5, "text"],
   ["error", "surface", 4.5, "text"],
   ["on-primary", "btn-primary", 4.5, "text"],

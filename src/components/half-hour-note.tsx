@@ -43,7 +43,6 @@ export function HalfHourNote() {
       <button
         type="button"
         aria-label={TEXT}
-        title={TEXT}
         onMouseEnter={() => {
           setHovered(true);
           setDismissed(false);

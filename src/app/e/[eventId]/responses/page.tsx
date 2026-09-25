@@ -9,7 +9,6 @@ import {
   canViewQuestionAnswers,
 } from "@/domain/response-access";
 import { buildTimeZoneOptions } from "@/domain/time-zones";
-import { HalfHourNote } from "@/components/half-hour-note";
 import { ZoneChip } from "@/components/zone-chip";
 import { HeatLegend } from "@/components/heat-legend";
 import { OrganizerBadge } from "@/components/organizer-badge";
@@ -21,6 +20,8 @@ export const dynamic = "force-dynamic";
 
 const th = "py-1 pr-4 font-small text-xs font-medium text-muted";
 const td = "border-t border-edge py-2 pr-4 align-top";
+const SUBMITTED_CLASS =
+  "text-xs font-medium tabular-nums whitespace-nowrap text-muted";
 
 export default async function ResponsesPage({
   params,
@@ -134,6 +135,10 @@ export default async function ResponsesPage({
     user.timeZone,
   );
   const approximatedIds = new Set(approximated);
+  const gridPeople = people.map((person) => ({
+    ...person,
+    approximated: approximatedIds.has(person.userId),
+  }));
   const respondentIds = new Set(
     respondents.map((participant) => participant.userId),
   );
@@ -151,6 +156,28 @@ export default async function ResponsesPage({
     dateStyle: "medium",
     timeStyle: "short",
     hour12: user.clockFormat === "TWELVE_HOUR",
+  });
+
+  // One row per respondent, read by both the phone cards and the table.
+  const respondentRows = respondents.map((participant) => {
+    const at =
+      participant.responseStatus === "SUBMITTED"
+        ? submittedAt.get(participant.userId)
+        : undefined;
+    return {
+      userId: participant.userId,
+      name: participant.user.displayName,
+      isOrganizer: participant.role === "ORGANIZER",
+      timeZone: participant.user.timeZone,
+      approximated: approximatedIds.has(participant.userId),
+      status: statusLabel(participant.responseStatus),
+      statusClass: `text-xs ${
+        participant.responseStatus === "SUBMITTED"
+          ? "text-status-submitted"
+          : "text-status-invited"
+      }`,
+      submitted: at ? submittedFormat.format(at) : "",
+    };
   });
 
   const answersByQuestion = new Map<string, Map<string, (typeof answers)[number]>>();
@@ -186,71 +213,83 @@ export default async function ResponsesPage({
       <Pane className="mb-6">
         <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Participants</h2>
         {event.organizerUser && (
-          <p className="mb-3 flex items-center gap-2 text-sm">
+          <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
             Organized by{" "}
             <span className="font-medium">
               {event.organizerUser.displayName}
             </span>
             <OrganizerBadge />
             {!event.organizerParticipates && (
-              <span className="text-muted">
-                — {event.organizerUser.timeZone} —{" "}
-                {organizerHasAvailability
-                  ? "availability set for this event"
-                  : "availability not set for this event"}
-              </span>
+              <>
+                <ZoneChip
+                  label={event.organizerUser.timeZone}
+                  variant="person"
+                  className="ml-1"
+                />
+                <span className="text-muted">
+                  —{" "}
+                  {organizerHasAvailability
+                    ? "availability set for this event"
+                    : "availability not set for this event"}
+                </span>
+              </>
             )}
           </p>
         )}
-        <table className="w-full text-left text-sm">
+        <ul className="flex flex-col gap-2 sm:hidden">
+          {respondentRows.map((row) => (
+            <li
+              key={row.userId}
+              className="flex flex-col gap-1 rounded border border-edge px-3 py-2.5"
+            >
+              <div>
+                <span className="font-medium break-words">{row.name}</span>
+                {row.isOrganizer && (
+                  <OrganizerBadge className="ml-2 align-middle" />
+                )}
+                <ZoneChip
+                  label={row.timeZone}
+                  variant="person"
+                  approximated={row.approximated}
+                  className="ml-1"
+                />
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className={row.statusClass}>{row.status}</span>
+                <span className={SUBMITTED_CLASS}>{row.submitted}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <table className="hidden w-full text-left text-sm sm:table">
           <thead>
             <tr>
               <th className={th}>Name</th>
-              <th className={th}>Time zone</th>
               <th className={th}>Status</th>
               <th className={`${th} text-right`}>Submitted</th>
             </tr>
           </thead>
           <tbody>
-            {respondents.map((participant) => {
-              const at =
-                participant.responseStatus === "SUBMITTED"
-                  ? submittedAt.get(participant.userId)
-                  : undefined;
-              return (
-                <tr key={participant.userId}>
-                  <td className={td}>
-                    <span className="break-words">
-                      {participant.user.displayName}
-                    </span>
-                    {participant.role === "ORGANIZER" && (
-                      <OrganizerBadge className="ml-2 align-middle" />
-                    )}
-                  </td>
-                  <td className={`${td} font-medium text-muted`}>
-                    {participant.user.timeZone}
-                    {approximatedIds.has(participant.userId) && (
-                      <>
-                        {" "}
-                        <HalfHourNote />
-                      </>
-                    )}
-                  </td>
-                  <td
-                    className={`${td} text-xs ${
-                      participant.responseStatus === "SUBMITTED"
-                        ? "text-status-submitted"
-                        : "text-status-invited"
-                    }`}
-                  >
-                    {statusLabel(participant.responseStatus)}
-                  </td>
-                  <td className={`${td} text-right text-xs font-medium tabular-nums whitespace-nowrap text-muted`}>
-                    {at ? submittedFormat.format(at) : ""}
-                  </td>
-                </tr>
-              );
-            })}
+            {respondentRows.map((row) => (
+              <tr key={row.userId}>
+                <td className={td}>
+                  <span className="break-words">{row.name}</span>
+                  {row.isOrganizer && (
+                    <OrganizerBadge className="ml-2 align-middle" />
+                  )}
+                  <ZoneChip
+                    label={row.timeZone}
+                    variant="person"
+                    approximated={row.approximated}
+                    className="ml-1"
+                  />
+                </td>
+                <td className={`${td} ${row.statusClass}`}>{row.status}</td>
+                <td className={`${td} text-right ${SUBMITTED_CLASS}`}>
+                  {row.submitted}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </Pane>
@@ -264,7 +303,7 @@ export default async function ResponsesPage({
         <HeatLegend counted={respondents.length} />
         <OverlapGridView
           grid={grid}
-          people={people}
+          people={gridPeople}
           organizerUserId={event.organizerUserId}
           organizerHasAvailability={organizerHasAvailability}
           countOrganizer={event.organizerParticipates}

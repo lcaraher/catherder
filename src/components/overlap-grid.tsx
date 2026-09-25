@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/form-controls";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { Legend } from "@/components/legend";
 import { Segmented } from "@/components/segmented";
+import { ZoneChip } from "@/components/zone-chip";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_NAMES = [
@@ -42,6 +43,7 @@ export interface OverlapPerson {
   displayName: string;
   isOrganizer: boolean;
   timeZone: string;
+  approximated?: boolean;
 }
 
 interface Props {
@@ -135,7 +137,12 @@ export function OverlapGridView({
             />
             <span className="break-words">{organizer.displayName}</span>
             <OrganizerBadge className="ml-2 align-middle" />
-            <span className="ml-2 text-xs text-hint">{organizer.timeZone}</span>
+            <ZoneChip
+              label={organizer.timeZone}
+              variant="person"
+              approximated={organizer.approximated}
+              className="ml-1"
+            />
           </li>
         )}
         {rest.map((userId) => {
@@ -145,7 +152,12 @@ export function OverlapGridView({
             <li key={userId}>
               <span className="break-words">{person.displayName}</span>
               {person.isOrganizer && <OrganizerBadge className="ml-2 align-middle" />}
-              <span className="ml-2 text-xs text-hint">{person.timeZone}</span>
+              <ZoneChip
+                label={person.timeZone}
+                variant="person"
+                approximated={person.approximated}
+                className="ml-1"
+              />
             </li>
           );
         })}
