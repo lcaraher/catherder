@@ -263,7 +263,7 @@ export default async function EventPage({
         {event.status === "OPEN" && (
           <span className="text-sm text-hint">
             Participants respond at{" "}
-            <code className="rounded bg-surface-raised px-1">
+            <code className="rounded bg-surface-raised px-1 break-all">
               /e/{event.id}/respond
             </code>
           </span>

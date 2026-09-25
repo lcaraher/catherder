@@ -59,7 +59,7 @@ const components: Components = {
     </blockquote>
   ),
   code: ({ children }) => (
-    <code className="rounded bg-surface-raised px-1 text-[0.9em]">
+    <code className="rounded bg-surface-raised px-1 text-[0.9em] break-all">
       {children}
     </code>
   ),

@@ -1,17 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
-import { statusLabel } from "@/domain/status-label";
+import { EventRow } from "@/components/event-row";
 import { Pane } from "@/components/pane";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-badge-draft text-badge-draft-text",
-  OPEN: "bg-badge-open text-badge-open-text",
-  CLOSED: "bg-badge-closed text-badge-closed-text",
-};
 
 export default async function AdminPage() {
   const user = await requireUser();
@@ -39,31 +32,14 @@ export default async function AdminPage() {
       ) : (
         <ul className="flex flex-col gap-2">
           {events.map((event) => (
-            <li key={event.id}>
-              <Link
-                href={`/e/${event.id}/manage`}
-                className="no-underline flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">
-                    {event.name}
-                  </span>
-                  <span className="block truncate text-xs text-hint">
-                    Organized by {event.organizerUser.displayName}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-3 text-sm text-hint">
-                  {event.archivedAt !== null && (
-                    <span className="text-xs">Archived</span>
-                  )}
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[event.status]}`}
-                  >
-                    {statusLabel(event.status)}
-                  </span>
-                </span>
-              </Link>
-            </li>
+            <EventRow
+              key={event.id}
+              href={`/e/${event.id}/manage`}
+              name={event.name}
+              organizerName={event.organizerUser.displayName}
+              status={event.status}
+              note={event.archivedAt !== null ? "Archived" : undefined}
+            />
           ))}
         </ul>
       )}

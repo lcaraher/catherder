@@ -2,71 +2,9 @@ import Link from "next/link";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { canEditResponse } from "@/domain/response-access";
-import { statusLabel } from "@/domain/status-label";
 import { Pane } from "@/components/pane";
-import { PRIMARY, SECONDARY_SM } from "@/components/button-classes";
-import { ResultsIcon } from "@/components/results-icon";
-
-const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-badge-draft text-badge-draft-text",
-  OPEN: "bg-badge-open text-badge-open-text",
-  CLOSED: "bg-badge-closed text-badge-closed-text",
-};
-
-// One inbox row: the event, who organizes it, its status, and the viewer's
-// own state — never anything about other people.
-function EventRow({
-  href,
-  name,
-  organizerName,
-  status,
-  note,
-  resultsHref,
-}: {
-  href: string;
-  name: string;
-  /** The event's Organizer; events without one show no second line. */
-  organizerName?: string;
-  status: string;
-  note?: string;
-  /** Link to shared results; only passed when results are actually shared. */
-  resultsHref?: string;
-}) {
-  return (
-    <li>
-      <Link
-        href={href}
-        className="no-underline flex items-center justify-between gap-3 rounded border border-edge px-4 py-3 hover:bg-surface-muted row-edge"
-      >
-        <span className="min-w-0">
-          <span className="block truncate font-medium">{name}</span>
-          {organizerName && (
-            <span className="block truncate text-xs text-hint">
-              Organized by {organizerName}
-            </span>
-          )}
-        </span>
-        <span className="flex shrink-0 items-center gap-3 text-sm text-hint">
-          {note && <span className="text-xs">{note}</span>}
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
-          >
-            {statusLabel(status)}
-          </span>
-        </span>
-      </Link>
-      {resultsHref && (
-        <Link
-          href={resultsHref}
-          className={`${SECONDARY_SM} mt-1 no-underline inline-flex items-center gap-1.5`}
-        >
-          <ResultsIcon />
-          See shared results
-        </Link>
-      )}
-    </li>
-  );
-}
+import { PRIMARY } from "@/components/button-classes";
+import { EventRow } from "@/components/event-row";
 
 export default async function Home() {
   const user = await getSessionUser();
@@ -188,29 +126,31 @@ export default async function Home() {
             <Pane>
               <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Your responses</h2>
               <ul className="flex flex-col gap-2">
-                {submitted.map((p) => (
-                  <EventRow
-                    key={p.eventId}
-                    href={`/e/${p.eventId}/respond`}
-                    name={p.event.name}
-                    organizerName={p.event.organizerUser?.displayName}
-                    status={p.event.status}
-                    resultsHref={
-                      p.event.resultsRevealedAt !== null
-                        ? `/e/${p.eventId}/responses`
-                        : undefined
-                    }
-                    note={
-                      canEditResponse({
-                        eventStatus: p.event.status,
-                        editUnlockedAt: p.editUnlockedAt,
-                        archivedAt: p.event.archivedAt,
-                      })
-                        ? "You can still change it"
-                        : "Locked"
-                    }
-                  />
-                ))}
+                {submitted.map((p) => {
+                  const editable = canEditResponse({
+                    eventStatus: p.event.status,
+                    editUnlockedAt: p.editUnlockedAt,
+                    archivedAt: p.event.archivedAt,
+                  });
+                  return (
+                    <EventRow
+                      key={p.eventId}
+                      href={`/e/${p.eventId}/respond`}
+                      name={p.event.name}
+                      organizerName={p.event.organizerUser?.displayName}
+                      status={p.event.status}
+                      resultsHref={
+                        p.event.resultsRevealedAt !== null
+                          ? `/e/${p.eventId}/responses`
+                          : undefined
+                      }
+                      note={
+                        editable ? "Your response can still be changed." : "Locked"
+                      }
+                      notePencil={editable}
+                    />
+                  );
+                })}
               </ul>
             </Pane>
           )}

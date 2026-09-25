@@ -95,18 +95,23 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 </span>
               ))}
             </Link>
-            <Link href="/availability" className={navLink}>
-              Availability
-            </Link>
-            <Link href="/join" className={navLink}>
-              Join an event
-            </Link>
-            <Link href="/help" className={navLink}>
-              How do?
-            </Link>
-            <span className="ml-auto flex items-center gap-4">
-              <span className="font-small font-medium">{user.displayName}</span>
-              <a href="/logout" className={navLink}>
+            {/* Phones: a second row under a line; from sm the links sit in the one row. */}
+            <div className="flex w-full justify-between border-t border-edge pt-2 max-sm:order-2 sm:contents">
+              <Link href="/availability" className={navLink}>
+                Availability
+              </Link>
+              <Link href="/join" className={navLink}>
+                Join an event
+              </Link>
+              <Link href="/help" className={navLink}>
+                How do?
+              </Link>
+            </div>
+            <span className="ml-auto flex items-center justify-end gap-4 max-sm:order-1 max-sm:grow max-sm:basis-0">
+              <span className="font-small font-medium break-words text-right">
+                {user.displayName}
+              </span>
+              <a href="/logout" className={`${navLink} whitespace-nowrap`}>
                 Log out
               </a>
             </span>
