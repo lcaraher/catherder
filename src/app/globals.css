@@ -874,6 +874,62 @@
   }
 }
 
+/* Placeholder bar: the hint colour faintly mixed into the card surface. */
+@utility skeleton-bar {
+  background: color-mix(in srgb, var(--hint) 22%, var(--surface-card));
+}
+
+/* A band of light sweeps across the element, repeating; still under reduced motion. */
+@utility shimmer {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--foreground) 10%, transparent) 50%,
+      transparent 70%
+    );
+    background-size: 250% 100%;
+    animation: shimmer-sweep 1.1s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      display: none;
+    }
+  }
+}
+
+@keyframes shimmer-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Hidden for the first 0.3 s, then fades in; a fast page never shows it. */
+@utility loading-delay {
+  animation: loading-in 200ms ease 300ms both;
+  @media (prefers-reduced-motion: reduce) {
+    animation-duration: 0s;
+  }
+}
+
+@keyframes loading-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 body {
   background-color: var(--surface);
   color: var(--foreground);

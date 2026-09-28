@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DEFAULT_THEME, THEME_NAMES, type Theme } from "@/domain/theme";
 
 const FOCUS_RING =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
+// Repaints the page in a theme without a server round trip.
+function applyTheme(value: Theme) {
+  document.documentElement.dataset.theme = value;
+}
+
 /**
  * A light/not-light switch with a dot beneath it that opens a picker of
- * every theme. Each choice is saved, then the route refreshes to re-render the theme.
+ * every theme. A choice applies at once and is saved in the background.
  */
 export function ThemeControls({
   initialTheme,
@@ -18,7 +22,6 @@ export function ThemeControls({
   initialTheme: Theme;
   themes: readonly Theme[];
 }) {
-  const router = useRouter();
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +34,7 @@ export function ThemeControls({
     if (saving.current || value === theme) return;
     saving.current = true;
     const previous = theme;
+    applyTheme(value);
     setTheme(value);
     setError("");
     try {
@@ -40,8 +44,8 @@ export function ThemeControls({
         body: JSON.stringify({ theme: value }),
       });
       if (!response.ok) throw new Error(`save failed (${response.status})`);
-      router.refresh();
     } catch {
+      applyTheme(previous);
       setTheme(previous);
       setError("Could not save the theme. Try again.");
     }
