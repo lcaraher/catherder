@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Link from "next/link";
@@ -9,6 +8,7 @@ import { THEMES } from "@/domain/theme";
 import { Footer } from "@/components/footer";
 import { Logo } from "@/components/logo";
 import { ThemeControls } from "@/components/theme-controls";
+import { Wordmark } from "@/components/wordmark";
 
 // Self-hosted faces from public/fonts; each sets one CSS variable for the
 // role it plays (see ASSETS-LICENSES.md).
@@ -59,7 +59,6 @@ const fontClasses = [wordmark, heading, small, body, digits, pixel]
   .join(" ");
 
 const navLink = "font-small font-medium nav-comet";
-const WORDMARK = "catherder";
 
 export const metadata: Metadata = {
   title: "catherder",
@@ -84,16 +83,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               className="letter-hop inline-flex items-center font-wordmark text-xl font-extrabold"
             >
               <Logo size={28} className="mr-2" />
-              <span className="sr-only">{WORDMARK}</span>
-              {[...WORDMARK].map((letter, i) => (
-                <span
-                  key={i}
-                  aria-hidden="true"
-                  style={{ "--i": i } as CSSProperties}
-                >
-                  {letter}
-                </span>
-              ))}
+              <Wordmark />
             </Link>
             {/* Phones: a second row under a line; from sm the links sit in the one row. */}
             <div className="flex w-full justify-between border-t border-edge pt-2 max-sm:order-2 sm:contents">

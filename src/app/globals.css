@@ -662,6 +662,11 @@
   background-repeat: no-repeat;
 }
 
+/* Soft two-colour glow around a card; transparent on flat themes. */
+@utility card-glow {
+  box-shadow: 0 0 22px -2px var(--glow-a), 0 0 34px -4px var(--glow-b);
+}
+
 /* Header link: on hover or focus a two-colour comet laps a ring around the
  * link once. The negative margin keeps the link's box and the header height. */
 @utility nav-comet {

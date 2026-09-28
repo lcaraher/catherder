@@ -5,21 +5,32 @@ import { canEditResponse } from "@/domain/response-access";
 import { Pane } from "@/components/pane";
 import { PRIMARY } from "@/components/button-classes";
 import { EventRow } from "@/components/event-row";
+import { Logo } from "@/components/logo";
+import { Wordmark } from "@/components/wordmark";
 
 export default async function Home() {
   const user = await getSessionUser();
   if (!user) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-4">
-        <Pane as="div" className="flex flex-col items-center gap-2 px-8 py-6">
-          <h1 className="text-3xl font-semibold">catherder</h1>
-          <a href="/login" className="text-sm">
-            Sign in
-          </a>
-          <Link href="/join" className="text-sm text-hint">
-            Have an invite code?
-          </Link>
-        </Pane>
+        <div className="flex flex-col items-center gap-4 rounded-card border-2 accent-gradient-border card-glow px-8 py-7 text-center max-sm:w-full max-sm:px-5">
+          <Logo size={72} />
+          <h1 className="letter-hop font-wordmark text-4xl font-extrabold sm:text-5xl">
+            <Wordmark />
+          </h1>
+          {/* Place subtitle text here later. <p className="max-w-xs text-hint">Place subtitle text here later.</p> */}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 max-sm:flex-col max-sm:items-stretch max-sm:self-stretch">
+            <a href="/login" className={`${PRIMARY} no-underline text-center`}>
+              Sign in
+            </a>
+            <Link
+              href="/join"
+              className="font-small text-sm font-medium nav-comet no-underline max-sm:self-center"
+            >
+              Have an invite code?
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
