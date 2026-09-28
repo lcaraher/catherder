@@ -211,7 +211,7 @@ export default async function ResponsesPage({
       )}
 
       <Pane className="mb-6">
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Participants</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Participants</h2>
         {event.organizerUser && (
           <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
             Organized by{" "}
@@ -295,7 +295,7 @@ export default async function ResponsesPage({
       </Pane>
 
       <Pane className="mb-6">
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Overlap</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Overlap</h2>
         <p className="mb-3 text-xs text-hint">
           Each cell shows available · tentative. Select a cell to see who is
           in it.
@@ -318,7 +318,7 @@ export default async function ResponsesPage({
 
       {event.questions.length > 0 && (
         <Pane>
-          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Questions</h2>
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Questions</h2>
           <div className="flex flex-col gap-4">
             {event.questions.map((question, index) => {
               const visible = canViewQuestionAnswers({

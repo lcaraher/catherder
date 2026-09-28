@@ -38,20 +38,31 @@ export function QuestionPromptForm({
           event.preventDefault();
         }
       }}
-      className="mb-2 flex items-center gap-2"
+      className="mb-2"
     >
       <input type="hidden" name="questionId" value={questionId} />
-      <input
-        name="prompt"
-        defaultValue={initialPrompt}
-        className="flex-1 rounded border border-edge-strong bg-field px-2 py-1 text-sm"
-      />
-      <button
-        type="submit"
-        className={SECONDARY_SM}
-      >
-        Save prompt
-      </button>
+      <div>
+        <label
+          htmlFor={`question-prompt-${questionId}`}
+          className="mb-1 block text-muted"
+        >
+          Question
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            id={`question-prompt-${questionId}`}
+            name="prompt"
+            defaultValue={initialPrompt}
+            className="flex-1 rounded border border-edge-strong bg-field px-2 py-1 text-sm"
+          />
+          <button
+            type="submit"
+            className={SECONDARY_SM}
+          >
+            Save prompt
+          </button>
+        </div>
+      </div>
     </form>
   );
 }

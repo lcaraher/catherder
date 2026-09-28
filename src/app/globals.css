@@ -879,6 +879,21 @@
   }
 }
 
+/* First-visit note, placed from the theme button by --note-x and --note-y. */
+@utility pointer-note {
+  position: fixed;
+  left: var(--note-x);
+  top: var(--note-y);
+}
+
+/* The note's arrow, above the note at --arrow-x, its tail on the note's top edge. */
+@utility pointer-arrow {
+  position: absolute;
+  left: var(--arrow-x);
+  top: -2.25rem;
+  pointer-events: none;
+}
+
 /* Placeholder bar: the hint colour faintly mixed into the card surface. */
 @utility skeleton-bar {
   background: color-mix(in srgb, var(--hint) 22%, var(--surface-card));
@@ -941,11 +956,13 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-heading);
-  font-weight: 600;
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+  }
 }
 
 main a:not(.no-underline) {

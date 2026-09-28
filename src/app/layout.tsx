@@ -8,6 +8,7 @@ import { THEMES } from "@/domain/theme";
 import { Footer } from "@/components/footer";
 import { Logo } from "@/components/logo";
 import { ThemeControls } from "@/components/theme-controls";
+import { ThemePointer } from "@/components/theme-pointer";
 import { Wordmark } from "@/components/wordmark";
 
 // Self-hosted faces from public/fonts; each sets one CSS variable for the
@@ -96,8 +97,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/help" className={navLink}>
                 How do?
               </Link>
+              {/* From sm: pushed right, one gap-4 from the name like the group it joins. */}
+              <div className="sm:ml-auto sm:-mr-2">
+                <ThemeControls initialTheme={theme} themes={THEMES} opens="down" />
+                <ThemePointer targetId="theme-button" />
+              </div>
             </div>
-            <span className="ml-auto flex items-center justify-end gap-4 max-sm:order-1 max-sm:grow max-sm:basis-0">
+            <span className="flex items-center justify-end gap-4 max-sm:order-1 max-sm:ml-auto max-sm:grow max-sm:basis-0">
               <span className="font-small font-medium break-words text-right">
                 {user.displayName}
               </span>
@@ -108,14 +114,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </header>
         )}
         {children}
-        <Footer />
-        <div
-          role="region"
-          aria-label="Theme"
-          className="fixed bottom-4 left-4 z-50"
-        >
-          <ThemeControls initialTheme={theme} themes={THEMES} />
-        </div>
+        <Footer
+          themeControls={user ? null : { initialTheme: theme, themes: THEMES }}
+        />
       </body>
     </html>
   );

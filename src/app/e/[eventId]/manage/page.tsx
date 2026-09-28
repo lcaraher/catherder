@@ -271,7 +271,7 @@ export default async function EventPage({
       </div>
 
       <Pane className="mb-6">
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Invite people</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Invite people</h2>
         {event.invite ? (
           <InvitePanel
             eventId={event.id}
@@ -295,7 +295,7 @@ export default async function EventPage({
       </Pane>
 
       <Pane className="mb-6">
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Description</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Description</h2>
         <div className="flex flex-col gap-3 rounded border border-edge p-3">
           <EventDescriptionForm
             action={updateEventDescription}
@@ -311,7 +311,7 @@ export default async function EventPage({
       </Pane>
 
       <Pane className="mb-6">
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Results sharing</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Results sharing</h2>
         <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
           <p className="text-muted">
             {event.resultsRevealedAt
@@ -370,7 +370,7 @@ export default async function EventPage({
       </Pane>
 
       <Pane className="mb-6">
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Edit event</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Edit event</h2>
         <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
         <form action={updateEvent} className="flex flex-col gap-3">
           <input type="hidden" name="eventId" value={event.id} />
@@ -519,7 +519,7 @@ export default async function EventPage({
       </Pane>
 
       <Pane className="mb-6">
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Participants</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Participants</h2>
         {!event.organizerParticipates && (
           <p className="mb-3 flex items-center gap-2 text-sm">
             Organized by{" "}
@@ -632,7 +632,7 @@ export default async function EventPage({
 
       {viewerManagesOwnAvailability && (
         <Pane className="mb-6">
-          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">
             Your availability for this event
           </h2>
           {organizerAvailabilityRanges.length === 0 && (
@@ -652,7 +652,7 @@ export default async function EventPage({
       )}
 
       <Pane>
-        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Questions</h2>
+        <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Questions</h2>
         {event.questions.length === 0 ? (
           <p className="mb-4 text-sm text-hint">No questions yet.</p>
         ) : (
@@ -824,19 +824,27 @@ export default async function EventPage({
                         />
                       ))}
                     </ul>
-                    <form
-                      action={addQuestionOption}
-                      className="flex items-center gap-2"
-                    >
+                    <form action={addQuestionOption}>
                       <input type="hidden" name="questionId" value={question.id} />
-                      <input
-                        name="label"
-                        placeholder="New option"
-                        className={`flex-1 ${inputClass}`}
-                      />
-                      <button type="submit" className={SECONDARY_SM}>
-                        Add option
-                      </button>
+                      <div>
+                        <label
+                          htmlFor={`new-option-${question.id}`}
+                          className="mb-1 block text-muted"
+                        >
+                          New option
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            id={`new-option-${question.id}`}
+                            name="label"
+                            placeholder="New option"
+                            className={`flex-1 ${inputClass}`}
+                          />
+                          <button type="submit" className={SECONDARY_SM}>
+                            Add option
+                          </button>
+                        </div>
+                      </div>
                     </form>
                   </div>
                 )}
@@ -846,22 +854,49 @@ export default async function EventPage({
           </>
         )}
 
-        <h3 className="mb-2 text-sm font-medium">Add a question</h3>
+        <h3 className="mb-2 text-sm font-semibold">Add a question</h3>
         <form action={addQuestion} className="flex flex-col gap-2 text-sm">
           <input type="hidden" name="eventId" value={event.id} />
-          <Select name="type" className={selectClass}>
-            <option value="SINGLE_CHOICE">Single choice</option>
-            <option value="MULTI_CHOICE">Multiple choice</option>
-            <option value="TEXT">Text</option>
-            <option value="RANKING">Ranking</option>
-          </Select>
-          <input name="prompt" placeholder="Prompt" required className={inputClass} />
-          <textarea
-            name="options"
-            rows={3}
-            placeholder={"Options, one per line (not used for Text questions)"}
-            className={inputClass}
-          />
+          <div>
+            <label htmlFor="add-question-type" className="mb-1 block text-muted">
+              Question type
+            </label>
+            <Select
+              id="add-question-type"
+              name="type"
+              className={selectClass}
+              wrapperClassName="w-full"
+            >
+              <option value="SINGLE_CHOICE">Single choice</option>
+              <option value="MULTI_CHOICE">Multiple choice</option>
+              <option value="TEXT">Text</option>
+              <option value="RANKING">Ranking</option>
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="add-question-prompt" className="mb-1 block text-muted">
+              Question
+            </label>
+            <input
+              id="add-question-prompt"
+              name="prompt"
+              placeholder="Prompt"
+              required
+              className={`w-full ${inputClass}`}
+            />
+          </div>
+          <div>
+            <label htmlFor="add-question-options" className="mb-1 block text-muted">
+              Options
+            </label>
+            <textarea
+              id="add-question-options"
+              name="options"
+              rows={3}
+              placeholder={"Options, one per line (not used for Text questions)"}
+              className={`block w-full ${inputClass}`}
+            />
+          </div>
           <div>
             <button type="submit" className={SECONDARY_SM}>
               Add question

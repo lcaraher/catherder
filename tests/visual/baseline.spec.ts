@@ -223,12 +223,12 @@ function captureState(
 
     if (!options.signInAs) {
       // Own context: the choice must not reach the shared page's cookie.
-      test(`${title}: the dot opens a picker of every theme`, async ({ browser }) => {
+      test(`${title}: the Theme button opens a list of every theme`, async ({ browser }) => {
         const fresh = await browser.newContext();
         try {
           const visitor = await fresh.newPage();
           await visitor.goto("/join");
-          await visitor.getByRole("button", { name: "More themes" }).click();
+          await visitor.getByRole("button", { name: "Theme", exact: true }).click();
           const picker = visitor.getByRole("group", { name: "Themes" });
           await expect(picker.getByRole("button")).toHaveText(
             THEMES.map((name) => new RegExp(`${THEME_NAMES[name]}$`)),

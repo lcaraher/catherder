@@ -135,7 +135,7 @@ export default async function RespondPage({
         ) : (
           <>
             <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">
                 Your availability
               </h2>
               <p className="mb-3 text-sm font-medium text-hint">
@@ -155,7 +155,7 @@ export default async function RespondPage({
 
             {event.questions.length > 0 && (
               <Pane className="mt-6">
-                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Your answers</h2>
+                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your answers</h2>
                 <ul className="flex flex-col gap-3">
                   {event.questions.map((question, index) => {
                     const answer = answersByQuestion.get(question.id);

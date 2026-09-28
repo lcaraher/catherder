@@ -49,7 +49,7 @@ export default function HelpPage() {
       <div className="flex flex-col gap-6">
         {SECTIONS.map((section) => (
           <Pane key={section.heading}>
-            <h2 className="mb-2 border-b border-edge pb-2 text-lg font-medium">
+            <h2 className="mb-2 border-b border-edge pb-2 text-lg font-semibold">
               {section.heading}
             </h2>
             <p className="text-sm text-muted">{section.body}</p>

@@ -101,6 +101,7 @@ export default async function Home() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <h1 className="sr-only">Your events</h1>
       {/* Every signed-in person may start an event. */}
       <div className="mb-6">
         <Link
@@ -118,7 +119,7 @@ export default async function Home() {
         <div className="flex flex-col gap-6">
           {needsResponse.length > 0 && (
             <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Needs your response</h2>
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Needs your response</h2>
               <ul className="flex flex-col gap-2">
                 {needsResponse.map((p) => (
                   <EventRow
@@ -135,7 +136,7 @@ export default async function Home() {
 
           {submitted.length > 0 && (
             <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Your responses</h2>
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your responses</h2>
               <ul className="flex flex-col gap-2">
                 {submitted.map((p) => {
                   const editable = canEditResponse({
@@ -168,7 +169,7 @@ export default async function Home() {
 
           {activeOrganized.length > 0 && (
             <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Events you run</h2>
+              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Events you run</h2>
               <ul className="flex flex-col gap-2">
                 {activeOrganized.map((event) => (
                   <EventRow

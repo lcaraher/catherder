@@ -481,7 +481,7 @@ export function RespondForm({
 
       {questions.length > 0 && (
         <Pane className="mt-6">
-          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Questions</h2>
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Questions</h2>
           <ul className="flex flex-col gap-3">{questions.map(renderQuestion)}</ul>
         </Pane>
       )}
