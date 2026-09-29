@@ -205,6 +205,7 @@ function captureState(
         // fullPage is not accepted by the config's toHaveScreenshot block.
         await expect(page).toHaveScreenshot(shotName(route, state), {
           fullPage: true,
+          mask: [page.locator("[data-footer-line]")],
         });
       });
     }

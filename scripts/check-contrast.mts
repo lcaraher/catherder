@@ -17,6 +17,7 @@ const PAIRS: Pair[] = [
   ["muted", "surface", 4.5, "text"],
   ["muted", "surface-muted", 4.5, "text"],
   ["muted", "surface-raised", 4.5, "text"],
+  ["muted", "surface-card", 4.5, "text"],
   ["hint", "surface", 4.5, "text"],
   ["hint", "surface-raised", 4.5, "text"],
   ["hint", "surface-card", 4.5, "text"],

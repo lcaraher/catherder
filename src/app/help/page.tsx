@@ -4,32 +4,39 @@ import { Pane } from "@/components/pane";
 // Public help page: no sign-in needed, it holds no data. Section text marked
 // as placeholder is to be rewritten — headings are the real structure.
 
-const SECTIONS: { heading: string; body: string }[] = [
+const SECTIONS: { id: string; heading: string; body: string }[] = [
   {
+    id: "modes",
     heading: "Modes",
     body: "A short explanation of multi-group and single-activity events will go here.",
   },
   {
+    id: "organizer-participates",
     heading: "Organizer also participates",
     body: "A short explanation of the organizer participation switch will go here.",
   },
   {
+    id: "availability",
     heading: "Your availability and time zone",
     body: "A short explanation of the weekly grid and time-zone handling will go here.",
   },
   {
+    id: "joining",
     heading: "Joining by link or code",
     body: "An organizer can share a join link or a short code (it looks like ABCDE-FGHJK). Open the link, or go to Join an event and type the code; capitals, hyphens and spaces do not matter. If you are not signed in yet, you will be asked to sign in first and then brought straight back. Joining adds the event to your home page under Needs your response. A link or code only works while the event is open, and the organizer can replace it at any time, after which the old one stops working.",
   },
   {
+    id: "responding",
     heading: "Responding to an event",
     body: "A short explanation of the respond page and resubmitting will go here.",
   },
   {
+    id: "results",
     heading: "Results sharing and answer visibility",
     body: "A short explanation of when responses become visible will go here.",
   },
   {
+    id: "required",
     heading: "Required questions",
     body: "A short explanation of required questions will go here.",
   },
@@ -48,7 +55,7 @@ export default function HelpPage() {
       </Pane>
       <div className="flex flex-col gap-6">
         {SECTIONS.map((section) => (
-          <Pane key={section.heading}>
+          <Pane key={section.id} id={section.id} className="scroll-mt-4">
             <h2 className="mb-2 border-b border-edge pb-2 text-lg font-semibold">
               {section.heading}
             </h2>

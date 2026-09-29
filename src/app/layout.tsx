@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Link from "next/link";
 import "./globals.css";
+import { buildLabel } from "@/adapters/app-config";
 import { getSessionUser } from "@/adapters/auth";
 import { readThemeCookie } from "@/adapters/theme-cookie";
 import { THEMES } from "@/domain/theme";
 import { Footer } from "@/components/footer";
+import { pickFooterLine } from "@/components/footer-lines";
 import { Logo } from "@/components/logo";
 import { ThemeControls } from "@/components/theme-controls";
 import { ThemePointer } from "@/components/theme-pointer";
@@ -115,7 +117,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         )}
         {children}
         <Footer
-          themeControls={user ? null : { initialTheme: theme, themes: THEMES }}
+          signedIn={Boolean(user)}
+          initialTheme={theme}
+          themes={THEMES}
+          line={pickFooterLine()}
+          build={buildLabel()}
         />
       </body>
     </html>

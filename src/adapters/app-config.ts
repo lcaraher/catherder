@@ -34,3 +34,17 @@ export function getAppConfig(): AppConfig {
 export function appUrl(path: string): URL {
   return new URL(path, getAppConfig().baseUrl);
 }
+
+/** Footer build line from APP_BASE_URL and APP_COMMIT; never throws. */
+export function buildLabel(): string {
+  const commit = process.env.APP_COMMIT?.trim() || "";
+  let host = "";
+  try {
+    host = new URL(process.env.APP_BASE_URL ?? "").hostname;
+  } catch {
+    host = "";
+  }
+  const label = !host || host === "localhost" ? "local" : host.split(".")[0];
+  if (label === "app") return commit;
+  return commit ? `${label} · ${commit}` : label;
+}

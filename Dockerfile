@@ -43,6 +43,8 @@ CMD ["migrate.handler"]
 FROM node:24-slim AS app
 WORKDIR /app
 ENV NODE_ENV=production
+ARG APP_COMMIT
+ENV APP_COMMIT=$APP_COMMIT
 COPY --from=certs /certs/rds-global-bundle.pem /app/certs/rds-global-bundle.pem
 ENV DATABASE_SSL_CA=/app/certs/rds-global-bundle.pem
 # The adapter is a Lambda extension and is inert outside Lambda.

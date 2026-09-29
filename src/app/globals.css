@@ -767,6 +767,71 @@
   }
 }
 
+/* Footer groups: two columns on phones; from sm four signed in, three with data-signed-out. */
+@utility footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  @media (width >= 40rem) {
+    grid-template-columns: 1.15fr 1fr 0.9fr 1.3fr;
+    &[data-signed-out] {
+      grid-template-columns: 1.15fr 1fr 1.3fr;
+    }
+  }
+}
+
+/* Footer name: a two-colour glow fades in behind it while data-glow is set. */
+@utility name-glow {
+  position: relative;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -8px -14px;
+    z-index: -1;
+    border-radius: 9999px;
+    background: radial-gradient(
+      color-mix(in srgb, var(--link-effect-a) 38%, transparent),
+      color-mix(in srgb, var(--link-effect-b) 22%, transparent) 60%,
+      transparent
+    );
+    opacity: 0;
+    transition: opacity 260ms ease;
+    pointer-events: none;
+  }
+  &[data-glow]::before {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::before {
+      transition: none;
+    }
+  }
+}
+
+/* Footer paw print: 28 square cells of --cell, one digit each. */
+@utility paw-grid {
+  display: grid;
+  grid-template-columns: repeat(28, var(--cell));
+  grid-auto-rows: var(--cell);
+  font-size: var(--cell);
+  line-height: var(--cell);
+  text-align: center;
+}
+
+/* A toe or pad cell, its colour --mix of the way from the first effect stop to the second. */
+@utility paw-cell {
+  color: color-mix(in srgb, var(--link-effect-b) var(--mix), var(--link-effect-a));
+  &[data-kind="t"][data-digit="0"] {
+    opacity: 0.6;
+  }
+  &[data-kind="p"] {
+    opacity: 0.3;
+  }
+  &[data-kind="p"][data-digit="0"] {
+    opacity: 0.2;
+  }
+}
+
 /* Wordmark: on hover or focus each letter hops once, staggered by its --i. */
 @utility letter-hop {
   & > span[aria-hidden="true"] {
