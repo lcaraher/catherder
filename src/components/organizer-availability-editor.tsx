@@ -6,12 +6,14 @@ import {
   cellsToRanges,
   emptyWeek,
   weekFromRanges,
+  weeksEqual,
   weekToCells,
   type AvailabilityRange,
   type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
-import { SaveButton } from "@/components/save-form";
+import { SaveButton, UnsavedNote } from "@/components/save-form";
+import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useWeekGrid } from "@/components/use-week-grid";
 
@@ -37,8 +39,12 @@ export function OrganizerAvailabilityEditor({
   standingRanges,
   clockFormat,
 }: Props) {
-  const { weekRef, gridKey, gridProps, replaceWeek } =
+  const { initialWeek, weekRef, week, gridKey, gridProps, replaceWeek } =
     useWeekGrid(initialRanges);
+  // The last successful save; Save stays dimmed until the painted cells differ from it.
+  const [savedWeek, setSavedWeek] = useState(initialWeek);
+  const dirty = !weeksEqual(week, savedWeek);
+  useUnsavedChangesGuard(() => !weeksEqual(weekRef.current, savedWeek));
   const [status, setStatus] = useState<SaveStatus>("idle");
   // Which button started the last save; its own button shows the result.
   const [savedBy, setSavedBy] = useState<"save" | "clear">("save");
@@ -53,7 +59,7 @@ export function OrganizerAvailabilityEditor({
     setConfirmingReload(false);
   }
 
-  async function put(week: SlotStatus[][], by: "save" | "clear") {
+  async function put(sentWeek: SlotStatus[][], by: "save" | "clear") {
     setSavedBy(by);
     setStatus("saving");
     setErrorMessage("");
@@ -61,7 +67,7 @@ export function OrganizerAvailabilityEditor({
       const response = await fetch(`/api/events/${eventId}/organizer-availability`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ranges: cellsToRanges(weekToCells(week)) }),
+        body: JSON.stringify({ ranges: cellsToRanges(weekToCells(sentWeek)) }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -69,6 +75,7 @@ export function OrganizerAvailabilityEditor({
         } | null;
         throw new Error(body?.error ?? `save failed (${response.status})`);
       }
+      setSavedWeek(sentWeek);
       setStatus("saved");
       window.clearTimeout(savedTimer.current);
       savedTimer.current = window.setTimeout(
@@ -130,11 +137,13 @@ export function OrganizerAvailabilityEditor({
           </div>
         }
       />
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        {dirty && <UnsavedNote size="md" onDiscard={() => replaceWeek(savedWeek)} />}
         <SaveButton
           type="button"
           onClick={() => put(weekRef.current, "save")}
           disabled={status === "saving"}
+          inactive={!dirty}
           className={`${PRIMARY} text-sm`}
           confirmText="Saved"
           confirmation={status === "saved" && savedBy === "save" ? "Saved" : null}

@@ -2,7 +2,14 @@
 
 import { SECONDARY_SM } from "@/components/button-classes";
 import { Checkbox, Select } from "@/components/form-controls";
-import { SaveButton, SaveMessage, useSaveForm, type SaveAction } from "@/components/save-form";
+import {
+  SaveButton,
+  SaveMessage,
+  UnsavedNote,
+  useSaveForm,
+  type SaveAction,
+} from "@/components/save-form";
+import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 
 const inputClass =
   "rounded border border-edge-strong bg-field px-2 py-1 text-sm aria-invalid:border-error";
@@ -27,7 +34,11 @@ interface Props {
 
 /** The Edit event form on the manage page. */
 export function EditEventForm({ action, event, participants }: Props) {
-  const { formProps, confirmation, error, errorId, fieldProps } = useSaveForm({ action });
+  const { formProps, confirmation, error, errorId, fieldProps, dirty, discard } = useSaveForm({
+    action,
+    trackChanges: true,
+  });
+  useUnsavedChangesGuard(() => dirty);
 
   return (
     <form {...formProps} className="flex flex-col gap-3">
@@ -133,9 +144,17 @@ export function EditEventForm({ action, event, participants }: Props) {
         change it later, and it does not limit what participants submit.
       </p>
       <div>
-        <SaveButton className={SECONDARY_SM} confirmText="Saved" confirmation={confirmation}>
-          Save changes
-        </SaveButton>
+        <div className="flex flex-wrap items-center gap-2">
+          {dirty && <UnsavedNote onDiscard={discard} />}
+          <SaveButton
+            inactive={!dirty}
+            className={SECONDARY_SM}
+            confirmText="Saved"
+            confirmation={confirmation}
+          >
+            Save changes
+          </SaveButton>
+        </div>
         <SaveMessage error={error} id={errorId} />
       </div>
     </form>

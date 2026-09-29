@@ -17,6 +17,7 @@ import {
   type ReactNode,
 } from "react";
 import { unstable_rethrow } from "next/navigation";
+import { SECONDARY, SECONDARY_SM } from "@/components/button-classes";
 import { SAVE_FAILED, saveError, type SaveResult } from "@/domain/save-result";
 
 const CONFIRM_MS = 2000;
@@ -60,11 +61,6 @@ export function useConfirmation(key: string): string | null {
   return useContext(ConfirmationContext)?.shown[key] ?? null;
 }
 
-/** Every confirmation currently shown, by key. */
-export function useShownConfirmations(): Confirmations {
-  return useContext(ConfirmationContext)?.shown ?? {};
-}
-
 /** Shows `entries` as the page's confirmations; a no-op outside SaveConfirmations. */
 export function useShowConfirmations(): (entries: Confirmations) => void {
   const store = useContext(ConfirmationContext);
@@ -83,6 +79,15 @@ interface Options {
   resetOnSave?: boolean;
   /** Returns false to cancel the submission. */
   beforeSubmit?: (form: HTMLFormElement) => boolean;
+  /** Runs after a save succeeds, with the data that was saved. */
+  onSaved?: (formData: FormData) => void;
+  /** Compares the form's fields with their saved values, for `dirty` and `discard`. */
+  trackChanges?: boolean;
+}
+
+/** A form's fields as one comparable string. */
+function serialize(data: FormData): string {
+  return JSON.stringify([...data.entries()].map(([name, value]) => [name, String(value)]));
 }
 
 /** Runs a form's server action, confirms a save and reports why one failed. */
@@ -92,6 +97,8 @@ export function useSaveForm({
   confirms,
   resetOnSave = false,
   beforeSubmit,
+  onSaved,
+  trackChanges = false,
 }: Options) {
   const ownKey = useId();
   const key = confirmKey ?? ownKey;
@@ -100,6 +107,12 @@ export function useSaveForm({
   const show = useShowConfirmations();
   const confirmation = useConfirmation(key);
   const [dismissed, setDismissed] = useState<SaveResult | null>(null);
+  const baseline = useRef<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (trackChanges && formRef.current) baseline.current = serialize(new FormData(formRef.current));
+  }, [trackChanges]);
 
   const [state, dispatch, pending] = useActionState(
     async (_previous: SaveResult | null, formData: FormData): Promise<SaveResult> => {
@@ -113,6 +126,11 @@ export function useSaveForm({
       if (result.ok) {
         show(typeof confirms === "function" ? confirms(formData) : (confirms ?? { [key]: "Saved" }));
         if (resetOnSave) formRef.current?.reset();
+        if (trackChanges) baseline.current = serialize(formData);
+        startTransition(() => {
+          if (trackChanges) setDirty(false);
+          onSaved?.(formData);
+        });
       }
       return result;
     },
@@ -139,6 +157,16 @@ export function useSaveForm({
   const onChange = (event: ChangeEvent<HTMLFormElement>) => {
     const name = (event.target as { name?: string }).name;
     if (error?.field && name === error.field) setDismissed(state);
+    if (trackChanges && baseline.current !== null) {
+      setDirty(serialize(new FormData(event.currentTarget)) !== baseline.current);
+    }
+  };
+
+  /** Puts every field back to its saved value. */
+  const discard = () => {
+    formRef.current?.reset();
+    setDirty(false);
+    setDismissed(state);
   };
 
   /** Invalid-state attributes for the field named `name`. */
@@ -155,7 +183,31 @@ export function useSaveForm({
     errorId,
     fieldProps,
     pending,
+    dirty,
+    discard,
+    /** Hides the current message, for forms that put their own fields back. */
+    clearError: () => setDismissed(state),
   };
+}
+
+/** "Unsaved changes" and a Discard button, at the start of a form's button row. */
+export function UnsavedNote({
+  onDiscard,
+  size = "sm",
+}: {
+  onDiscard: () => void;
+  size?: "sm" | "md";
+}) {
+  return (
+    <>
+      <span data-unsaved className={`${size === "sm" ? "text-xs" : "text-sm"} text-status-unlocked`}>
+        Unsaved changes
+      </span>
+      <button type="button" onClick={onDiscard} className={size === "sm" ? SECONDARY_SM : SECONDARY}>
+        Discard
+      </button>
+    </>
+  );
 }
 
 type SaveButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -165,6 +217,8 @@ type SaveButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   confirmation: string | null;
   /** Confirms with the tick alone over its label, at its own width. */
   tickOnly?: boolean;
+  /** Nothing to save: dimmed and inert, but still focusable. */
+  inactive?: boolean;
   labelClassName?: string;
 };
 
@@ -173,17 +227,34 @@ export function SaveButton({
   confirmText,
   confirmation,
   tickOnly = false,
+  inactive = false,
   labelClassName = "",
   className = "",
   children,
   type = "submit",
+  onClick,
   ...props
 }: SaveButtonProps) {
   const confirming = confirmation === confirmText;
+  const blocked = inactive && !confirming;
+  const buttonClass = blocked ? `${className} aria-disabled:opacity-50` : className;
+  const handleClick: typeof onClick = (event) => {
+    if (blocked) {
+      event.preventDefault();
+      return;
+    }
+    onClick?.(event);
+  };
 
   if (tickOnly) {
     return (
-      <button type={type} {...props} className={`relative ${className}`}>
+      <button
+        type={type}
+        {...props}
+        aria-disabled={blocked || undefined}
+        onClick={handleClick}
+        className={`relative ${buttonClass}`}
+      >
         <span className={`${labelClassName} ${confirming ? "opacity-0" : ""}`}>{children}</span>
         {confirming && (
           <span
@@ -198,7 +269,13 @@ export function SaveButton({
   }
 
   return (
-    <button type={type} {...props} className={className}>
+    <button
+      type={type}
+      {...props}
+      aria-disabled={blocked || undefined}
+      onClick={handleClick}
+      className={buttonClass}
+    >
       {confirming ? (
         <>
           <span className="sr-only">{children}</span>

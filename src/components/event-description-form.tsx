@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { SECONDARY_SM } from "@/components/button-classes";
-import { SaveButton, SaveMessage, useSaveForm, type SaveAction } from "@/components/save-form";
+import {
+  SaveButton,
+  SaveMessage,
+  UnsavedNote,
+  useSaveForm,
+  type SaveAction,
+} from "@/components/save-form";
+import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
 
 interface Props {
@@ -15,8 +22,14 @@ interface Props {
 /** Description editor on the event page, with the text-answer style counter. */
 export function EventDescriptionForm({ action, eventId, initialText }: Props) {
   const [text, setText] = useState(initialText);
+  const [savedText, setSavedText] = useState(initialText);
   const overCap = text.length > EVENT_DESCRIPTION_MAX_LENGTH;
-  const { formProps, confirmation, error, errorId, fieldProps } = useSaveForm({ action });
+  const dirty = text !== savedText;
+  useUnsavedChangesGuard(() => dirty);
+  const { formProps, confirmation, error, errorId, fieldProps } = useSaveForm({
+    action,
+    onSaved: (formData) => setSavedText(String(formData.get("description") ?? "")),
+  });
 
   return (
     <form {...formProps} className="flex flex-col gap-2 text-sm">
@@ -37,9 +50,17 @@ export function EventDescriptionForm({ action, eventId, initialText }: Props) {
         {text.length}/{EVENT_DESCRIPTION_MAX_LENGTH}
       </p>
       <div>
-        <SaveButton className={SECONDARY_SM} confirmText="Saved" confirmation={confirmation}>
-          Save
-        </SaveButton>
+        <div className="flex flex-wrap items-center gap-2">
+          {dirty && <UnsavedNote onDiscard={() => setText(savedText)} />}
+          <SaveButton
+            inactive={!dirty}
+            className={SECONDARY_SM}
+            confirmText="Saved"
+            confirmation={confirmation}
+          >
+            Save
+          </SaveButton>
+        </div>
         <SaveMessage error={error} id={errorId} />
       </div>
     </form>

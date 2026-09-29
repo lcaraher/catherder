@@ -860,6 +860,13 @@
   }
 }
 
+/* A pane or card holding a form with unsaved changes (a [data-unsaved] inside it). */
+@utility unsaved-frame {
+  &:has([data-unsaved]) {
+    border-color: var(--status-unlocked);
+  }
+}
+
 /* Button: sinks slightly while pressed. */
 @utility press {
   transition: transform 80ms ease;
