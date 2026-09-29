@@ -1,6 +1,13 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
+import {
+  SaveButton,
+  SaveMessage,
+  useSaveForm,
+  useShownConfirmations,
+  type SaveAction,
+} from "@/components/save-form";
 
 const FOCUS_RING =
   "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
@@ -19,7 +26,7 @@ interface Props {
   /** Client mode: the segments are radios and this receives the new value. */
   onChange?: (value: string) => void;
   /** Form mode: each segment submits `name=value` to the action. */
-  action?: (formData: FormData) => void | Promise<void>;
+  action?: SaveAction;
   name?: string;
   /** Form mode only: hidden inputs the action needs. */
   children?: ReactNode;
@@ -61,28 +68,19 @@ export function Segmented({
 
   if (action) {
     return (
-      <form
+      <SegmentedForm
         action={action}
+        name={name ?? ""}
+        label={label}
+        options={options}
+        value={value}
         className={group}
         style={groupStyle}
-        aria-label={label}
+        highlight={highlight}
+        segment={segment}
       >
         {children}
-        {highlight}
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="submit"
-            name={name}
-            value={option.value}
-            aria-pressed={option.value === value}
-            title={option.title}
-            className={segment(option.value === value)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </form>
+      </SegmentedForm>
     );
   }
 
@@ -107,6 +105,63 @@ export function Segmented({
           {option.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Form mode: the clicked segment confirms the save in its own words. */
+function SegmentedForm({
+  action,
+  name,
+  label,
+  options,
+  value,
+  className,
+  style,
+  highlight,
+  segment,
+  children,
+}: {
+  action: SaveAction;
+  name: string;
+  label: string;
+  options: SegmentedOption[];
+  value: string;
+  className: string;
+  style: CSSProperties;
+  highlight: ReactNode;
+  segment: (active: boolean) => string;
+  children: ReactNode;
+}) {
+  const formKey = useId();
+  const shown = useShownConfirmations();
+  const { formProps, error, errorId } = useSaveForm({
+    action,
+    confirms: (formData) => ({ [`${formKey}:${formData.get(name)}`]: "Saved" }),
+  });
+
+  return (
+    <div>
+      <form {...formProps} className={className} style={style} aria-label={label}>
+        {children}
+        {highlight}
+        {options.map((option) => (
+          <SaveButton
+            key={option.value}
+            name={name}
+            value={option.value}
+            aria-pressed={option.value === value}
+            title={option.title}
+            className={segment(option.value === value)}
+            labelClassName="inline-flex items-center justify-center gap-1.5"
+            confirmText="Saved"
+            confirmation={shown[`${formKey}:${option.value}`] ?? null}
+          >
+            {option.label}
+          </SaveButton>
+        ))}
+      </form>
+      <SaveMessage error={error} id={errorId} />
     </div>
   );
 }

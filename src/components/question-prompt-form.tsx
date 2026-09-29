@@ -1,10 +1,11 @@
 "use client";
 
 import { SECONDARY_SM } from "@/components/button-classes";
+import { SaveButton, SaveMessage, useSaveForm, type SaveAction } from "@/components/save-form";
 
 interface Props {
   /** The updateQuestionPrompt server action, passed down from the page. */
-  action: (formData: FormData) => void | Promise<void>;
+  action: SaveAction;
   questionId: string;
   initialPrompt: string;
   /** Whether answers exist — a changed prompt then starts a fresh version. */
@@ -21,25 +22,22 @@ export function QuestionPromptForm({
   initialPrompt,
   hasAnswers,
 }: Props) {
+  const { formProps, confirmation, error, errorId, fieldProps } = useSaveForm({
+    action,
+    beforeSubmit: (form) => {
+      const prompt = (form.elements.namedItem("prompt") as HTMLInputElement).value;
+      return (
+        !hasAnswers ||
+        prompt === initialPrompt ||
+        confirm(
+          "People have already answered this question. Changing the wording starts a fresh version; their answers stay with the old wording. Continue?",
+        )
+      );
+    },
+  });
+
   return (
-    <form
-      action={action}
-      onSubmit={(event) => {
-        const prompt = (
-          event.currentTarget.elements.namedItem("prompt") as HTMLInputElement
-        ).value;
-        if (
-          hasAnswers &&
-          prompt !== initialPrompt &&
-          !confirm(
-            "People have already answered this question. Changing the wording starts a fresh version; their answers stay with the old wording. Continue?",
-          )
-        ) {
-          event.preventDefault();
-        }
-      }}
-      className="mb-2"
-    >
+    <form {...formProps} className="mb-2">
       <input type="hidden" name="questionId" value={questionId} />
       <div>
         <label
@@ -53,15 +51,14 @@ export function QuestionPromptForm({
             id={`question-prompt-${questionId}`}
             name="prompt"
             defaultValue={initialPrompt}
-            className="flex-1 rounded border border-edge-strong bg-field px-2 py-1 text-sm"
+            {...fieldProps("prompt")}
+            className="flex-1 rounded border border-edge-strong bg-field px-2 py-1 text-sm aria-invalid:border-error"
           />
-          <button
-            type="submit"
-            className={SECONDARY_SM}
-          >
+          <SaveButton className={SECONDARY_SM} confirmText="Saved" confirmation={confirmation}>
             Save prompt
-          </button>
+          </SaveButton>
         </div>
+        <SaveMessage error={error} id={errorId} />
       </div>
     </form>
   );

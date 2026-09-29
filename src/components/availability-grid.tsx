@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { PRIMARY } from "@/components/button-classes";
+import { SaveButton } from "@/components/save-form";
 import {
   cellsToRanges,
   weekFromRanges,
@@ -27,6 +28,7 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
   // The editor owns the on-screen week; we only need the latest value at save.
   const weekRef = useRef<SlotStatus[][]>(initialWeek);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const savedTimer = useRef<number | undefined>(undefined);
 
   // The last successful save; dirtiness compares against it, so painting a
   // cell and painting it back leaves the form clean.
@@ -49,7 +51,11 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
       if (!response.ok) throw new Error(`save failed (${response.status})`);
       savedRef.current = sentWeek;
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus((s) => (s === "saved" ? "idle" : s)), 2000);
+      window.clearTimeout(savedTimer.current);
+      savedTimer.current = window.setTimeout(
+        () => setSaveStatus((s) => (s === "saved" ? "idle" : s)),
+        2000,
+      );
     } catch {
       setSaveStatus("error");
     }
@@ -59,19 +65,16 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
   function saveControls(margin: string) {
     return (
       <div className={`${margin} flex items-center gap-3`}>
-        <button
+        <SaveButton
           type="button"
           onClick={save}
           disabled={saveStatus === "saving"}
           className={`${PRIMARY} text-sm`}
+          confirmText="Saved"
+          confirmation={saveStatus === "saved" ? "Saved" : null}
         >
           {saveStatus === "saving" ? "Saving…" : "Save"}
-        </button>
-        {saveStatus === "saved" && (
-          <span className="text-sm text-status-submitted">
-            Saved <span className="pop-in">✓</span>
-          </span>
-        )}
+        </SaveButton>
         {saveStatus === "error" && (
           <span className="text-sm text-error">
             Save failed — please try again.
@@ -83,6 +86,9 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
 
   return (
     <div>
+      <p role="status" className="sr-only">
+        {saveStatus === "saved" ? "Saved" : ""}
+      </p>
       {saveControls("mb-4")}
 
       <WeekGridEditor

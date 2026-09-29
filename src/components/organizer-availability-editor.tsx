@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { DANGER, DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import {
   cellsToRanges,
@@ -11,6 +11,7 @@ import {
   type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
+import { SaveButton } from "@/components/save-form";
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useWeekGrid } from "@/components/use-week-grid";
 
@@ -39,6 +40,9 @@ export function OrganizerAvailabilityEditor({
   const { weekRef, gridKey, gridProps, replaceWeek } =
     useWeekGrid(initialRanges);
   const [status, setStatus] = useState<SaveStatus>("idle");
+  // Which button started the last save; its own button shows the result.
+  const [savedBy, setSavedBy] = useState<"save" | "clear">("save");
+  const savedTimer = useRef<number | undefined>(undefined);
   const [errorMessage, setErrorMessage] = useState("");
   const [confirmingReload, setConfirmingReload] = useState(false);
 
@@ -49,7 +53,8 @@ export function OrganizerAvailabilityEditor({
     setConfirmingReload(false);
   }
 
-  async function put(week: SlotStatus[][]) {
+  async function put(week: SlotStatus[][], by: "save" | "clear") {
+    setSavedBy(by);
     setStatus("saving");
     setErrorMessage("");
     try {
@@ -65,7 +70,11 @@ export function OrganizerAvailabilityEditor({
         throw new Error(body?.error ?? `save failed (${response.status})`);
       }
       setStatus("saved");
-      setTimeout(() => setStatus((s) => (s === "saved" ? "idle" : s)), 2000);
+      window.clearTimeout(savedTimer.current);
+      savedTimer.current = window.setTimeout(
+        () => setStatus((s) => (s === "saved" ? "idle" : s)),
+        2000,
+      );
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Save failed.",
@@ -77,7 +86,7 @@ export function OrganizerAvailabilityEditor({
   function clear() {
     const empty = emptyWeek();
     replaceWeek(empty);
-    void put(empty);
+    void put(empty, "clear");
   }
 
   return (
@@ -122,27 +131,29 @@ export function OrganizerAvailabilityEditor({
         }
       />
       <div className="mt-4 flex items-center gap-3">
-        <button
+        <SaveButton
           type="button"
-          onClick={() => put(weekRef.current)}
+          onClick={() => put(weekRef.current, "save")}
           disabled={status === "saving"}
           className={`${PRIMARY} text-sm`}
+          confirmText="Saved"
+          confirmation={status === "saved" && savedBy === "save" ? "Saved" : null}
         >
           {status === "saving" ? "Saving…" : "Save"}
-        </button>
-        <button
+        </SaveButton>
+        <SaveButton
           type="button"
           onClick={clear}
           disabled={status === "saving"}
           className={DANGER}
+          confirmText="Cleared"
+          confirmation={status === "saved" && savedBy === "clear" ? "Cleared" : null}
         >
           Clear
-        </button>
-        {status === "saved" && (
-          <span className="text-sm text-status-submitted">
-            Saved <span className="pop-in">✓</span>
-          </span>
-        )}
+        </SaveButton>
+        <p role="status" className="sr-only">
+          {status === "saved" ? (savedBy === "clear" ? "Cleared" : "Saved") : ""}
+        </p>
         {status === "error" && (
           <span className="text-sm text-error">{errorMessage}</span>
         )}

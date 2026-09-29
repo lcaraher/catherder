@@ -11,6 +11,7 @@ import {
 } from "@/domain/availability";
 import { Checkbox, Radio, Select } from "@/components/form-controls";
 import { Pane } from "@/components/pane";
+import { SaveButton } from "@/components/save-form";
 import { DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useWeekGrid } from "@/components/use-week-grid";
@@ -123,6 +124,7 @@ export function RespondForm({
   const [answers, setAnswers] =
     useState<Record<string, AnswerState>>(initialAnswerState);
   const [status, setStatus] = useState<SubmitStatus>("idle");
+  const [confirming, setConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   // The last successful submit; dirtiness compares against it, so a
@@ -204,6 +206,8 @@ export function RespondForm({
       }
       savedRef.current = { week: sentWeek, answers: sentAnswers };
       setStatus("submitted");
+      setConfirming(true);
+      setTimeout(() => setConfirming(false), 2000);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Submit failed.",
@@ -216,23 +220,23 @@ export function RespondForm({
   function submitControls(margin: string) {
     return (
       <div className={`${margin} flex items-center gap-3`}>
-        <button
+        <SaveButton
           type="button"
           onClick={submit}
           disabled={status === "submitting" || status === "submitted"}
           className={`${PRIMARY} text-sm`}
+          confirmText="Submitted"
+          confirmation={confirming ? "Submitted" : null}
         >
           {status === "submitting"
             ? "Submitting…"
             : alreadySubmitted && status !== "submitted"
               ? "Resubmit"
               : "Submit"}
-        </button>
-        {status === "submitted" && (
-          <span className="text-sm text-status-submitted">
-            Response submitted <span className="pop-in">✓</span>
-          </span>
-        )}
+        </SaveButton>
+        <p role="status" className="sr-only">
+          {confirming ? "Response submitted" : ""}
+        </p>
         {status === "error" && (
           <span className="text-sm text-error">{errorMessage}</span>
         )}

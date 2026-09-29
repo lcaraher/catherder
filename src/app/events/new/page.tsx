@@ -4,12 +4,7 @@ import { NewEventForm } from "@/components/new-event-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function FirstEventPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
+export default async function FirstEventPage() {
   await requireUser();
 
   return (
@@ -17,7 +12,7 @@ export default async function FirstEventPage({
       <Pane as="div" className="mb-6">
         <h1 className="text-2xl font-semibold">New event</h1>
       </Pane>
-      <NewEventForm error={error} />
+      <NewEventForm />
     </main>
   );
 }
