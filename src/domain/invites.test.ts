@@ -77,6 +77,11 @@ describe("normalizeInviteCode", () => {
     assert.equal(normalizeInviteCode("0123456789"), "0123456789");
   });
 
+  it("accepts the seed's fixed codes as canonical", () => {
+    assert.equal(normalizeInviteCode("SEEDCATS01"), "SEEDCATS01");
+    assert.equal(normalizeInviteCode("SEEDDENSE1"), "SEEDDENSE1");
+  });
+
   it("rejects the wrong length", () => {
     assert.equal(normalizeInviteCode(""), null);
     assert.equal(normalizeInviteCode("ABCDE-FGHJ"), null);

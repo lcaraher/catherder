@@ -1,4 +1,5 @@
 import { prisma } from "../src/adapters/db/client.ts";
+import { createInviteInTx } from "../src/adapters/db/invites.ts";
 import {
   slotToDbTime,
   type AvailabilityRange,
@@ -287,6 +288,25 @@ async function ensureEventAvailability(
   }
 }
 
+// Invite with a fixed code, created only when the event has none.
+async function ensureInvite(
+  event: { id: string; organizerUserId: string },
+  code: string,
+) {
+  const existing = await prisma.eventInvite.findUnique({
+    where: { eventId: event.id },
+  });
+  if (!existing) {
+    await prisma.$transaction((tx) =>
+      createInviteInTx(tx, {
+        eventId: event.id,
+        code,
+        actorUserId: event.organizerUserId,
+      }),
+    );
+  }
+}
+
 async function ensureChoiceAnswer(
   question: { id: string; version: number; eventId: string },
   userId: string,
@@ -348,6 +368,7 @@ async function main() {
         status: "DRAFT",
       },
     }));
+  await ensureInvite(event, "SEEDCATS01");
 
   // Pat, Quinn and Robin have submitted; Greta does not participate, so
   // her ORGANIZER row is storage only — its status is never displayed.
@@ -484,6 +505,7 @@ async function main() {
         resultsRevealedAt: new Date(),
       },
     }));
+  await ensureInvite(dense, "SEEDDENSE1");
 
   // Greta participates and has submitted; players without a standing week
   // are still INVITED.
