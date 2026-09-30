@@ -8,6 +8,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import { FOOTER_LINES } from "../../src/components/footer-lines";
 import {
   DEFAULT_THEME,
   THEME_NAMES,
@@ -145,6 +146,45 @@ async function readSeed(browser: Browser): Promise<Seed> {
   }
 }
 
+const URL_QUIET_MS = 500;
+
+// Waits until the address has stopped changing and the page has loaded.
+async function waitForSettledUrl(page: Page) {
+  let last = page.url();
+  let changedAt = Date.now();
+  await expect
+    .poll(
+      () => {
+        if (page.url() !== last) {
+          last = page.url();
+          changedAt = Date.now();
+        }
+        return Date.now() - changedAt >= URL_QUIET_MS;
+      },
+      { intervals: [100], timeout: 20_000 },
+    )
+    .toBe(true);
+  await page.waitForLoadState("load");
+}
+
+// Waits until the loading placeholder is gone and the real page's h1 shows.
+async function waitForPage(page: Page) {
+  await waitForSettledUrl(page);
+  await expect(page.locator("h1", { hasText: /^Loading$/ })).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  await expect(page.locator("h1:visible").first()).toBeVisible();
+}
+
+// Sets every footer line to the first, which fits on one line.
+async function fixFooterLine(page: Page) {
+  await page
+    .locator("[data-footer-line]")
+    .evaluateAll((elements, line) => {
+      for (const element of elements) element.textContent = line;
+    }, FOOTER_LINES[0]);
+}
+
 function resolveRoute(route: string): string {
   if (!route.includes("<")) return route;
   if (!seed) throw new Error("seed event was not read");
@@ -202,9 +242,12 @@ function captureState(
     for (const route of routes) {
       test(`${title}: ${route}`, async () => {
         await page.goto(resolveRoute(route));
+        await waitForPage(page);
+        await fixFooterLine(page);
         // fullPage is not accepted by the config's toHaveScreenshot block.
         await expect(page).toHaveScreenshot(shotName(route, state), {
           fullPage: true,
+          mask: [page.locator("[data-footer-line]")],
         });
       });
     }
@@ -223,12 +266,12 @@ function captureState(
 
     if (!options.signInAs) {
       // Own context: the choice must not reach the shared page's cookie.
-      test(`${title}: the dot opens a picker of every theme`, async ({ browser }) => {
+      test(`${title}: the Theme button opens a list of every theme`, async ({ browser }) => {
         const fresh = await browser.newContext();
         try {
           const visitor = await fresh.newPage();
           await visitor.goto("/join");
-          await visitor.getByRole("button", { name: "More themes" }).click();
+          await visitor.getByRole("button", { name: "Theme", exact: true }).click();
           const picker = visitor.getByRole("group", { name: "Themes" });
           await expect(picker.getByRole("button")).toHaveText(
             THEMES.map((name) => new RegExp(`${THEME_NAMES[name]}$`)),
@@ -253,6 +296,7 @@ function captureState(
       );
       for (const route of routes) {
         await page.goto(resolveRoute(route));
+        await waitForPage(page);
         const { violations } = await new AxeBuilder({ page }).analyze();
         axeRecord.push({
           route,

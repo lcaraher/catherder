@@ -2,24 +2,12 @@
   {
     "route": "/",
     "state": "greta",
-    "violations": [
-      {
-        "id": "page-has-heading-one",
-        "impact": "moderate",
-        "nodes": 1
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/",
     "state": "pat",
-    "violations": [
-      {
-        "id": "page-has-heading-one",
-        "impact": "moderate",
-        "nodes": 1
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/",
@@ -44,23 +32,7 @@
   {
     "route": "/e/<id>/manage",
     "state": "greta",
-    "violations": [
-      {
-        "id": "label",
-        "impact": "critical",
-        "nodes": 2
-      },
-      {
-        "id": "landmark-unique",
-        "impact": "moderate",
-        "nodes": 2
-      },
-      {
-        "id": "select-name",
-        "impact": "critical",
-        "nodes": 1
-      }
-    ]
+    "violations": []
   },
   {
     "route": "/e/<id>/respond",
@@ -95,12 +67,6 @@
   {
     "route": "/nowhere",
     "state": "signed-out",
-    "violations": [
-      {
-        "id": "page-has-heading-one",
-        "impact": "moderate",
-        "nodes": 1
-      }
-    ]
+    "violations": []
   }
 ]

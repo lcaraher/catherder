@@ -1,10 +1,10 @@
 import { Prisma, type EventInvite, type PrismaClient } from "@prisma/client";
-import { prisma } from "@/adapters/db/client";
+import { prisma } from "./client.ts";
 import {
   canRedeemInvite,
   generateInviteCode,
   normalizeInviteCode,
-} from "@/domain/invites";
+} from "../../domain/invites.ts";
 
 type Db = Prisma.TransactionClient | PrismaClient;
 

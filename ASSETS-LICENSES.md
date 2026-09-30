@@ -7,3 +7,4 @@
 | Atkinson Hyperlegible | 400, 700 | https://fonts.google.com/specimen/Atkinson+Hyperlegible | SIL OFL 1.1 | public/fonts/atkinson-hyperlegible/OFL.txt |
 | Silkscreen (committed fallback for the pixel role) | 400 | https://fonts.google.com/specimen/Silkscreen | SIL OFL 1.1 | public/fonts/silkscreen/OFL.txt |
 | Placeholder mark (src/components/logo.tsx) | — | original inline SVG drawn for this project | no licence needed; replaced when the commissioned mark arrives | — |
+| Tab icon (src/app/icon.png) | — | original artwork made for this project | no licence needed | — |

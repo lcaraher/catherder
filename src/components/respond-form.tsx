@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   cellsToRanges,
   weekFromRanges,
@@ -11,6 +11,7 @@ import {
 } from "@/domain/availability";
 import { Checkbox, Radio, Select } from "@/components/form-controls";
 import { Pane } from "@/components/pane";
+import { SaveButton, UnsavedNote } from "@/components/save-form";
 import { DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useWeekGrid } from "@/components/use-week-grid";
@@ -113,7 +114,7 @@ export function RespondForm({
   alreadySubmitted,
   clockFormat,
 }: Props) {
-  const { initialWeek, weekRef, gridKey, gridProps, replaceWeek } =
+  const { initialWeek, weekRef, week, gridKey, gridProps, replaceWeek } =
     useWeekGrid(initialRanges);
   const [confirmingReload, setConfirmingReload] = useState(false);
 
@@ -123,22 +124,30 @@ export function RespondForm({
   const [answers, setAnswers] =
     useState<Record<string, AnswerState>>(initialAnswerState);
   const [status, setStatus] = useState<SubmitStatus>("idle");
+  const [confirming, setConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   // The last successful submit; dirtiness compares against it, so a
   // standing-week reload counts as unsaved while edit-then-undo does not.
-  const savedRef = useRef({ week: initialWeek, answers: initialAnswerState });
+  const [saved, setSaved] = useState({ week: initialWeek, answers: initialAnswerState });
+  const weekDirty = !weeksEqual(week, saved.week);
+  const answersDirty = questions.some(
+    (question) => !answerEqual(answers[question.id], saved.answers[question.id]),
+  );
+  // Once a response is stored, submitting again needs a change.
+  const submittedOnce = alreadySubmitted || status === "submitted";
   useUnsavedChangesGuard(
     () =>
-      !weeksEqual(weekRef.current, savedRef.current.week) ||
+      !weeksEqual(weekRef.current, saved.week) ||
       questions.some(
-        (question) =>
-          !answerEqual(
-            answers[question.id],
-            savedRef.current.answers[question.id],
-          ),
+        (question) => !answerEqual(answers[question.id], saved.answers[question.id]),
       ),
   );
+
+  function discard() {
+    replaceWeek(saved.week);
+    setAnswers(saved.answers);
+  }
 
   function update(questionId: string, patch: Partial<AnswerState>) {
     setAnswers((prev) => ({
@@ -202,8 +211,10 @@ export function RespondForm({
         } | null;
         throw new Error(body?.error ?? `submit failed (${response.status})`);
       }
-      savedRef.current = { week: sentWeek, answers: sentAnswers };
+      setSaved({ week: sentWeek, answers: sentAnswers });
       setStatus("submitted");
+      setConfirming(true);
+      setTimeout(() => setConfirming(false), 2000);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Submit failed.",
@@ -215,24 +226,28 @@ export function RespondForm({
   // The only submit control sits below the questions.
   function submitControls(margin: string) {
     return (
-      <div className={`${margin} flex items-center gap-3`}>
-        <button
+      <div className={`${margin} flex flex-wrap items-center gap-3`}>
+        {submittedOnce && (weekDirty || answersDirty) && (
+          <UnsavedNote size="md" onDiscard={discard} />
+        )}
+        <SaveButton
           type="button"
           onClick={submit}
-          disabled={status === "submitting" || status === "submitted"}
+          disabled={status === "submitting"}
+          inactive={submittedOnce && !weekDirty && !answersDirty}
           className={`${PRIMARY} text-sm`}
+          confirmText="Submitted"
+          confirmation={confirming ? "Submitted" : null}
         >
           {status === "submitting"
             ? "Submitting…"
             : alreadySubmitted && status !== "submitted"
               ? "Resubmit"
               : "Submit"}
-        </button>
-        {status === "submitted" && (
-          <span className="text-sm text-status-submitted">
-            Response submitted ✓
-          </span>
-        )}
+        </SaveButton>
+        <p role="status" className="sr-only">
+          {confirming ? "Response submitted" : ""}
+        </p>
         {status === "error" && (
           <span className="text-sm text-error">{errorMessage}</span>
         )}
@@ -437,7 +452,8 @@ export function RespondForm({
 
   return (
     <div>
-      <Pane>
+      <Pane className="unsaved-frame">
+      {submittedOnce && weekDirty && <span data-unsaved hidden />}
       <WeekGridEditor
         key={gridKey}
         {...gridProps}
@@ -480,8 +496,9 @@ export function RespondForm({
       </Pane>
 
       {questions.length > 0 && (
-        <Pane className="mt-6">
-          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-medium">Questions</h2>
+        <Pane className="unsaved-frame mt-6">
+          {submittedOnce && answersDirty && <span data-unsaved hidden />}
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Questions</h2>
           <ul className="flex flex-col gap-3">{questions.map(renderQuestion)}</ul>
         </Pane>
       )}

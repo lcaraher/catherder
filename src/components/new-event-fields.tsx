@@ -5,13 +5,15 @@ import { Checkbox, Select } from "@/components/form-controls";
 import { SECONDARY_SM } from "@/components/button-classes";
 
 const inputClass =
-  "w-full rounded border border-edge-strong bg-field px-3 py-2 text-sm";
+  "w-full rounded border border-edge-strong bg-field px-3 py-2 text-sm aria-invalid:border-error";
+
+type FieldProps = (name: string) => Record<string, unknown>;
 
 /**
  * Mode, organizer participation, target length, and (multi-group only) the
  * group-size bounds; the server also ignores group sizes in single activity.
  */
-export function NewEventFields() {
+export function NewEventFields({ fieldProps }: { fieldProps: FieldProps }) {
   const [mode, setMode] = useState("MULTI_GROUP");
 
   return (
@@ -25,7 +27,8 @@ export function NewEventFields() {
           name="mode"
           value={mode}
           onChange={(e) => setMode(e.target.value)}
-          className="px-3 py-2 text-sm"
+          {...fieldProps("mode")}
+          className="px-3 py-2 text-sm aria-invalid:border-error"
           wrapperClassName="w-full"
         >
           <option value="MULTI_GROUP">Multi-group activity</option>
@@ -57,6 +60,7 @@ export function NewEventFields() {
           min={0.5}
           step={0.5}
           required
+          {...fieldProps("targetHours")}
           className={inputClass}
         />
         <p className="mt-1 text-xs text-hint">
@@ -75,6 +79,7 @@ export function NewEventFields() {
               name="minGroupSize"
               type="number"
               min={1}
+              {...fieldProps("minGroupSize")}
               className={inputClass}
             />
           </div>
@@ -87,6 +92,7 @@ export function NewEventFields() {
               name="maxGroupSize"
               type="number"
               min={1}
+              {...fieldProps("maxGroupSize")}
               className={inputClass}
             />
           </div>

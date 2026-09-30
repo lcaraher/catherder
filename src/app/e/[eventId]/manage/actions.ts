@@ -8,6 +8,7 @@ import { prisma } from "@/adapters/db/client";
 import { createInviteInTx, withFreshInviteCode } from "@/adapters/db/invites";
 import { canManageEvent } from "@/domain/event-access";
 import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
+import { SAVE_FAILED, saveError, saved, type SaveResult } from "@/domain/save-result";
 
 const EVENT_MODES: EventMode[] = ["MULTI_GROUP", "SINGLE_ACTIVITY"];
 const QUESTION_TYPES: QuestionType[] = [
@@ -34,6 +35,11 @@ async function requireEventManager(eventId: string) {
   return { event, user };
 }
 
+const ARCHIVED_MESSAGE =
+  "This event is archived. Unarchive it before opening or closing it.";
+const NO_WORDING = "Add the question's wording.";
+const NO_OPTION_TEXT = "Type the option before adding it.";
+
 function eventPath(eventId: string): string {
   return `/e/${eventId}/manage`;
 }
@@ -52,10 +58,10 @@ interface EventFields {
 }
 
 // Shared by create and edit so both enforce identical rules. Returns the
-// parsed fields or the first validation error.
+// parsed fields or the first validation error and the field it names.
 function parseEventFields(
   formData: FormData,
-): { fields: EventFields } | { error: string } {
+): { fields: EventFields } | { error: string; field: string } {
   const name = String(formData.get("name") ?? "").trim();
   const targetHours = Number(String(formData.get("targetHours") ?? ""));
   // The form works in hours with 0.5 steps; storage is half-hour slots.
@@ -63,7 +69,7 @@ function parseEventFields(
   const minGroupSize = optionalSize(formData.get("minGroupSize"));
   const maxGroupSize = optionalSize(formData.get("maxGroupSize"));
 
-  if (name === "") return { error: "Name is required." };
+  if (name === "") return { error: "Name is required.", field: "name" };
   if (
     !Number.isFinite(targetHours) ||
     requiredSlots < 1 ||
@@ -72,11 +78,15 @@ function parseEventFields(
     return {
       error:
         "Target session length must be at least half an hour, in half-hour steps.",
+      field: "targetHours",
     };
   }
-  for (const size of [minGroupSize, maxGroupSize]) {
+  for (const [field, size] of [
+    ["minGroupSize", minGroupSize],
+    ["maxGroupSize", maxGroupSize],
+  ] as const) {
     if (size !== null && (!Number.isInteger(size) || size < 1)) {
-      return { error: "Group sizes must be whole numbers of at least 1." };
+      return { error: "Group sizes must be whole numbers of at least 1.", field };
     }
   }
   if (
@@ -84,25 +94,24 @@ function parseEventFields(
     maxGroupSize !== null &&
     minGroupSize > maxGroupSize
   ) {
-    return { error: "Min group size cannot exceed max group size." };
+    return {
+      error: "Min group size cannot exceed max group size.",
+      field: "minGroupSize",
+    };
   }
   return { fields: { name, requiredSlots, minGroupSize, maxGroupSize } };
 }
 
-export async function createEvent(formData: FormData) {
+export async function createEvent(formData: FormData): Promise<SaveResult> {
   const user = await requireUser();
 
   const mode = String(formData.get("mode") ?? "") as EventMode;
   const organizerParticipates =
     String(formData.get("organizerParticipates") ?? "") === "on";
 
-  function fail(message: string): never {
-    redirect(`/events/new?error=${encodeURIComponent(message)}`);
-  }
-
   const parsed = parseEventFields(formData);
-  if ("error" in parsed) fail(parsed.error);
-  if (!EVENT_MODES.includes(mode)) fail("Choose a mode.");
+  if ("error" in parsed) return saveError(parsed.error, parsed.field);
+  if (!EVENT_MODES.includes(mode)) return saveError("Choose a mode.", "mode");
 
   // A fresh invite is issued with the event; a code collision retries the whole transaction.
   const event = await withFreshInviteCode((inviteCode) =>
@@ -170,15 +179,16 @@ export async function createEvent(formData: FormData) {
     }),
   );
 
-  redirect(eventPath(event.id));
+  // The marker lets the new event's page confirm the creation once.
+  redirect(`${eventPath(event.id)}?created=1`);
 }
 
 // For events created before invites existed; a no-op once one exists.
-export async function createInvite(formData: FormData) {
+export async function createInvite(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const { user } = await requireEventManager(eventId);
   const existing = await prisma.eventInvite.findUnique({ where: { eventId } });
-  if (existing) return;
+  if (existing) return saved();
 
   await withFreshInviteCode((code) =>
     prisma.$transaction((tx) =>
@@ -186,14 +196,15 @@ export async function createInvite(formData: FormData) {
     ),
   );
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
 // Replaces the code in place: the old link and code stop working at once.
-export async function regenerateInvite(formData: FormData) {
+export async function regenerateInvite(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const { user } = await requireEventManager(eventId);
   const invite = await prisma.eventInvite.findUnique({ where: { eventId } });
-  if (!invite) return;
+  if (!invite) return saveError(SAVE_FAILED);
 
   await withFreshInviteCode((code) =>
     prisma.$transaction(async (tx) => {
@@ -213,9 +224,10 @@ export async function regenerateInvite(formData: FormData) {
     }),
   );
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
-export async function updateEvent(formData: FormData) {
+export async function updateEvent(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const { event, user } = await requireEventManager(eventId);
   const organizerUserId =
@@ -223,22 +235,18 @@ export async function updateEvent(formData: FormData) {
   const organizerParticipates =
     String(formData.get("organizerParticipates") ?? "") === "on";
 
-  function fail(message: string): never {
-    redirect(
-      `${eventPath(eventId)}?error=${encodeURIComponent(message)}`,
-    );
-  }
-
   const parsed = parseEventFields(formData);
-  if ("error" in parsed) fail(parsed.error);
+  if ("error" in parsed) return saveError(parsed.error, parsed.field);
   // The owner is reassignable in both modes, but only to someone already
   // on this event's roster.
-  if (!organizerUserId) fail("This event needs an Organizer.");
+  if (!organizerUserId) {
+    return saveError("This event needs an Organizer.", "organizerUserId");
+  }
   const ownerParticipant = await prisma.eventParticipant.findUnique({
     where: { eventId_userId: { eventId, userId: organizerUserId } },
   });
   if (!ownerParticipant) {
-    fail("The Organizer must already be on this event.");
+    return saveError("The Organizer must already be on this event.", "organizerUserId");
   }
 
   const participationChanged =
@@ -282,24 +290,23 @@ export async function updateEvent(formData: FormData) {
     }
   });
   revalidatePath(eventPath(eventId));
-  redirect(eventPath(eventId));
+  return saved();
 }
 
-export async function updateEventDescription(formData: FormData) {
+export async function updateEventDescription(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const text = String(formData.get("description") ?? "").trim();
   const { event, user } = await requireEventManager(eventId);
 
   if (text.length > EVENT_DESCRIPTION_MAX_LENGTH) {
-    redirect(
-      `${eventPath(eventId)}?error=${encodeURIComponent(
-        `The description is limited to ${EVENT_DESCRIPTION_MAX_LENGTH} characters.`,
-      )}`,
+    return saveError(
+      `The description is limited to ${EVENT_DESCRIPTION_MAX_LENGTH} characters.`,
+      "description",
     );
   }
   // Blank is stored as null so "no description" has one representation.
   const description = text === "" ? null : text;
-  if (description === event.description) return;
+  if (description === event.description) return saved();
 
   await prisma.$transaction(async (tx) => {
     await tx.event.update({ where: { id: eventId }, data: { description } });
@@ -315,12 +322,13 @@ export async function updateEventDescription(formData: FormData) {
     });
   });
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
-export async function archiveEvent(formData: FormData) {
+export async function archiveEvent(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const { event, user } = await requireEventManager(eventId);
-  if (event.archivedAt !== null) return;
+  if (event.archivedAt !== null) return saved();
 
   await prisma.$transaction(async (tx) => {
     await tx.event.update({
@@ -338,12 +346,13 @@ export async function archiveEvent(formData: FormData) {
   });
   revalidatePath(eventPath(eventId));
   revalidatePath("/");
+  return saved();
 }
 
-export async function unarchiveEvent(formData: FormData) {
+export async function unarchiveEvent(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const { event, user } = await requireEventManager(eventId);
-  if (event.archivedAt === null) return;
+  if (event.archivedAt === null) return saved();
 
   await prisma.$transaction(async (tx) => {
     await tx.event.update({
@@ -361,21 +370,18 @@ export async function unarchiveEvent(formData: FormData) {
   });
   revalidatePath(eventPath(eventId));
   revalidatePath("/");
+  return saved();
 }
 
-export async function setEventStatus(formData: FormData) {
+export async function setEventStatus(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (status !== "OPEN" && status !== "CLOSED") return;
+  if (status !== "OPEN" && status !== "CLOSED") return saveError(SAVE_FAILED);
   const { event, user } = await requireEventManager(eventId);
-  if (event.status === status) return;
+  if (event.status === status) return saved();
   // An archived event stays as it is; unarchive it first.
   if (event.archivedAt !== null) {
-    redirect(
-      `${eventPath(eventId)}?error=${encodeURIComponent(
-        "This event is archived. Unarchive it before opening or closing it.",
-      )}`,
-    );
+    return saveError(ARCHIVED_MESSAGE);
   }
 
   await prisma.$transaction(async (tx) => {
@@ -390,13 +396,14 @@ export async function setEventStatus(formData: FormData) {
     });
   });
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
-export async function setResultsRevealed(formData: FormData) {
+export async function setResultsRevealed(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const revealed = String(formData.get("revealed") ?? "") === "true";
   const { event, user } = await requireEventManager(eventId);
-  if ((event.resultsRevealedAt !== null) === revealed) return;
+  if ((event.resultsRevealedAt !== null) === revealed) return saved();
 
   await prisma.$transaction(async (tx) => {
     await tx.event.update({
@@ -413,20 +420,20 @@ export async function setResultsRevealed(formData: FormData) {
     });
   });
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
 // Stops accepting responses and reveals results in one transaction.
-export async function closeEventAndShareResults(formData: FormData) {
+export async function closeEventAndShareResults(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const { event, user } = await requireEventManager(eventId);
-  if (event.status !== "OPEN") return;
+  if (event.status !== "OPEN") {
+    const done = event.status === "CLOSED" && event.resultsRevealedAt !== null;
+    return done ? saved() : saveError(SAVE_FAILED);
+  }
   // An archived event stays as it is; unarchive it first.
   if (event.archivedAt !== null) {
-    redirect(
-      `${eventPath(eventId)}?error=${encodeURIComponent(
-        "This event is archived. Unarchive it before opening or closing it.",
-      )}`,
-    );
+    return saveError(ARCHIVED_MESSAGE);
   }
 
   const alreadyRevealed = event.resultsRevealedAt !== null;
@@ -458,9 +465,10 @@ export async function closeEventAndShareResults(formData: FormData) {
     }
   });
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
-export async function setParticipantEditLock(formData: FormData) {
+export async function setParticipantEditLock(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const unlocked = String(formData.get("unlocked") ?? "") === "true";
@@ -469,8 +477,8 @@ export async function setParticipantEditLock(formData: FormData) {
   const participant = await prisma.eventParticipant.findUnique({
     where: { eventId_userId: { eventId, userId } },
   });
-  if (!participant) return;
-  if ((participant.editUnlockedAt !== null) === unlocked) return;
+  if (!participant) return saveError(SAVE_FAILED);
+  if ((participant.editUnlockedAt !== null) === unlocked) return saved();
 
   await prisma.$transaction(async (tx) => {
     await tx.eventParticipant.update({
@@ -488,94 +496,41 @@ export async function setParticipantEditLock(formData: FormData) {
     });
   });
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
-export async function removeParticipant(formData: FormData) {
+export async function removeParticipant(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const { event } = await requireEventManager(eventId);
 
   // The event's Organizer cannot be removed while they hold that role.
-  if (userId === event.organizerUserId) return;
+  if (userId === event.organizerUserId) return saveError(SAVE_FAILED);
   await prisma.eventParticipant.deleteMany({ where: { eventId, userId } });
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
-// Per-question participant visibility. Only takes effect once the event's
-// results are shared — canViewQuestionAnswers needs both gates open.
-export async function setQuestionAnswersRevealed(formData: FormData) {
-  const questionId = String(formData.get("questionId") ?? "");
-  const revealed = String(formData.get("revealed") ?? "") === "true";
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-  });
-  if (!question) return;
-  const { user } = await requireEventManager(question.eventId);
-  if (question.answersRevealed === revealed) return;
-
-  await prisma.$transaction(async (tx) => {
-    await tx.question.update({
-      where: { id: questionId },
-      data: { answersRevealed: revealed },
-    });
-    await tx.auditEvent.create({
-      data: {
-        actorUserId: user.id,
-        entity: "Question",
-        entityId: questionId,
-        action: revealed
-          ? "question_answers_revealed"
-          : "question_answers_hidden",
-      },
-    });
-  });
-  revalidatePath(eventPath(question.eventId));
-}
-
-// Whether participants can submit without answering this question. Applies
-// to future submissions only — existing answers are never re-validated.
-export async function setQuestionRequired(formData: FormData) {
-  const questionId = String(formData.get("questionId") ?? "");
-  const required = String(formData.get("required") ?? "") === "true";
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-  });
-  if (!question) return;
-  const { user } = await requireEventManager(question.eventId);
-  if (question.required === required) return;
-
-  await prisma.$transaction(async (tx) => {
-    await tx.question.update({
-      where: { id: questionId },
-      data: { required },
-    });
-    await tx.auditEvent.create({
-      data: {
-        actorUserId: user.id,
-        entity: "Question",
-        entityId: questionId,
-        action: required
-          ? "question_required_set"
-          : "question_required_cleared",
-      },
-    });
-  });
-  revalidatePath(eventPath(question.eventId));
-}
-
-export async function addQuestion(formData: FormData) {
+export async function addQuestion(formData: FormData): Promise<SaveResult> {
   const eventId = String(formData.get("eventId") ?? "");
   const type = String(formData.get("type") ?? "") as QuestionType;
   const prompt = String(formData.get("prompt") ?? "").trim();
-  const optionLines = String(formData.get("options") ?? "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== "");
+  // One field per option, named option-<n>, in the order shown; empty ones are skipped.
+  const optionFields = [...formData.entries()]
+    .filter(([name]) => /^option-\d+$/.test(name))
+    .map(([name, value]) => ({ name, label: String(value).trim() }));
+  const optionLines = optionFields.map((field) => field.label).filter((label) => label !== "");
+  const firstEmpty = optionFields.find((field) => field.label === "")?.name;
   await requireEventManager(eventId);
 
-  if (!QUESTION_TYPES.includes(type) || prompt === "") return;
-  if (type !== "TEXT" && optionLines.length === 0) return;
-  if (type === "RANKING" && optionLines.length < 2) return;
+  if (!QUESTION_TYPES.includes(type)) return saveError(SAVE_FAILED, "type");
+  if (prompt === "") return saveError(NO_WORDING, "prompt");
+  if (type === "RANKING" && optionLines.length < 2) {
+    return saveError("A ranking needs at least two options.", firstEmpty);
+  }
+  if (type !== "TEXT" && optionLines.length === 0) {
+    return saveError("Add at least one option.", firstEmpty);
+  }
 
   const count = await prisma.question.count({ where: { eventId } });
   await prisma.question.create({
@@ -597,16 +552,17 @@ export async function addQuestion(formData: FormData) {
     },
   });
   revalidatePath(eventPath(eventId));
+  return saved();
 }
 
-export async function reorderQuestion(formData: FormData) {
+export async function reorderQuestion(formData: FormData): Promise<SaveResult> {
   const questionId = String(formData.get("questionId") ?? "");
   const direction = String(formData.get("direction") ?? "");
-  if (direction !== "up" && direction !== "down") return;
+  if (direction !== "up" && direction !== "down") return saveError(SAVE_FAILED);
   const question = await prisma.question.findUnique({
     where: { id: questionId },
   });
-  if (!question) return;
+  if (!question) return saveError(SAVE_FAILED);
   await requireEventManager(question.eventId);
 
   const neighbor = await prisma.question.findFirst({
@@ -619,7 +575,7 @@ export async function reorderQuestion(formData: FormData) {
     },
     orderBy: { displayOrder: direction === "up" ? "desc" : "asc" },
   });
-  if (!neighbor) return;
+  if (!neighbor) return saved();
 
   await prisma.$transaction([
     prisma.question.update({
@@ -632,101 +588,7 @@ export async function reorderQuestion(formData: FormData) {
     }),
   ]);
   revalidatePath(eventPath(question.eventId));
-}
-
-export async function updateQuestionPrompt(formData: FormData) {
-  const questionId = String(formData.get("questionId") ?? "");
-  const prompt = String(formData.get("prompt") ?? "").trim();
-  if (prompt === "") return;
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-  });
-  if (!question) return;
-  await requireEventManager(question.eventId);
-
-  // Once answers exist an edit bumps the question's version;
-  // Answer.questionVersion records which version each answer was for.
-  const answered = (await prisma.answer.count({ where: { questionId } })) > 0;
-  await prisma.question.update({
-    where: { id: questionId },
-    data: { prompt, ...(answered ? { version: { increment: 1 } } : {}) },
-  });
-  revalidatePath(eventPath(question.eventId));
-}
-
-export async function updateQuestionOption(formData: FormData) {
-  const optionId = String(formData.get("optionId") ?? "");
-  const label = String(formData.get("label") ?? "").trim();
-  if (label === "") return;
-  const option = await prisma.questionOption.findUnique({
-    where: { id: optionId },
-    include: { question: true },
-  });
-  if (!option) return;
-  const { user } = await requireEventManager(option.question.eventId);
-  if (label === option.label) return;
-
-  // Answers stay attached (the option id is unchanged); rewording an
-  // answered question's option starts a fresh version, like a prompt edit.
-  const answered =
-    (await prisma.answer.count({
-      where: { questionId: option.questionId },
-    })) > 0;
-  await prisma.$transaction(async (tx) => {
-    await tx.questionOption.update({
-      where: { id: optionId },
-      data: { label },
-    });
-    if (answered) {
-      await tx.question.update({
-        where: { id: option.questionId },
-        data: { version: { increment: 1 } },
-      });
-    }
-    await tx.auditEvent.create({
-      data: {
-        actorUserId: user.id,
-        entity: "QuestionOption",
-        entityId: optionId,
-        action: "question_option_edited",
-        detail: { optionId, from: option.label, to: label },
-      },
-    });
-  });
-  revalidatePath(eventPath(option.question.eventId));
-}
-
-// Choice questions only: whether responders get a free-text "Other".
-export async function setQuestionAllowOther(formData: FormData) {
-  const questionId = String(formData.get("questionId") ?? "");
-  const allowOther = String(formData.get("allowOther") ?? "") === "true";
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-  });
-  if (!question) return;
-  if (question.type !== "SINGLE_CHOICE" && question.type !== "MULTI_CHOICE") {
-    return;
-  }
-  const { user } = await requireEventManager(question.eventId);
-  if (question.allowOther === allowOther) return;
-
-  await prisma.$transaction(async (tx) => {
-    await tx.question.update({
-      where: { id: questionId },
-      data: { allowOther },
-    });
-    await tx.auditEvent.create({
-      data: {
-        actorUserId: user.id,
-        entity: "Question",
-        entityId: questionId,
-        action: allowOther
-          ? "question_allow_other_set"
-          : "question_allow_other_cleared",
-      },
-    });
-  });
-  revalidatePath(eventPath(question.eventId));
+  return saved();
 }
 
 export async function deleteQuestion(formData: FormData) {
@@ -806,77 +668,161 @@ export async function deleteQuestion(formData: FormData) {
   revalidatePath(eventPath(question.eventId));
 }
 
-export async function addQuestionOption(formData: FormData) {
-  const questionId = String(formData.get("questionId") ?? "");
-  const label = String(formData.get("label") ?? "").trim();
-  if (label === "") return;
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-  });
-  if (!question || question.type === "TEXT") return;
-  await requireEventManager(question.eventId);
+interface CardOption {
+  /** The option's id, or a key the card made up for a new one. */
+  key: string;
+  id?: string;
+  label: string;
+  removed?: boolean;
+}
 
-  const answered = (await prisma.answer.count({ where: { questionId } })) > 0;
-  const count = await prisma.questionOption.count({ where: { questionId } });
+interface CardChanges {
+  questionId: string;
+  prompt: string;
+  answersRevealed: boolean;
+  required: boolean;
+  allowOther: boolean;
+  options: CardOption[];
+}
+
+function parseCardChanges(value: FormDataEntryValue | null): CardChanges | null {
+  try {
+    const card = JSON.parse(String(value ?? "")) as CardChanges;
+    if (typeof card.questionId !== "string" || typeof card.prompt !== "string") return null;
+    if (!Array.isArray(card.options)) return null;
+    return card;
+  } catch {
+    return null;
+  }
+}
+
+// Saves a question card's whole set of changes in one transaction; the
+// version goes up at most once per save.
+export async function saveQuestionCard(formData: FormData): Promise<SaveResult> {
+  const card = parseCardChanges(formData.get("card"));
+  if (!card) return saveError(SAVE_FAILED);
+  const question = await prisma.question.findUnique({
+    where: { id: card.questionId },
+    include: { options: { orderBy: { displayOrder: "asc" } } },
+  });
+  if (!question) return saveError(SAVE_FAILED);
+  const { user } = await requireEventManager(question.eventId);
+
+  const prompt = card.prompt.trim();
+  if (prompt === "") return saveError(NO_WORDING, "prompt");
+
+  const isChoice = question.type === "SINGLE_CHOICE" || question.type === "MULTI_CHOICE";
+  const current = new Map(question.options.map((option) => [option.id, option]));
+  const removed: string[] = [];
+  const renamed: { id: string; from: string; to: string }[] = [];
+  const added: string[] = [];
+  if (question.type !== "TEXT") {
+    let kept = 0;
+    for (const option of card.options) {
+      if (option.id !== undefined && !current.has(option.id)) return saveError(SAVE_FAILED);
+      if (option.removed) {
+        if (option.id !== undefined) removed.push(option.id);
+        continue;
+      }
+      const label = String(option.label ?? "").trim();
+      if (label === "") return saveError(NO_OPTION_TEXT, `option-${option.key}`);
+      kept += 1;
+      if (option.id === undefined) added.push(label);
+      else if (label !== current.get(option.id)!.label) {
+        renamed.push({ id: option.id, from: current.get(option.id)!.label, to: label });
+      }
+    }
+    if (question.type === "RANKING" && kept < 2) {
+      return saveError("A ranking needs at least two options.");
+    }
+    if (kept === 0) return saveError("Add at least one option.");
+  }
+
+  const promptChanged = prompt !== question.prompt;
+  const revealedChanged = card.answersRevealed !== question.answersRevealed;
+  const requiredChanged = card.required !== question.required;
+  const otherChanged = isChoice && card.allowOther !== question.allowOther;
+  const wordingChanged =
+    promptChanged || removed.length > 0 || renamed.length > 0 || added.length > 0;
+  if (!wordingChanged && !revealedChanged && !requiredChanged && !otherChanged) {
+    return saved();
+  }
+
+  // Choices referencing a removed option are dropped with it; the audit row
+  // records them so an administrator can restore by hand.
+  const removedChoices = await prisma.answerChoice.findMany({
+    where: { optionId: { in: removed } },
+    include: { answer: { select: { userId: true } } },
+  });
+  const answered =
+    (await prisma.answer.count({ where: { questionId: question.id } })) > 0;
+
   await prisma.$transaction(async (tx) => {
-    await tx.questionOption.create({
-      data: { questionId, label, displayOrder: count },
+    for (const optionId of removed) {
+      const option = current.get(optionId)!;
+      await tx.answerChoice.deleteMany({ where: { optionId } });
+      await tx.questionOption.delete({ where: { id: optionId } });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "QuestionOption",
+          entityId: optionId,
+          action: "question_option_removed",
+          detail: {
+            optionId,
+            label: option.label,
+            displayOrder: option.displayOrder,
+            choices: removedChoices
+              .filter((choice) => choice.optionId === optionId)
+              .map((choice) => ({ userId: choice.answer.userId, rank: choice.rank })),
+          },
+        },
+      });
+    }
+    for (const { id, from, to } of renamed) {
+      await tx.questionOption.update({ where: { id }, data: { label: to } });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "QuestionOption",
+          entityId: id,
+          action: "question_option_edited",
+          detail: { optionId: id, from, to },
+        },
+      });
+    }
+    let count = question.options.length - removed.length;
+    for (const label of added) {
+      await tx.questionOption.create({
+        data: { questionId: question.id, label, displayOrder: count },
+      });
+      count += 1;
+    }
+    await tx.question.update({
+      where: { id: question.id },
+      data: {
+        prompt,
+        answersRevealed: card.answersRevealed,
+        required: card.required,
+        ...(isChoice ? { allowOther: card.allowOther } : {}),
+        // Answer.questionVersion records which version each answer was for.
+        ...(answered && wordingChanged ? { version: { increment: 1 } } : {}),
+      },
     });
-    if (answered) {
-      await tx.question.update({
-        where: { id: questionId },
-        data: { version: { increment: 1 } },
+    const switchAudits = [
+      revealedChanged &&
+        (card.answersRevealed ? "question_answers_revealed" : "question_answers_hidden"),
+      requiredChanged &&
+        (card.required ? "question_required_set" : "question_required_cleared"),
+      otherChanged &&
+        (card.allowOther ? "question_allow_other_set" : "question_allow_other_cleared"),
+    ].filter((action): action is string => Boolean(action));
+    for (const action of switchAudits) {
+      await tx.auditEvent.create({
+        data: { actorUserId: user.id, entity: "Question", entityId: question.id, action },
       });
     }
   });
   revalidatePath(eventPath(question.eventId));
-}
-
-export async function removeQuestionOption(formData: FormData) {
-  const optionId = String(formData.get("optionId") ?? "");
-  const option = await prisma.questionOption.findUnique({
-    where: { id: optionId },
-    include: { question: true },
-  });
-  if (!option) return;
-  const { user } = await requireEventManager(option.question.eventId);
-
-  // Choices referencing the option are dropped with it; the audit row
-  // records them so an administrator can restore by hand.
-  const choices = await prisma.answerChoice.findMany({
-    where: { optionId },
-    include: { answer: { select: { userId: true } } },
-  });
-  const answered =
-    (await prisma.answer.count({
-      where: { questionId: option.questionId },
-    })) > 0;
-  await prisma.$transaction(async (tx) => {
-    await tx.answerChoice.deleteMany({ where: { optionId } });
-    await tx.questionOption.delete({ where: { id: optionId } });
-    if (answered) {
-      await tx.question.update({
-        where: { id: option.questionId },
-        data: { version: { increment: 1 } },
-      });
-    }
-    await tx.auditEvent.create({
-      data: {
-        actorUserId: user.id,
-        entity: "QuestionOption",
-        entityId: optionId,
-        action: "question_option_removed",
-        detail: {
-          optionId,
-          label: option.label,
-          displayOrder: option.displayOrder,
-          choices: choices.map((choice) => ({
-            userId: choice.answer.userId,
-            rank: choice.rank,
-          })),
-        },
-      },
-    });
-  });
-  revalidatePath(eventPath(option.question.eventId));
+  return saved();
 }

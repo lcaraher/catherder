@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Link from "next/link";
 import "./globals.css";
+import { buildLabel } from "@/adapters/app-config";
 import { getSessionUser } from "@/adapters/auth";
 import { readThemeCookie } from "@/adapters/theme-cookie";
 import { THEMES } from "@/domain/theme";
 import { Footer } from "@/components/footer";
+import { pickFooterLine } from "@/components/footer-lines";
 import { Logo } from "@/components/logo";
 import { ThemeControls } from "@/components/theme-controls";
+import { ThemePointer } from "@/components/theme-pointer";
+import { Wordmark } from "@/components/wordmark";
 
 // Self-hosted faces from public/fonts; each sets one CSS variable for the
 // role it plays (see ASSETS-LICENSES.md).
@@ -57,7 +61,7 @@ const fontClasses = [wordmark, heading, small, body, digits, pixel]
   .map((font) => font.variable)
   .join(" ");
 
-const navLink = "font-small font-medium hover:text-link-hover hover:underline";
+const navLink = "font-small font-medium nav-comet";
 
 export const metadata: Metadata = {
   title: "catherder",
@@ -76,40 +80,49 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="header-glow flex min-h-full flex-col">
         {user && (
-          <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-edge bg-surface-card px-4 py-3 text-sm">
+          <header className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-edge bg-surface-card px-4 py-3 text-sm">
             <Link
               href="/"
-              className="inline-flex items-center font-wordmark text-xl font-extrabold"
+              className="letter-hop inline-flex items-center font-wordmark text-xl font-extrabold"
             >
               <Logo size={28} className="mr-2" />
-              catherder
+              <Wordmark />
             </Link>
-            <Link href="/availability" className={navLink}>
-              Availability
-            </Link>
-            <Link href="/join" className={navLink}>
-              Join an event
-            </Link>
-            <Link href="/help" className={navLink}>
-              How do?
-            </Link>
-            <span className="ml-auto flex items-center gap-4">
-              <span className="font-small font-medium">{user.displayName}</span>
-              <a href="/logout" className={navLink}>
+            {/* Phones: a second row under a line; from sm the links sit in the one row. */}
+            <div className="flex w-full justify-between border-t border-edge pt-2 max-sm:order-2 sm:contents">
+              <Link href="/availability" className={navLink}>
+                Availability
+              </Link>
+              <Link href="/join" className={navLink}>
+                Join an event
+              </Link>
+              <Link href="/help" className={navLink}>
+                How do?
+              </Link>
+              {/* From sm: pushed right, one gap-4 from the name like the group it joins. */}
+              <div className="sm:ml-auto sm:-mr-2">
+                <ThemeControls initialTheme={theme} themes={THEMES} opens="down" />
+                <ThemePointer targetId="theme-button" />
+              </div>
+            </div>
+            <span className="flex items-center justify-end gap-4 max-sm:order-1 max-sm:ml-auto max-sm:grow max-sm:basis-0">
+              <span className="font-small font-medium break-words text-right">
+                {user.displayName}
+              </span>
+              <a href="/logout" className={`${navLink} whitespace-nowrap`}>
                 Log out
               </a>
             </span>
           </header>
         )}
         {children}
-        <Footer />
-        <div
-          role="region"
-          aria-label="Theme"
-          className="fixed bottom-4 left-4 z-50"
-        >
-          <ThemeControls initialTheme={theme} themes={THEMES} />
-        </div>
+        <Footer
+          signedIn={Boolean(user)}
+          initialTheme={theme}
+          themes={THEMES}
+          line={pickFooterLine()}
+          build={buildLabel()}
+        />
       </body>
     </html>
   );

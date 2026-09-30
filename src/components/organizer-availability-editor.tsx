@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { DANGER, DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import {
   cellsToRanges,
   emptyWeek,
   weekFromRanges,
+  weeksEqual,
   weekToCells,
   type AvailabilityRange,
   type ClockFormat,
   type SlotStatus,
 } from "@/domain/availability";
+import { SaveButton, UnsavedNote } from "@/components/save-form";
+import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useWeekGrid } from "@/components/use-week-grid";
 
@@ -36,9 +39,16 @@ export function OrganizerAvailabilityEditor({
   standingRanges,
   clockFormat,
 }: Props) {
-  const { weekRef, gridKey, gridProps, replaceWeek } =
+  const { initialWeek, weekRef, week, gridKey, gridProps, replaceWeek } =
     useWeekGrid(initialRanges);
+  // The last successful save; Save stays dimmed until the painted cells differ from it.
+  const [savedWeek, setSavedWeek] = useState(initialWeek);
+  const dirty = !weeksEqual(week, savedWeek);
+  useUnsavedChangesGuard(() => !weeksEqual(weekRef.current, savedWeek));
   const [status, setStatus] = useState<SaveStatus>("idle");
+  // Which button started the last save; its own button shows the result.
+  const [savedBy, setSavedBy] = useState<"save" | "clear">("save");
+  const savedTimer = useRef<number | undefined>(undefined);
   const [errorMessage, setErrorMessage] = useState("");
   const [confirmingReload, setConfirmingReload] = useState(false);
 
@@ -49,14 +59,15 @@ export function OrganizerAvailabilityEditor({
     setConfirmingReload(false);
   }
 
-  async function put(week: SlotStatus[][]) {
+  async function put(sentWeek: SlotStatus[][], by: "save" | "clear") {
+    setSavedBy(by);
     setStatus("saving");
     setErrorMessage("");
     try {
       const response = await fetch(`/api/events/${eventId}/organizer-availability`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ranges: cellsToRanges(weekToCells(week)) }),
+        body: JSON.stringify({ ranges: cellsToRanges(weekToCells(sentWeek)) }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
@@ -64,8 +75,13 @@ export function OrganizerAvailabilityEditor({
         } | null;
         throw new Error(body?.error ?? `save failed (${response.status})`);
       }
+      setSavedWeek(sentWeek);
       setStatus("saved");
-      setTimeout(() => setStatus((s) => (s === "saved" ? "idle" : s)), 2000);
+      window.clearTimeout(savedTimer.current);
+      savedTimer.current = window.setTimeout(
+        () => setStatus((s) => (s === "saved" ? "idle" : s)),
+        2000,
+      );
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Save failed.",
@@ -77,7 +93,7 @@ export function OrganizerAvailabilityEditor({
   function clear() {
     const empty = emptyWeek();
     replaceWeek(empty);
-    void put(empty);
+    void put(empty, "clear");
   }
 
   return (
@@ -121,26 +137,32 @@ export function OrganizerAvailabilityEditor({
           </div>
         }
       />
-      <div className="mt-4 flex items-center gap-3">
-        <button
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        {dirty && <UnsavedNote size="md" onDiscard={() => replaceWeek(savedWeek)} />}
+        <SaveButton
           type="button"
-          onClick={() => put(weekRef.current)}
+          onClick={() => put(weekRef.current, "save")}
           disabled={status === "saving"}
+          inactive={!dirty}
           className={`${PRIMARY} text-sm`}
+          confirmText="Saved"
+          confirmation={status === "saved" && savedBy === "save" ? "Saved" : null}
         >
           {status === "saving" ? "Saving…" : "Save"}
-        </button>
-        <button
+        </SaveButton>
+        <SaveButton
           type="button"
           onClick={clear}
           disabled={status === "saving"}
           className={DANGER}
+          confirmText="Cleared"
+          confirmation={status === "saved" && savedBy === "clear" ? "Cleared" : null}
         >
           Clear
-        </button>
-        {status === "saved" && (
-          <span className="text-sm text-status-submitted">Saved ✓</span>
-        )}
+        </SaveButton>
+        <p role="status" className="sr-only">
+          {status === "saved" ? (savedBy === "clear" ? "Cleared" : "Saved") : ""}
+        </p>
         {status === "error" && (
           <span className="text-sm text-error">{errorMessage}</span>
         )}

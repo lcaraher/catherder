@@ -2,9 +2,9 @@
 const FOCUS_RING =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
-const PRIMARY_BASE = `rounded border-2 accent-gradient-border bg-transparent font-medium text-foreground wash-hover disabled:opacity-50 ${FOCUS_RING}`;
-const SECONDARY_BASE = `rounded border border-edge-strong bg-transparent font-medium text-foreground hover:bg-btn-secondary-hover disabled:opacity-50 ${FOCUS_RING}`;
-const DANGER_BASE = `rounded border border-btn-danger-border bg-transparent font-medium text-btn-danger-text hover:bg-btn-danger-wash disabled:opacity-50 ${FOCUS_RING}`;
+const PRIMARY_BASE = `rounded border-2 accent-gradient-border bg-transparent font-medium text-foreground wash-hover press disabled:opacity-50 ${FOCUS_RING}`;
+const SECONDARY_BASE = `rounded border border-edge-strong bg-transparent font-medium text-foreground hover:bg-btn-secondary-hover press disabled:opacity-50 ${FOCUS_RING}`;
+const DANGER_BASE = `rounded border border-btn-danger-border bg-transparent font-medium text-btn-danger-text hover:bg-btn-danger-wash press disabled:opacity-50 ${FOCUS_RING}`;
 
 /** The one save or submit action on a page. */
 export const PRIMARY = `${PRIMARY_BASE} px-4 py-2`;

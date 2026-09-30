@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/form-controls";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { Legend } from "@/components/legend";
 import { Segmented } from "@/components/segmented";
+import { ZoneChip } from "@/components/zone-chip";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_NAMES = [
@@ -42,6 +43,7 @@ export interface OverlapPerson {
   displayName: string;
   isOrganizer: boolean;
   timeZone: string;
+  approximated?: boolean;
 }
 
 interface Props {
@@ -85,6 +87,11 @@ export function OverlapGridView({
     weekday: number;
     row: number;
   } | null>(null);
+  // The tile under a mouse or keyboard focus; shown only while nothing is selected.
+  const [pointed, setPointed] = useState<{
+    weekday: number;
+    row: number;
+  } | null>(null);
 
   const splitGrid = useMemo(
     () => splitOrganizer(grid, organizerUserId, countOrganizer),
@@ -115,8 +122,16 @@ export function OverlapGridView({
   const rowSpan = (row: number): string =>
     `${formatSlotLabel(row * slotsPerRow, clockFormat)}–${formatSlotLabel((row + 1) * slotsPerRow, clockFormat)}`;
 
+  const panelSlot = selected ?? pointed;
+  const isPreview = selected === null && pointed !== null;
   const selectedCell: SplitOverlapCell | null =
-    selected === null ? null : shownGrid[selected.weekday][selected.row];
+    panelSlot === null ? null : shownGrid[panelSlot.weekday][panelSlot.row];
+
+  function clearPointed(weekday: number, row: number) {
+    setPointed((current) =>
+      current?.weekday === weekday && current.row === row ? null : current,
+    );
+  }
 
   function renderNames(
     userIds: string[],
@@ -135,7 +150,12 @@ export function OverlapGridView({
             />
             <span className="break-words">{organizer.displayName}</span>
             <OrganizerBadge className="ml-2 align-middle" />
-            <span className="ml-2 text-xs text-hint">{organizer.timeZone}</span>
+            <ZoneChip
+              label={organizer.timeZone}
+              variant="person"
+              approximated={organizer.approximated}
+              className="ml-1"
+            />
           </li>
         )}
         {rest.map((userId) => {
@@ -145,7 +165,12 @@ export function OverlapGridView({
             <li key={userId}>
               <span className="break-words">{person.displayName}</span>
               {person.isOrganizer && <OrganizerBadge className="ml-2 align-middle" />}
-              <span className="ml-2 text-xs text-hint">{person.timeZone}</span>
+              <ZoneChip
+                label={person.timeZone}
+                variant="person"
+                approximated={person.approximated}
+                className="ml-1"
+              />
             </li>
           );
         })}
@@ -169,6 +194,7 @@ export function OverlapGridView({
           onChange={(value) => {
             setGranularity(value as Granularity);
             setSelected(null);
+            setPointed(null);
           }}
         />
 
@@ -181,6 +207,7 @@ export function OverlapGridView({
                 onChange={(e) => {
                   setOrganizerOnly(e.target.checked);
                   setSelected(null);
+                  setPointed(null);
                 }}
               />
               Only times the organizer can make
@@ -276,6 +303,19 @@ export function OverlapGridView({
                     onClick={() =>
                       setSelected(isSelected ? null : { weekday, row })
                     }
+                    onPointerEnter={(event) => {
+                      if (event.pointerType === "mouse") {
+                        setPointed({ weekday, row });
+                      }
+                    }}
+                    onPointerLeave={() => clearPointed(weekday, row)}
+                    onFocus={(event) => {
+                      // Keyboard focus only; a tap or click also focuses the tile.
+                      if (event.currentTarget.matches(":focus-visible")) {
+                        setPointed({ weekday, row });
+                      }
+                    }}
+                    onBlur={() => clearPointed(weekday, row)}
                     aria-pressed={isSelected}
                     aria-label={`${WEEKDAY_NAMES[weekday]} ${rowSpan(row)}, ${availableCount} available, ${tentativeCount} tentative${organizerLabel}`}
                     className={`flex cursor-pointer items-center justify-center rounded-tile font-digits text-[10px] leading-none tile-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${heat} ${organizerMark} ${height} ${isSelected ? "outline-2 -outline-offset-2 outline-ring" : ""}`}
@@ -293,10 +333,12 @@ export function OverlapGridView({
         })}
       </div>
 
-      {selected !== null && selectedCell !== null && (
-        <div className="mt-3 rounded border border-edge p-3 text-sm">
+      {panelSlot !== null && selectedCell !== null && (
+        <div
+          className={`mt-3 rounded border border-edge p-3 text-sm ${isPreview ? "opacity-80" : ""}`}
+        >
           <p className="mb-2 font-medium">
-            {WEEKDAY_NAMES[selected.weekday]} {rowSpan(selected.row)}
+            {WEEKDAY_NAMES[panelSlot.weekday]} {rowSpan(panelSlot.row)}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:gap-10">
             <div>

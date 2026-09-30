@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DANGER_SM, SECONDARY_SM } from "@/components/button-classes";
+import { SaveButton, SaveMessage, useSaveForm, type SaveAction } from "@/components/save-form";
 
 interface Props {
   eventId: string;
@@ -10,7 +11,7 @@ interface Props {
   /** Display form of the code (XXXXX-XXXXX). */
   code: string;
   /** The regenerateInvite server action, passed down from the page. */
-  regenerateAction: (formData: FormData) => void | Promise<void>;
+  regenerateAction: SaveAction;
 }
 
 
@@ -50,6 +51,14 @@ export function InvitePanel({
   code,
   regenerateAction,
 }: Props) {
+  const { formProps, confirmation, error, errorId } = useSaveForm({
+    action: regenerateAction,
+    beforeSubmit: () =>
+      confirm(
+        "Regenerate the invite? The current link and code stop working immediately, and you will need to share the new ones.",
+      ),
+  });
+
   return (
     <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
@@ -67,25 +76,12 @@ export function InvitePanel({
         <CopyButton text={code} label="Copy the invite code" />
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-edge pt-3">
-        <form
-          action={regenerateAction}
-          onSubmit={(event) => {
-            if (
-              !confirm(
-                "Regenerate the invite? The current link and code stop working immediately, and you will need to share the new ones.",
-              )
-            ) {
-              event.preventDefault();
-            }
-          }}
-        >
+        <form {...formProps}>
           <input type="hidden" name="eventId" value={eventId} />
-          <button
-            type="submit"
-            className={DANGER_SM}
-          >
+          <SaveButton className={DANGER_SM} confirmText="Saved" confirmation={confirmation}>
             Regenerate
-          </button>
+          </SaveButton>
+          <SaveMessage error={error} id={errorId} />
         </form>
         <span className="text-xs text-hint">
           Works while this event is open.

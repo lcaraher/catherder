@@ -2,17 +2,17 @@
 
 import { useRef, useState } from "react";
 import { PRIMARY } from "@/components/button-classes";
+import { SaveButton, UnsavedNote } from "@/components/save-form";
 import {
   cellsToRanges,
-  weekFromRanges,
   weeksEqual,
   weekToCells,
   type AvailabilityRange,
   type ClockFormat,
-  type SlotStatus,
 } from "@/domain/availability";
 import { WeekGridEditor } from "@/components/week-grid-editor";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
+import { useWeekGrid } from "@/components/use-week-grid";
 
 interface Props {
   initialRanges: AvailabilityRange[];
@@ -23,15 +23,15 @@ interface Props {
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
-  const [initialWeek] = useState(() => weekFromRanges(initialRanges));
-  // The editor owns the on-screen week; we only need the latest value at save.
-  const weekRef = useRef<SlotStatus[][]>(initialWeek);
+  const { initialWeek, weekRef, week, gridKey, gridProps, replaceWeek } =
+    useWeekGrid(initialRanges);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const savedTimer = useRef<number | undefined>(undefined);
 
-  // The last successful save; dirtiness compares against it, so painting a
-  // cell and painting it back leaves the form clean.
-  const savedRef = useRef(initialWeek);
-  useUnsavedChangesGuard(() => !weeksEqual(weekRef.current, savedRef.current));
+  // The last successful save; painting a cell and painting it back leaves the form clean.
+  const [savedWeek, setSavedWeek] = useState(initialWeek);
+  const dirty = !weeksEqual(week, savedWeek);
+  useUnsavedChangesGuard(() => !weeksEqual(weekRef.current, savedWeek));
 
   // The time zone is managed by the TimeZonePicker rendered alongside; this
   // save only touches the week.
@@ -47,9 +47,13 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
         }),
       });
       if (!response.ok) throw new Error(`save failed (${response.status})`);
-      savedRef.current = sentWeek;
+      setSavedWeek(sentWeek);
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus((s) => (s === "saved" ? "idle" : s)), 2000);
+      window.clearTimeout(savedTimer.current);
+      savedTimer.current = window.setTimeout(
+        () => setSaveStatus((s) => (s === "saved" ? "idle" : s)),
+        2000,
+      );
     } catch {
       setSaveStatus("error");
     }
@@ -58,18 +62,19 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
   // Rendered above and below the grid; both buttons share one status.
   function saveControls(margin: string) {
     return (
-      <div className={`${margin} flex items-center gap-3`}>
-        <button
+      <div className={`${margin} flex flex-wrap items-center gap-3`}>
+        {dirty && <UnsavedNote size="md" onDiscard={() => replaceWeek(savedWeek)} />}
+        <SaveButton
           type="button"
           onClick={save}
           disabled={saveStatus === "saving"}
+          inactive={!dirty}
           className={`${PRIMARY} text-sm`}
+          confirmText="Saved"
+          confirmation={saveStatus === "saved" ? "Saved" : null}
         >
           {saveStatus === "saving" ? "Saving…" : "Save"}
-        </button>
-        {saveStatus === "saved" && (
-          <span className="text-sm text-status-submitted">Saved ✓</span>
-        )}
+        </SaveButton>
         {saveStatus === "error" && (
           <span className="text-sm text-error">
             Save failed — please try again.
@@ -81,15 +86,12 @@ export function AvailabilityGrid({ initialRanges, clockFormat }: Props) {
 
   return (
     <div>
+      <p role="status" className="sr-only">
+        {saveStatus === "saved" ? "Saved" : ""}
+      </p>
       {saveControls("mb-4")}
 
-      <WeekGridEditor
-        initialWeek={initialWeek}
-        onChange={(week) => {
-          weekRef.current = week;
-        }}
-        clockFormat={clockFormat}
-      />
+      <WeekGridEditor key={gridKey} {...gridProps} clockFormat={clockFormat} />
 
       {saveControls("mt-4")}
     </div>
