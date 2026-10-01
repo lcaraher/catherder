@@ -149,6 +149,7 @@ infra/aws/terraform.tfvars
 *.tfvars
 !dev.tfvars
 !prod.tfvars
+infra/aws/mail/build/
 
 # Playwright run output
 test-results/
