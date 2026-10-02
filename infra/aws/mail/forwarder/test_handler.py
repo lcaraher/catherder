@@ -243,7 +243,7 @@ class ForwardTests(MailTestCase):
 
         self.assertEqual(len(self.ses.sent), 1)
         sent = self.ses.sent[0]
-        self.assertEqual(sent["FromEmailAddress"], FEEDBACK)
+        self.assertEqual(sent["FromEmailAddress"], f"{SENDER_NAME} via catherder feedback <{FEEDBACK}>")
         self.assertEqual(sent["Destination"], {"ToAddresses": [FORWARD_TO]})
         self.assertEqual(sent["ConfigurationSetName"], "test-set")
 
@@ -291,6 +291,13 @@ class ForwardTests(MailTestCase):
         self.assertEqual(str(out["Subject"]), subject)
         self.assertEqual(out["From"].addresses[0].display_name, "Zoë Sample via catherder feedback")
         self.assertTrue(self.ses.sent[0]["Content"]["Raw"]["Data"].isascii())
+
+        from_address = self.ses.sent[0]["FromEmailAddress"]
+        self.assertTrue(from_address.isascii())
+        self.assertIn("=?utf-8?", from_address)
+        decoded = policy.default.header_factory("From", from_address).addresses[0]
+        self.assertEqual(decoded.display_name, "Zoë Sample via catherder feedback")
+        self.assertEqual(decoded.addr_spec, FEEDBACK)
 
     def test_auto_submitted_no_is_forwarded(self):
         self.s3.add(PREFIX + "msg-1", plain_message())
@@ -341,6 +348,7 @@ class NoticeTests(MailTestCase):
     def assert_notice(self, record, reason):
         self.run_handler(record)
         notice = self.ses.messages()[-1]
+        self.assertEqual(self.ses.sent[-1]["FromEmailAddress"], FEEDBACK)
         self.assertTrue(str(notice["Subject"]).startswith("[catherder mail] Not forwarded: "))
         self.assertEqual(str(notice["X-Catherder-Forwarded"]), "msg-1")
         self.assertEqual([a.addr_spec for a in notice["To"].addresses], [FORWARD_TO])

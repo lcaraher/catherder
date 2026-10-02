@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from email.headerregistry import Address
 from email.message import EmailMessage
 from email.parser import BytesParser
-from email.utils import getaddresses
+from email.utils import formataddr, getaddresses
 
 REGION = "us-east-2"
 MAX_FORWARD_BYTES = 39_000_000
@@ -112,9 +112,10 @@ def put_tags(cfg, key, tags, **new):
     )
 
 
-def send_raw(cfg, data):
+def send_raw(cfg, data, from_header):
+    # SES writes FromEmailAddress into the From header, replacing the one in the raw message.
     response = client("sesv2").send_email(
-        FromEmailAddress=cfg.feedback_address,
+        FromEmailAddress=from_header,
         Destination={"ToAddresses": list(cfg.forward_to)},
         Content={"Raw": {"Data": data}},
         ConfigurationSetName=cfg.configuration_set,
@@ -129,7 +130,7 @@ def send_text(cfg, subject, body, marker):
     message["Subject"] = one_line(subject)
     message["X-Catherder-Forwarded"] = marker
     message.set_content(body)
-    return send_raw(cfg, message.as_bytes())
+    return send_raw(cfg, message.as_bytes(), cfg.feedback_address)
 
 
 def stored_until(received, days):
@@ -223,7 +224,7 @@ def blocked_files(message):
 
 
 def rebuild(message, message_id, cfg):
-    """Changes headers only; every MIME part is left as it arrived."""
+    """Changes headers only; returns the bytes and the From display name it set."""
     sender = message["From"].addresses
     name = one_line(sender[0].display_name or sender[0].addr_spec)
     reply_to = message["Reply-To"]
@@ -236,7 +237,8 @@ def rebuild(message, message_id, cfg):
     for header in {h for h in message.keys() if h.lower().startswith("x-ses-")}:
         del message[header]
 
-    message["From"] = Address(display_name=f"{name} via catherder feedback", addr_spec=cfg.feedback_address)
+    display_name = f"{name} via catherder feedback"
+    message["From"] = Address(display_name=display_name, addr_spec=cfg.feedback_address)
     message["Reply-To"] = list(sender)
     message["To"] = [Address(addr_spec=a) for a in cfg.forward_to]
     if reply_to is not None:
@@ -248,7 +250,7 @@ def rebuild(message, message_id, cfg):
     if original_id is not None:
         message["X-Original-Message-ID"] = one_line(original_id)
     message["X-Catherder-Forwarded"] = message_id
-    return message.as_bytes(policy=OUTPUT_POLICY)
+    return message.as_bytes(policy=OUTPUT_POLICY), display_name
 
 
 def notice_body(reason, detail, mail, cfg, key):
@@ -320,7 +322,7 @@ def process(record, cfg):
         log({**entry, "action": "notified", "reason": "blocked_attachment"})
         return
 
-    data = rebuild(message, message_id, cfg)
+    data, display_name = rebuild(message, message_id, cfg)
     entry["size"] = len(data)
     if len(data) > MAX_FORWARD_BYTES:
         notify(cfg, mail, key, tags, "too_large", size=len(data))
@@ -328,7 +330,8 @@ def process(record, cfg):
         return
 
     try:
-        ses_id = send_raw(cfg, data)
+        from_header = formataddr((display_name, cfg.feedback_address), charset="utf-8")
+        ses_id = send_raw(cfg, data, from_header)
     except Exception as err:
         code = error_code(err)
         if code != "MessageRejected":
