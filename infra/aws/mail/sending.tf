@@ -96,10 +96,11 @@ data "aws_iam_policy_document" "smtp_send" {
   statement {
     effect  = "Allow"
     actions = ["ses:SendRawEmail"]
-    resources = [
-      aws_sesv2_email_identity.domain.arn,
-      aws_sesv2_configuration_set.mail.arn,
-    ]
+    # The sandbox also checks the recipient's identity; after production access these have no effect.
+    resources = concat(
+      [aws_sesv2_email_identity.domain.arn, aws_sesv2_configuration_set.mail.arn],
+      aws_sesv2_email_identity.forward_to[*].arn,
+    )
 
     condition {
       test     = "StringEquals"
