@@ -15,6 +15,8 @@ resource "aws_lambda_function" "app" {
   # The HTTP API cuts every request at 30 seconds, so the function must give up first.
   timeout = 29
 
+  reserved_concurrent_executions = var.app_reserved_concurrency
+
   vpc_config {
     subnet_ids                  = aws_subnet.app[*].id
     security_group_ids          = [aws_security_group.lambda.id]

@@ -44,3 +44,9 @@ variable "app_image_tag" {
   description = "ECR image tag of the application image this environment runs."
   type        = string
 }
+
+variable "app_reserved_concurrency" {
+  description = "Caps the app function's concurrent copies to bound cost; the account limit must keep at least 100 unreserved."
+  type        = number
+  default     = 300
+}
