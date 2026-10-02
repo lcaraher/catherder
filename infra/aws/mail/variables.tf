@@ -69,9 +69,9 @@ variable "log_days" {
 }
 
 variable "forwarder_reserved_concurrency" {
-  description = "Reserved concurrency for the forwarder; null until the account's Lambda concurrency limit is raised."
+  description = "Reserved concurrency for the forwarder; keeps the forwarder to one message at a time."
   type        = number
-  default     = null
+  default     = 1
 }
 
 variable "hourly_send_alarm_threshold" {

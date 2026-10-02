@@ -1,6 +1,8 @@
 services:
   app:
     build: .
+    # The app container starts only when asked for, with docker compose --profile app up.
+    profiles: ["app"]
     ports:
       - "3001:3000"
     environment:
