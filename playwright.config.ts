@@ -8,7 +8,7 @@ const desktop = { width: 1280, height: 800 };
 export default defineConfig({
   testDir: "tests/visual",
   fullyParallel: false,
-  // The suite creates one invite, so projects must not overlap.
+  // The suite creates an invite only for an event that has none (the seed gives each event one); projects run one at a time.
   workers: 1,
   retries: 0,
   reporter: "list",

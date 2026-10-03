@@ -200,7 +200,7 @@ export function UnsavedNote({
 }) {
   return (
     <>
-      <span data-unsaved className={`${size === "sm" ? "text-xs" : "text-sm"} text-status-unlocked`}>
+      <span data-unsaved className={`${size === "sm" ? "text-xs" : "text-sm"} text-unsaved`}>
         Unsaved changes
       </span>
       <button type="button" onClick={onDiscard} className={size === "sm" ? SECONDARY_SM : SECONDARY}>

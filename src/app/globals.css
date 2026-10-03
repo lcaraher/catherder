@@ -53,6 +53,8 @@
   --status-invited: #9aa6b2; /* INVITED response-status text */
   --status-submitted: #1fb8a6; /* SUBMITTED status, "Saved ✓" feedback */
   --status-unlocked: #f0c674; /* "Unlocked for editing" text */
+  --unsaved: #ff9ecf; /* "Unsaved changes" beside a form's Discard and Save buttons */
+  --unsaved-edge: #ff9ecf; /* edge of a pane or card holding a form with unsaved changes */
 
   /* ----- Notices (banner panels) ----- */
   --notice-error: #3d2f37; /* error banner background */
@@ -152,6 +154,8 @@
   --status-invited: #9d9da6;
   --status-submitted: #5ee6d6;
   --status-unlocked: #f0c674;
+  --unsaved: #ffb07a;
+  --unsaved-edge: #ffb07a;
   --notice-error: #432f32;
   --notice-error-border: #ff8f8f;
   --notice-error-text: #ff8f8f;
@@ -238,6 +242,8 @@
   --status-invited: #46413a;
   --status-submitted: #2f3a7a;
   --status-unlocked: #7a4a00;
+  --unsaved: #006b3e;
+  --unsaved-edge: #009d5c;
   --notice-error: #e8cdc0;
   --notice-error-border: #a12a1e;
   --notice-error-text: #7a1a10;
@@ -324,6 +330,8 @@
   --status-invited: #9aa6b2;
   --status-submitted: #1fb8a6;
   --status-unlocked: #f0c674;
+  --unsaved: #ff9ecf;
+  --unsaved-edge: #ff9ecf;
   --notice-error: #3d2f37;
   --notice-error-border: #ff8f8f;
   --notice-error-text: #ff8f8f;
@@ -410,6 +418,8 @@
   --status-invited: #b3a8d1;
   --status-submitted: #7fd8b4;
   --status-unlocked: #f2c885;
+  --unsaved: #8fd0ff;
+  --unsaved-edge: #8fd0ff;
   --notice-error: #4e3154;
   --notice-error-border: #ff8a8a;
   --notice-error-text: #ff8a8a;
@@ -508,6 +518,8 @@
   --color-status-invited: var(--status-invited);
   --color-status-submitted: var(--status-submitted);
   --color-status-unlocked: var(--status-unlocked);
+  --color-unsaved: var(--unsaved);
+  --color-unsaved-edge: var(--unsaved-edge);
   --color-notice-error: var(--notice-error);
   --color-notice-error-border: var(--notice-error-border);
   --color-notice-error-text: var(--notice-error-text);
@@ -863,7 +875,7 @@
 /* A pane or card holding a form with unsaved changes (a [data-unsaved] inside it). */
 @utility unsaved-frame {
   &:has([data-unsaved]) {
-    border-color: var(--status-unlocked);
+    border-color: var(--unsaved-edge);
   }
 }
 
