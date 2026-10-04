@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Pane } from "@/components/pane";
+import { PRIMARY, SECONDARY } from "@/components/button-classes";
+import { ErrorPage } from "@/components/error-page";
 
 /** Generic error boundary; never shows the error's message or stack. */
-export default function ErrorPage({
+export default function ErrorBoundary({
   error,
   reset,
 }: {
@@ -13,20 +14,13 @@ export default function ErrorPage({
 }) {
   void error;
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <Pane as="div">
-      <div className="rounded border border-notice-error-border bg-notice-error px-3 py-2 text-sm text-notice-error-text">
-        <p className="mb-2">Something went wrong.</p>
-        <p className="flex items-center gap-4">
-          <button type="button" onClick={reset} className="underline">
-            Try again
-          </button>
-          <Link href="/" className="underline">
-            Back to the home page
-          </Link>
-        </p>
-      </div>
-      </Pane>
-    </main>
+    <ErrorPage heading="YOU GOTTA BE KITTEN ME!" errorLine="error 500">
+      <button type="button" onClick={reset} className={PRIMARY}>
+        Try again
+      </button>
+      <Link href="/" className={`${SECONDARY} no-underline`}>
+        Back to the home page
+      </Link>
+    </ErrorPage>
   );
 }

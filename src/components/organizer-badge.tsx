@@ -1,6 +1,6 @@
 /**
- * Chip marking the event's Organizer: a line-drawn crown in the badge
- * tokens. Placeholder artwork for the design pass.
+ * Chip marking the event's Organizer: a filled crown in the badge tokens,
+ * the organizer glyph.
  */
 export function OrganizerBadge({ className = "" }: { className?: string }) {
   return (
@@ -12,7 +12,7 @@ export function OrganizerBadge({ className = "" }: { className?: string }) {
     >
       <svg
         viewBox="0 0 16 16"
-        fill="none"
+        fill="currentColor"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"

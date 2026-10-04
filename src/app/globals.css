@@ -1045,6 +1045,60 @@
   }
 }
 
+/* Monitor switching on: a bright line that opens to the full picture, once. */
+@utility crt-on {
+  animation: crt-on 500ms ease-out both;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes crt-on {
+  from {
+    transform: scaleY(0.02);
+    filter: brightness(4);
+  }
+  60% {
+    transform: scaleY(1);
+    filter: brightness(1.6);
+  }
+  to {
+    filter: brightness(1);
+  }
+}
+
+/* Faint horizontal lines over the box, in the foreground colour. */
+@utility scanlines {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      color-mix(in srgb, var(--foreground) 6%, transparent) 0 1px,
+      transparent 1px 3px
+    );
+  }
+}
+
+/* A short sideways shake for a wrong press. */
+@utility nudge {
+  animation: nudge 240ms ease-in-out;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes nudge {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
 body {
   background-color: var(--surface);
   color: var(--foreground);

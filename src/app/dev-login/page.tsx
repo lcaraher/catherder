@@ -12,7 +12,10 @@ export default async function DevLoginPage({
 }) {
   if (!isDevIssuerEnabled()) notFound();
   const next = safeReturnPath((await searchParams).next);
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
+  // Ties on createdAt are broken by name so the visual suite's capture of this page is stable.
+  const users = await prisma.user.findMany({
+    orderBy: [{ createdAt: "asc" }, { displayName: "asc" }],
+  });
 
   return (
     <main className="flex flex-1 items-center justify-center">
