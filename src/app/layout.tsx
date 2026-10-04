@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Link from "next/link";
 import "./globals.css";
-import { buildLabel } from "@/adapters/app-config";
+import { buildLabel, publicOrigin } from "@/adapters/app-config";
 import { getSessionUser } from "@/adapters/auth";
 import { readThemeCookie } from "@/adapters/theme-cookie";
 import { THEMES } from "@/domain/theme";
@@ -64,10 +64,19 @@ const fontClasses = [wordmark, heading, small, body, digits, pixel]
 
 const navLink = "font-small font-medium nav-comet";
 
-export const metadata: Metadata = {
-  title: "catherder",
-  description: "Find when everyone can meet",
-};
+export function generateMetadata(): Metadata {
+  const metadataBase = publicOrigin();
+  return {
+    ...(metadataBase && { metadataBase }),
+    title: "catherder",
+    openGraph: {
+      siteName: "catherder",
+      title: "Find when everyone can meet",
+      type: "website",
+    },
+    twitter: { card: "summary_large_image" },
+  };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await getSessionUser();

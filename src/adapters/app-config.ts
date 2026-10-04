@@ -35,6 +35,15 @@ export function appUrl(path: string): URL {
   return new URL(path, getAppConfig().baseUrl);
 }
 
+/** APP_BASE_URL's origin, or undefined when it is unset or not an absolute URL; never throws. */
+export function publicOrigin(): URL | undefined {
+  try {
+    return new URL(new URL(process.env.APP_BASE_URL ?? "").origin);
+  } catch {
+    return undefined;
+  }
+}
+
 /** Footer build line from APP_BASE_URL and APP_COMMIT; never throws. */
 export function buildLabel(): string {
   const commit = process.env.APP_COMMIT?.trim() || "";
