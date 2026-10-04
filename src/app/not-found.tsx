@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Pane } from "@/components/pane";
+import { PRIMARY } from "@/components/button-classes";
+import { ErrorPage } from "@/components/error-page";
 
 /**
  * App-wide 404, also rendered by every notFound() call; a missing page and
@@ -7,15 +8,10 @@ import { Pane } from "@/components/pane";
  */
 export default function NotFound() {
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <Pane as="div">
-      <div className="rounded border border-notice-error-border bg-notice-error px-3 py-2 text-sm text-notice-error-text">
-        <h1 className="mb-2 font-body text-sm font-normal">This page does not exist.</h1>
-        <Link href="/" className="underline">
-          Back to the home page
-        </Link>
-      </div>
-      </Pane>
-    </main>
+    <ErrorPage heading="there's been a CAT-astrophic failure." errorLine="error 404">
+      <Link href="/" className={`${PRIMARY} no-underline`}>
+        Back to the home page
+      </Link>
+    </ErrorPage>
   );
 }

@@ -15,6 +15,8 @@ export default defineConfig({
   snapshotPathTemplate: "{testDir}/__screenshots__/{arg}-{projectName}{ext}",
   use: {
     baseURL: "http://localhost:3001",
+    // Page effects honour it, so a screenshot never catches one mid-way.
+    reducedMotion: "reduce",
   },
   expect: {
     toHaveScreenshot: {
