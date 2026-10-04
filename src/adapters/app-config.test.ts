@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { appUrl, buildLabel, resetAppConfigForTests } from "./app-config.ts";
+import { appUrl, buildLabel, publicOrigin, resetAppConfigForTests } from "./app-config.ts";
 
 function withBaseUrl(value: string): void {
   process.env.APP_BASE_URL = value;
@@ -90,5 +90,45 @@ describe("buildLabel", () => {
   it("is empty on the app host without a commit", () => {
     withEnv("https://app.catherderapp.com", undefined);
     assert.equal(buildLabel(), "");
+  });
+});
+
+describe("publicOrigin", () => {
+  function withBase(value: string | undefined): void {
+    if (value === undefined) delete process.env.APP_BASE_URL;
+    else process.env.APP_BASE_URL = value;
+  }
+
+  afterEach(() => {
+    delete process.env.APP_BASE_URL;
+  });
+
+  it("is undefined when APP_BASE_URL is unset", () => {
+    withBase(undefined);
+    assert.equal(publicOrigin(), undefined);
+  });
+
+  it("is undefined when APP_BASE_URL is empty", () => {
+    withBase("");
+    assert.equal(publicOrigin(), undefined);
+  });
+
+  it("does not throw on an unparseable or relative APP_BASE_URL", () => {
+    withBase("not a url");
+    assert.equal(publicOrigin(), undefined);
+    withBase("/some/path");
+    assert.equal(publicOrigin(), undefined);
+  });
+
+  it("is undefined for a URL without an origin", () => {
+    withBase("mailto:someone@example.test");
+    assert.equal(publicOrigin(), undefined);
+  });
+
+  it("is the origin of a valid absolute URL", () => {
+    withBase("https://example.test/some/base/");
+    assert.equal(publicOrigin()?.href, "https://example.test/");
+    withBase("http://localhost:3001");
+    assert.equal(publicOrigin()?.href, "http://localhost:3001/");
   });
 });

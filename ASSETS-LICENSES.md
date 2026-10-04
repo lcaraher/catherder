@@ -9,3 +9,5 @@
 | Spryte (pixel role; fetched from private storage at build time, not in this repository) | 400 | Wondermake, bought on Creative Market | Creative Market Webfont licence, 10,000 pageviews/month | — |
 | Placeholder mark (src/components/logo.tsx) | — | original inline SVG drawn for this project | no licence needed; replaced when the commissioned mark arrives | — |
 | Tab icon (src/app/icon.png) | — | original artwork made for this project | no licence needed | — |
+| Link preview image (src/app/opengraph-image.png) | — | rendered from the placeholder mark and Grandstander by scripts/render-preview-image.mts | no licence beyond those rows | — |
+| Apple icon (src/app/apple-icon.png) | — | the tab icon stretched to 180 × 180 by scripts/render-preview-image.mts | no licence needed | — |
