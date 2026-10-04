@@ -164,3 +164,6 @@ PRODUCT.md
 .mcp.json
 DESIGN.md
 .impeccable/
+
+# Licensed font fetched from private storage at build time, never committed
+public/fonts/spryte/

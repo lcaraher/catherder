@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Spryte, fetched into public/fonts/spryte at build time and never committed, carries the
+ * footer's name and group headings through font-pixel-display; Silkscreen when the file is absent. */
+@font-face {
+  font-family: "Spryte";
+  src: url("/fonts/spryte/spryte-regular-webfont.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Named colour tokens for the whole app; components use only the role
  * utilities from the @theme block. :root holds the default theme (Aurora). */
 
@@ -567,7 +577,8 @@
   --font-small: var(--font-small);
   --font-body: var(--font-body);
   --font-digits: var(--font-digits);
-  --font-pixel: var(--font-pixel);
+  --font-pixel: var(--font-pixel-fallback);
+  --font-pixel-display: "Spryte", var(--font-pixel-fallback);
 
   /* Tile grids: the gap between cells and each cell's corner radius. */
   --spacing-tile-gap: 3px;

@@ -132,6 +132,12 @@ jobs:
       - uses: aws-actions/amazon-ecr-login@v2
         id: ecr
 
+      # The file lives in the private assets bucket, never in the repository; a failed copy fails the job.
+      - name: Fetch the licensed pixel font
+        run: |
+          mkdir -p public/fonts/spryte
+          aws s3 cp "s3://${{ vars.AWS_ASSETS_BUCKET }}/fonts/spryte/spryte-regular-webfont.woff2" public/fonts/spryte/spryte-regular-webfont.woff2
+
       # Tags are immutable, so a re-run of an already pushed commit skips the push instead of failing.
       # Without --provenance=false --sbom=false buildx wraps the image in an attestation index that Lambda refuses.
       - name: Build and push ${{ matrix.target }}

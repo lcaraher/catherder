@@ -220,6 +220,8 @@ function captureState(
       if (options.needsSeed) seed ??= await readSeed(browser);
       const theme = projectTheme();
       context = await browser.newContext();
+      // The baselines render the committed fallback so they reproduce without the licensed file.
+      await context.route("**/fonts/spryte/**", (route) => route.abort());
       page = await context.newPage();
       if (options.signInAs) {
         await signIn(page, options.signInAs);

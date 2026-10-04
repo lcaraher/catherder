@@ -1,6 +1,6 @@
 # GitHub Actions OIDC federation, three roles for three workflow contexts:
 # github-plan is assumed by pull-request jobs and can only read;
-# github-push is assumed by push-to-main jobs and can only push the image to ECR;
+# github-push is assumed by push-to-main jobs and can push the image to ECR and read the private assets bucket;
 # github-deploy is assumed by jobs that named an approved GitHub Environment and deploys.
 
 resource "aws_iam_openid_connect_provider" "github" {

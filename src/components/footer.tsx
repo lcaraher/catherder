@@ -11,7 +11,7 @@ const LINK = "pixel-pointer ml-3 whitespace-nowrap";
 function Group({ heading, children }: { heading: string; children: ReactNode }) {
   return (
     <nav aria-label={heading}>
-      <h2 className="mb-2 font-pixel text-xs font-normal whitespace-nowrap text-muted">
+      <h2 className="mb-2 font-pixel-display text-xs font-normal whitespace-nowrap text-muted">
         {heading}
       </h2>
       <ul className="flex flex-col gap-2.5">{children}</ul>

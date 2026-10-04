@@ -15,6 +15,7 @@ import { Wordmark } from "@/components/wordmark";
 
 // Self-hosted faces from public/fonts; each sets one CSS variable for the
 // role it plays (see ASSETS-LICENSES.md).
+// Spryte, declared in globals.css and fetched at build time, carries the footer's name and headings; this Silkscreen file is the pixel role's face and Spryte's fallback.
 const wordmark = localFont({
   src: "../../public/fonts/grandstander/Grandstander-VariableFont_wght.ttf",
   weight: "100 900",
@@ -54,7 +55,7 @@ const digits = localFont({
 const pixel = localFont({
   src: "../../public/fonts/silkscreen/Silkscreen-Regular.ttf",
   weight: "400",
-  variable: "--font-pixel",
+  variable: "--font-pixel-fallback",
   display: "swap",
 });
 const fontClasses = [wordmark, heading, small, body, digits, pixel]
