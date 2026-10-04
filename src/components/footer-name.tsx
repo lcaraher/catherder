@@ -180,7 +180,7 @@ export function FooterName({ line }: { line: string }) {
         onPointerEnter={(event: PointerEvent) => {
           if (event.pointerType === "mouse") play();
         }}
-        className="name-glow text-base whitespace-nowrap text-foreground"
+        className="name-glow font-pixel-display text-base whitespace-nowrap text-foreground"
       >
         <span className={`relative inline-block ${fade}`}>
           <span className={scramble === null ? undefined : "text-transparent"}>{NAME}</span>

@@ -23,6 +23,11 @@ output "state_bucket_name" {
   value       = aws_s3_bucket.tf_state.bucket
 }
 
+output "assets_bucket_name" {
+  description = "Name of the private assets bucket (upload target for licensed files the build copies into the image)."
+  value       = aws_s3_bucket.assets.bucket
+}
+
 output "ecr_repository_url" {
   description = "URL of the catherder ECR repository (docker push target and image base for environment roots)."
   value       = aws_ecr_repository.catherder.repository_url
