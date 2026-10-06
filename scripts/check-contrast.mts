@@ -76,6 +76,10 @@ const PAIRS: Pair[] = [
   ["disabled", "surface", 0, "info"],
   ["edge", "surface", 0, "info"],
   ["grid-line", "surface-card", 0, "info"],
+  ["foreground", "btn-go", 4.5, "text"],
+  ["faint", "surface-card", 4.5, "text"],
+  ["bevel-light", "surface", 0, "info"],
+  ["bevel-dark", "surface", 0, "info"],
 ];
 
 const CSS_PATH = new URL("../src/app/globals.css", import.meta.url);

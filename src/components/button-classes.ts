@@ -9,6 +9,8 @@ const DANGER_BASE = `rounded border border-btn-danger-border bg-transparent font
 /** The one save or submit action on a page. */
 export const PRIMARY = `${PRIMARY_BASE} px-4 py-2`;
 export const PRIMARY_SM = `${PRIMARY_BASE} px-3 py-1.5 text-sm`;
+/** The Open event action: PRIMARY_SM on the go fill. */
+export const PRIMARY_GO_SM = PRIMARY_SM.replace("accent-gradient-border", "go-fill");
 
 /** Everything that is neither the page's main action nor destructive. */
 export const SECONDARY = `${SECONDARY_BASE} px-3 py-1.5 text-sm`;

@@ -19,7 +19,6 @@ export interface CardQuestion {
   id: string;
   type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TEXT" | "RANKING";
   prompt: string;
-  answersRevealed: boolean;
   required: boolean;
   allowOther: boolean;
   answerCount: number;
@@ -36,7 +35,6 @@ interface OptionDraft {
 
 interface Draft {
   prompt: string;
-  answersRevealed: boolean;
   required: boolean;
   allowOther: boolean;
   options: OptionDraft[];
@@ -45,7 +43,6 @@ interface Draft {
 function fromQuestion(question: CardQuestion): Draft {
   return {
     prompt: question.prompt,
-    answersRevealed: question.answersRevealed,
     required: question.required,
     allowOther: question.allowOther,
     options: question.options.map((option) => ({
@@ -69,29 +66,8 @@ function wordingChanged(draft: Draft, saved: Draft): boolean {
 function draftEqual(draft: Draft, saved: Draft): boolean {
   return (
     !wordingChanged(draft, saved) &&
-    draft.answersRevealed === saved.answersRevealed &&
     draft.required === saved.required &&
     draft.allowOther === saved.allowOther
-  );
-}
-
-// Line-drawn eye / crossed-out eye for the answer visibility switch.
-function EyeIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-3.5 w-3.5"
-      aria-hidden="true"
-    >
-      <path d="M2 8s2.5-4.5 6-4.5S14 8 14 8s-2.5 4.5-6 4.5S2 8 2 8z" />
-      <circle cx="8" cy="8" r="2" />
-      {!open && <line x1="3" y1="13.5" x2="13" y2="2.5" />}
-    </svg>
   );
 }
 
@@ -167,36 +143,6 @@ export function QuestionCard({ action, question, header }: Props) {
           className={`mb-2 w-full ${inputClass}`}
         />
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <Segmented
-            label="Answer visibility"
-            size="sm"
-            value={String(shown.answersRevealed)}
-            onChange={(value) => edit({ answersRevealed: value === "true" })}
-            options={[
-              {
-                value: "false",
-                label: (
-                  <>
-                    <EyeIcon open={false} />
-                    Hidden from participants
-                  </>
-                ),
-                title:
-                  "Participants cannot see answers to this question even once results are shared.",
-              },
-              {
-                value: "true",
-                label: (
-                  <>
-                    <EyeIcon open={true} />
-                    Visible to participants
-                  </>
-                ),
-                title:
-                  "Participants can see everyone's answers to this question once results are shared.",
-              },
-            ]}
-          />
           <Segmented
             label="Answer requirement"
             size="sm"

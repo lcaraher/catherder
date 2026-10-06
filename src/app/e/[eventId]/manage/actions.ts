@@ -591,6 +591,33 @@ export async function reorderQuestion(formData: FormData): Promise<SaveResult> {
   return saved();
 }
 
+// Shows or hides one question's answers to participants; the version stays as it is.
+export async function setQuestionAnswersRevealed(formData: FormData): Promise<SaveResult> {
+  const questionId = String(formData.get("questionId") ?? "");
+  const revealed = String(formData.get("revealed") ?? "") === "true";
+  const question = await prisma.question.findUnique({ where: { id: questionId } });
+  if (!question) return saveError(SAVE_FAILED);
+  const { user } = await requireEventManager(question.eventId);
+  if (question.answersRevealed === revealed) return saved();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.question.update({
+      where: { id: question.id },
+      data: { answersRevealed: revealed },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Question",
+        entityId: question.id,
+        action: revealed ? "question_answers_revealed" : "question_answers_hidden",
+      },
+    });
+  });
+  revalidatePath(eventPath(question.eventId));
+  return saved();
+}
+
 export async function deleteQuestion(formData: FormData) {
   const questionId = String(formData.get("questionId") ?? "");
   const question = await prisma.question.findUnique({
@@ -679,7 +706,6 @@ interface CardOption {
 interface CardChanges {
   questionId: string;
   prompt: string;
-  answersRevealed: boolean;
   required: boolean;
   allowOther: boolean;
   options: CardOption[];
@@ -739,12 +765,11 @@ export async function saveQuestionCard(formData: FormData): Promise<SaveResult> 
   }
 
   const promptChanged = prompt !== question.prompt;
-  const revealedChanged = card.answersRevealed !== question.answersRevealed;
   const requiredChanged = card.required !== question.required;
   const otherChanged = isChoice && card.allowOther !== question.allowOther;
   const wordingChanged =
     promptChanged || removed.length > 0 || renamed.length > 0 || added.length > 0;
-  if (!wordingChanged && !revealedChanged && !requiredChanged && !otherChanged) {
+  if (!wordingChanged && !requiredChanged && !otherChanged) {
     return saved();
   }
 
@@ -802,7 +827,6 @@ export async function saveQuestionCard(formData: FormData): Promise<SaveResult> 
       where: { id: question.id },
       data: {
         prompt,
-        answersRevealed: card.answersRevealed,
         required: card.required,
         ...(isChoice ? { allowOther: card.allowOther } : {}),
         // Answer.questionVersion records which version each answer was for.
@@ -810,8 +834,6 @@ export async function saveQuestionCard(formData: FormData): Promise<SaveResult> 
       },
     });
     const switchAudits = [
-      revealedChanged &&
-        (card.answersRevealed ? "question_answers_revealed" : "question_answers_hidden"),
       requiredChanged &&
         (card.required ? "question_required_set" : "question_required_cleared"),
       otherChanged &&

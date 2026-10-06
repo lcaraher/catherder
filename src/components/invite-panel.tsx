@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { DANGER_SM, SECONDARY_SM } from "@/components/button-classes";
 import { SaveButton, SaveMessage, useSaveForm, type SaveAction } from "@/components/save-form";
 
@@ -14,8 +14,29 @@ interface Props {
   regenerateAction: SaveAction;
 }
 
+// Heat step per code character, one to ten.
+const TILE_CLASSES = [
+  "bg-heat-1 text-heat-text-1",
+  "bg-heat-1 text-heat-text-1",
+  "bg-heat-2 text-heat-text-2",
+  "bg-heat-2 text-heat-text-2",
+  "bg-heat-3 text-heat-text-3",
+  "bg-heat-3 text-heat-text-3",
+  "bg-heat-4 text-heat-text-4",
+  "bg-heat-4 text-heat-text-4",
+  "bg-heat-5 text-heat-text-5",
+  "bg-heat-5 text-heat-text-5",
+];
 
-function CopyButton({ text, label }: { text: string; label: string }) {
+function CopyButton({
+  text,
+  label,
+  idleText = "Copy",
+}: {
+  text: string;
+  label: string;
+  idleText?: string;
+}) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
   async function copy() {
@@ -39,7 +60,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         ? "Copied"
         : state === "failed"
           ? "Select and copy"
-          : "Copy"}
+          : idleText}
     </button>
   );
 }
@@ -61,19 +82,27 @@ export function InvitePanel({
 
   return (
     <div className="flex flex-col gap-3 rounded border border-edge p-3 text-sm">
+      <h3 className="-mb-0.5 self-start text-base leading-6 text-foreground heading-bar">
+        Invite code
+      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="flex items-center gap-tile-gap" aria-hidden="true">
+          {[...code.replace("-", "")].map((char, i) => (
+            <Fragment key={i}>
+              {i === 5 && <span className="code-dash" />}
+              <span className={`code-tile ${TILE_CLASSES[i]}`}>{char}</span>
+            </Fragment>
+          ))}
+        </span>
+        <span className="sr-only">{code}</span>
+        <CopyButton text={code} label="Copy the invite code" idleText="Copy code" />
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="w-12 shrink-0 text-muted">Link</span>
         <code className="min-w-0 flex-1 truncate rounded bg-surface-raised px-2 py-1 text-xs">
           {joinUrl}
         </code>
         <CopyButton text={joinUrl} label="Copy the join link" />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="w-12 shrink-0 text-muted">Code</span>
-        <code className="rounded bg-surface-raised px-2 py-1 font-mono text-base tracking-wider">
-          {code}
-        </code>
-        <CopyButton text={code} label="Copy the invite code" />
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-edge pt-3">
         <form {...formProps}>

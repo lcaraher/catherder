@@ -13,10 +13,13 @@ import {
   type OverlapGrid,
   type SplitOverlapCell,
 } from "@/domain/overlap";
-import { HEAT_CLASSES, HEAT_TEXT_CLASSES } from "@/components/heat-legend";
+import {
+  HEAT_CLASSES,
+  HEAT_TEXT_CLASSES,
+  ORGANIZER_MARK_CLASSES,
+} from "@/components/heat-legend";
 import { Checkbox } from "@/components/form-controls";
 import { OrganizerBadge } from "@/components/organizer-badge";
-import { Legend } from "@/components/legend";
 import { Segmented } from "@/components/segmented";
 import { ZoneChip } from "@/components/zone-chip";
 
@@ -31,13 +34,6 @@ const WEEKDAY_NAMES = [
   "Sunday",
 ];
 
-// Organizer mark: solid border for available, dashed for tentative. Static
-// strings so Tailwind sees every class.
-const ORGANIZER_MARK_CLASSES = {
-  AVAILABLE: "border-2 border-solid border-organizer-mark",
-  TENTATIVE: "border-2 border-dashed border-organizer-mark",
-} as const;
-
 export interface OverlapPerson {
   userId: string;
   displayName: string;
@@ -50,8 +46,8 @@ interface Props {
   /** 7 × 48 half-hour grid in the viewer's zone, from computeOverlapGrid. */
   grid: OverlapGrid;
   people: OverlapPerson[];
-  /** The event's Organizer, or null on legacy rows without one. */
-  organizerUserId: string | null;
+  /** The event's Organizer. */
+  organizerUserId: string;
   /** Whether the organizer has any availability rows for this event. */
   organizerHasAvailability: boolean;
   /**
@@ -109,8 +105,7 @@ export function OverlapGridView({
     () => new Map(people.map((person) => [person.userId, person])),
     [people],
   );
-  const organizer =
-    organizerUserId === null ? null : (personById.get(organizerUserId) ?? null);
+  const organizer = personById.get(organizerUserId) ?? null;
   // Who belongs in the selected-cell panel's groups: everyone when the
   // organizer is counted, participants only when they are just the anchor.
   const panelPeople = useMemo(
@@ -198,49 +193,26 @@ export function OverlapGridView({
           }}
         />
 
-        {organizerUserId !== null && (
-          <div className="flex items-center gap-2 text-sm">
-            <label className="flex items-center gap-2">
-              <Checkbox
-                checked={organizerOnly}
-                disabled={!organizerHasAvailability}
-                onChange={(e) => {
-                  setOrganizerOnly(e.target.checked);
-                  setSelected(null);
-                  setPointed(null);
-                }}
-              />
-              Only times the organizer can make
-            </label>
-            {!organizerHasAvailability && (
-              <span className="text-xs text-hint">
-                The organizer has not set their availability for this event
-              </span>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <Checkbox
+              checked={organizerOnly}
+              disabled={!organizerHasAvailability}
+              onChange={(e) => {
+                setOrganizerOnly(e.target.checked);
+                setSelected(null);
+                setPointed(null);
+              }}
+            />
+            Only times the organizer can make
+          </label>
+          {!organizerHasAvailability && (
+            <span className="text-xs text-hint">
+              The organizer has not set their availability for this event
+            </span>
+          )}
+        </div>
       </div>
-
-      {organizerUserId !== null && (
-        <Legend className="mb-3 font-medium text-muted">
-          <li className="flex items-center gap-1.5">
-            <span
-              className={`inline-block h-3.5 w-3.5 rounded-sm ${ORGANIZER_MARK_CLASSES.AVAILABLE}`}
-            />
-            Organizer available (
-            {countOrganizer
-              ? "numbers include the organizer"
-              : "numbers count participants only"}
-            )
-          </li>
-          <li className="flex items-center gap-1.5">
-            <span
-              className={`inline-block h-3.5 w-3.5 rounded-sm ${ORGANIZER_MARK_CLASSES.TENTATIVE}`}
-            />
-            Organizer tentative
-          </li>
-        </Legend>
-      )}
 
       <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-tile-gap">
         <div />
@@ -366,7 +338,7 @@ export function OverlapGridView({
                   ...selectedCell.players.available,
                   ...selectedCell.players.tentative,
                 ]);
-                if (selectedCell.organizer !== null && organizerUserId) {
+                if (selectedCell.organizer !== null) {
                   painted.add(organizerUserId);
                 }
                 const notAvailable = panelPeople
