@@ -27,6 +27,7 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
     prisma: typeof import("@/adapters/db/client").prisma;
     login: typeof import("@/app/api/dev-auth/login/route").POST;
     saveQuestionCard: typeof import("@/app/e/[eventId]/manage/actions").saveQuestionCard;
+    setQuestionAnswersRevealed: typeof import("@/app/e/[eventId]/manage/actions").setQuestionAnswersRevealed;
   };
   let m: Modules;
   let jwksServer: http.Server;
@@ -103,7 +104,7 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
 
   type Option = { key: string; id?: string; label: string; removed?: boolean };
   function card(
-    question: { id: string; prompt: string; answersRevealed: boolean; required: boolean; allowOther: boolean },
+    question: { id: string; prompt: string; required: boolean; allowOther: boolean },
     changes: { prompt?: string; required?: boolean; options: Option[] },
   ): FormData {
     const form = new FormData();
@@ -112,12 +113,18 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
       JSON.stringify({
         questionId: question.id,
         prompt: changes.prompt ?? question.prompt,
-        answersRevealed: question.answersRevealed,
         required: changes.required ?? question.required,
         allowOther: question.allowOther,
         options: changes.options,
       }),
     );
+    return form;
+  }
+
+  function visibility(questionId: string, revealed: boolean): FormData {
+    const form = new FormData();
+    form.set("questionId", questionId);
+    form.set("revealed", String(revealed));
     return form;
   }
 
@@ -137,6 +144,8 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
       prisma: (await import("@/adapters/db/client")).prisma,
       login: (await import("@/app/api/dev-auth/login/route")).POST,
       saveQuestionCard: (await import("@/app/e/[eventId]/manage/actions")).saveQuestionCard,
+      setQuestionAnswersRevealed: (await import("@/app/e/[eventId]/manage/actions"))
+        .setQuestionAnswersRevealed,
     };
 
     const [organizer, player] = await Promise.all([
@@ -310,5 +319,49 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
     expect(after.prompt).toBe("Which one?");
     expect(after.options).toHaveLength(2);
     expect(await m.prisma.questionOption.count({ where: { questionId: ranking.id } })).toBe(2);
+  });
+
+  it("hides and shows an answered question's answers, one audit row each, version untouched", async () => {
+    const question = await answeredQuestion();
+    await m.prisma.question.update({ where: { id: question.id }, data: { answersRevealed: true } });
+    const audits = (action: string) =>
+      m.prisma.auditEvent.count({
+        where: { entity: "Question", entityId: question.id, action },
+      });
+
+    expect(await m.setQuestionAnswersRevealed(visibility(question.id, false))).toEqual({ ok: true });
+    let after = await m.prisma.question.findUniqueOrThrow({ where: { id: question.id } });
+    expect(after.answersRevealed).toBe(false);
+    expect(await audits("question_answers_hidden")).toBe(1);
+
+    expect(await m.setQuestionAnswersRevealed(visibility(question.id, true))).toEqual({ ok: true });
+    after = await m.prisma.question.findUniqueOrThrow({ where: { id: question.id } });
+    expect(after.answersRevealed).toBe(true);
+    expect(await audits("question_answers_revealed")).toBe(1);
+    expect(await audits("question_answers_hidden")).toBe(1);
+    expect(after.version).toBe(1);
+  });
+
+  it("counts sending the visibility a question already has as saved and writes no audit row", async () => {
+    const question = await answeredQuestion();
+    const result = await m.setQuestionAnswersRevealed(
+      visibility(question.id, question.answersRevealed),
+    );
+    expect(result).toEqual({ ok: true });
+    expect(await m.prisma.auditEvent.count({ where: { entityId: question.id } })).toBe(0);
+  });
+
+  it("refuses to change a question's visibility for a player", async () => {
+    const question = await answeredQuestion();
+    await loginAs(playerId);
+    try {
+      await expect(
+        m.setQuestionAnswersRevealed(visibility(question.id, !question.answersRevealed)),
+      ).rejects.toThrow();
+    } finally {
+      await loginAs(organizerId);
+    }
+    const after = await m.prisma.question.findUniqueOrThrow({ where: { id: question.id } });
+    expect(after.answersRevealed).toBe(question.answersRevealed);
   });
 });

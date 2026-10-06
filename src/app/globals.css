@@ -36,10 +36,13 @@
   --edge: #32373c; /* default borders: cards, rows, sections */
   --edge-strong: #63676d; /* stronger borders: inputs, small buttons */
   --ring: #1fb8a6; /* focus ring: overlap-grid cells (selected outline and focus-visible) */
+  --bevel-light: #555c67; /* light top and left edge of the window tabs and their sheet */
+  --bevel-dark: var(--edge-strong); /* dark right and bottom edge of the window tabs and their sheet */
 
   /* ----- Buttons ----- */
   --btn-primary: #1fb8a6; /* primary action background */
   --btn-primary-hover: #2fcbb8; /* primary action hover background */
+  --btn-go: #153a3e; /* Open event button fill */
   --btn-secondary: transparent; /* secondary buttons are outline-only */
   --btn-secondary-hover: #1d2126; /* secondary button hover background */
   --btn-secondary-text: var(--foreground); /* secondary button text, where set explicitly */
@@ -141,8 +144,11 @@
   --edge: #373739;
   --edge-strong: #69696b;
   --ring: #5ee6d6;
+  --bevel-light: #636367;
+  --bevel-dark: var(--edge-strong);
   --btn-primary: #5ee6d6;
   --btn-primary-hover: #84eee2;
+  --btn-go: #284343;
   --btn-secondary: transparent;
   --btn-secondary-hover: #202022;
   --btn-secondary-text: var(--foreground);
@@ -229,8 +235,11 @@
   --edge: #1c1a17;
   --edge-strong: #1c1a17;
   --ring: #1c1a17;
+  --bevel-light: var(--field);
+  --bevel-dark: var(--edge-strong);
   --btn-primary: #1c1a17;
   --btn-primary-hover: #2f3a7a;
+  --btn-go: #c6d6c3;
   --btn-secondary: transparent;
   --btn-secondary-hover: #d4c8ad;
   --btn-secondary-text: var(--foreground);
@@ -317,8 +326,11 @@
   --edge: #32373c;
   --edge-strong: #63676d;
   --ring: #1fb8a6;
+  --bevel-light: #555c67;
+  --bevel-dark: var(--edge-strong);
   --btn-primary: #1fb8a6;
   --btn-primary-hover: #2fcbb8;
+  --btn-go: #153a3e;
   --btn-secondary: transparent;
   --btn-secondary-hover: #1d2126;
   --btn-secondary-text: var(--foreground);
@@ -405,8 +417,11 @@
   --edge: #413954;
   --edge-strong: #706981;
   --ring: #e8b86d;
+  --bevel-light: #6c628b;
+  --bevel-dark: var(--edge-strong);
   --btn-primary: #e8b86d;
   --btn-primary-hover: #f2c885;
+  --btn-go: #39425e;
   --btn-secondary: transparent;
   --btn-secondary-hover: #2b2340;
   --btn-secondary-text: var(--foreground);
@@ -505,8 +520,11 @@
   --color-edge: var(--edge);
   --color-edge-strong: var(--edge-strong);
   --color-ring: var(--ring);
+  --color-bevel-light: var(--bevel-light);
+  --color-bevel-dark: var(--bevel-dark);
   --color-btn-primary: var(--btn-primary);
   --color-btn-primary-hover: var(--btn-primary-hover);
+  --color-btn-go: var(--btn-go);
   --color-btn-secondary: var(--btn-secondary);
   --color-btn-secondary-hover: var(--btn-secondary-hover);
   --color-btn-secondary-text: var(--btn-secondary-text);
@@ -1118,6 +1136,178 @@
   75% {
     transform: translateX(3px);
   }
+}
+
+/* Window tab row; with data-phone-rows its groups stack as rows below md. */
+@utility window-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  @media (width < 48rem) {
+    &[data-phone-rows] {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+  }
+}
+
+/* The tabs inside the window tab row; their rows stack with it on phones. */
+@utility window-tab-list {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  @media (width < 48rem) {
+    [data-phone-rows] & {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+  }
+}
+
+/* A group of up to three tabs: no box of its own, a row on phones; the chosen row sits last. */
+@utility window-tab-row {
+  display: contents;
+  @media (width < 48rem) {
+    [data-phone-rows] & {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      &[data-chosen] {
+        order: 1;
+      }
+      &[data-link] {
+        order: -1;
+      }
+    }
+  }
+}
+
+/* One window tab: bevelled raised tab; the selected one joins the sheet below it. */
+@utility window-tab {
+  padding: 5px 14px;
+  border-style: solid;
+  border-width: 2px 2px 0;
+  border-color: var(--bevel-light) var(--bevel-dark) transparent var(--bevel-light);
+  border-radius: var(--radius-tile) var(--radius-tile) 0 0;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-family: var(--font-small);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: center;
+  cursor: pointer;
+  &:hover {
+    color: var(--foreground);
+  }
+  &[aria-selected="true"] {
+    position: relative;
+    z-index: 1;
+    margin-bottom: -2px;
+    padding: 8px 16px 9px;
+    background: var(--surface-card);
+    color: var(--foreground);
+  }
+  &[data-greyed] {
+    color: var(--faint);
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--edge) var(--edge) transparent var(--edge);
+  }
+  &[data-greyed][aria-selected="true"] {
+    background: var(--surface-card);
+  }
+  @media (width < 48rem) {
+    [data-phone-rows] & {
+      flex: 0 0 calc((100% - 4px) / 3);
+      min-width: 0;
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+  }
+}
+
+/* The panel under the window tabs, bevelled to match them. */
+@utility window-sheet {
+  background: var(--surface-card);
+  padding: 16px;
+  border: 2px solid;
+  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
+  border-radius: 0 6px 6px 6px;
+  @media (width < 40rem) {
+    padding: 10px;
+  }
+}
+
+/* A count on a tab, in a small pill. */
+@utility pip {
+  display: inline-grid;
+  place-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9999px;
+  background: var(--btn-danger);
+  color: var(--on-primary);
+  font-family: var(--font-small);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  vertical-align: 1px;
+}
+
+/* One character of the invite code. */
+@utility code-tile {
+  display: grid;
+  place-content: center;
+  width: 34px;
+  height: 42px;
+  border-radius: var(--radius-tile);
+  font-family: var(--font-digits);
+  font-weight: 700;
+  font-size: 22px;
+  @media (width < 40rem) {
+    width: 22px;
+    height: 30px;
+    font-size: 15px;
+  }
+}
+
+/* The dash between the invite code's halves. */
+@utility code-dash {
+  width: 10px;
+  height: 3px;
+  margin: 0 4px;
+  border-radius: 2px;
+  background: var(--hint);
+  @media (width < 40rem) {
+    width: 8px;
+    margin: 0 3px;
+  }
+}
+
+/* Accent bar under a heading. */
+@utility heading-bar {
+  padding-bottom: 4px;
+  background: linear-gradient(100deg, var(--accent-gradient-a), var(--accent-gradient-b)) left bottom / 100%
+    3px no-repeat;
+}
+
+/* Primary button on the go fill, inside the accent gradient border. */
+@utility go-fill {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--btn-go), var(--btn-go)) padding-box,
+    linear-gradient(100deg, var(--accent-gradient-a), var(--accent-gradient-b)) border-box;
+}
+
+/* Inline code in described text. */
+@utility code-size {
+  font-size: 0.9em;
 }
 
 body {

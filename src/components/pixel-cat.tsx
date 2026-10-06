@@ -29,6 +29,29 @@ const GRIDS = {
     "X.............X",
     ".XXXXXXXXXXXXX.",
   ],
+  puzzled: [
+    "......XXX......",
+    ".....X...X.....",
+    ".........X.....",
+    "........X......",
+    ".......X.......",
+    "...............",
+    ".......X.......",
+    "...............",
+    ".XX.........XX.",
+    ".X.X.......X.X.",
+    ".X..XXXXXXX..X.",
+    "X.............X",
+    "X..XX.....XX..X",
+    "X..XX.....XX..X",
+    "X.............X",
+    "X......X......X",
+    "X.............X",
+    "X....XXXXX....X",
+    "X.............X",
+    "X.............X",
+    ".XXXXXXXXXXXXX.",
+  ],
 } as const;
 
 export type CatMood = keyof typeof GRIDS;
@@ -36,13 +59,14 @@ export type CatMood = keyof typeof GRIDS;
 const LABELS: Record<CatMood, string> = {
   sad: "A sad pixel cat",
   laughing: "A laughing pixel cat",
+  puzzled: "A puzzled pixel cat with a question mark over its head",
 };
 
-/** A 15×13 pixel cat drawn in currentColor, one rect per lit cell. */
+/** A 15-wide pixel cat drawn in currentColor, one rect per lit cell; 13 tall, or 21 when puzzled. */
 export function PixelCat({ mood, className }: { mood: CatMood; className?: string }) {
   return (
     <svg
-      viewBox="0 0 15 13"
+      viewBox={`0 0 15 ${GRIDS[mood].length}`}
       shapeRendering="crispEdges"
       role="img"
       aria-label={LABELS[mood]}
