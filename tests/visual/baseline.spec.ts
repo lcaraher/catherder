@@ -24,19 +24,34 @@ const AXE_PROJECT = "light-desktop";
 const IMPACTS = ["critical", "serious", "moderate", "minor"] as const;
 
 // Routes are templates; <id> and <dense> are filled in from the home page.
-const SIGNED_OUT = ["/", "/join", "/join/NOSUCHCODE0", "/help", "/nowhere"];
+// Every tab other than the one a page opens on is its own route.
+const SIGNED_OUT = ["/", "/join", "/help", "/nowhere"];
 const AS_ORGANIZER = [
   "/",
   "/availability",
   "/events/new",
   "/admin",
   "/e/<id>/manage",
+  "/e/<id>/manage?tab=availability",
+  "/e/<id>/manage?tab=participants",
+  "/e/<id>/manage?tab=questions",
+  "/e/<id>/manage?tab=settings",
+  "/e/<id>/manage?tab=results",
   "/e/<id>/responses",
+  "/e/<id>/responses?tab=participants",
+  "/e/<id>/responses?tab=questions",
   "/e/<dense>/responses",
+  "/e/<dense>/responses?tab=participants",
+  "/e/<dense>/responses?tab=questions",
 ];
-const AS_PARTICIPANT = ["/", "/e/<id>/respond"];
-// /dev-login and a valid /join link are not captured: the first lists whatever
-// users the local database holds, the second only ever redirects.
+const AS_PARTICIPANT = [
+  "/",
+  "/e/<id>/respond",
+  "/e/<id>/respond?tab=details",
+  "/e/<id>/respond?tab=questions",
+];
+// Not captured: /dev-login, which lists the local database's users; a valid /join link, which
+// only ever redirects; a signed-out /join/<code> link, which lands on /dev-login.
 const ROUTE_COUNT =
   SIGNED_OUT.length + AS_ORGANIZER.length + AS_PARTICIPANT.length;
 
@@ -193,16 +208,18 @@ function resolveRoute(route: string): string {
     .replace("<dense>", seed.denseEventId);
 }
 
-// "/e/<id>/manage" + "greta" gives "e-manage-greta.png"; "/" gives "home-…";
-// "/e/<dense>/responses" keeps its placeholder: "e-dense-responses-greta.png".
+// "/e/<id>/manage" + "greta" gives "e-manage-greta.png"; "/" gives "home-…"; "<dense>" stays as "dense";
+// a tab is a suffix: "/e/<id>/manage?tab=questions" gives "e-manage-questions-greta.png".
 function shotName(route: string, state: string): string {
-  const slug = route
+  const [pathname, query] = route.split("?");
+  const tab = new URLSearchParams(query ?? "").get("tab");
+  const slug = pathname
     .replace("<id>/", "")
     .replace(/[<>]/g, "")
     .split("/")
     .filter(Boolean)
     .join("-");
-  return `${slug || "home"}-${state}.png`;
+  return `${slug || "home"}${tab ? `-${tab}` : ""}-${state}.png`;
 }
 
 // One describe per sign-in state, each on its own browser context.
