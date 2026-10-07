@@ -9,10 +9,11 @@ export async function signIn(page: Page, displayName: string) {
   await page.waitForURL("/");
 }
 
-// The event's id from its manage link on the home page.
+// The event's id from the Manage Event link on its home-page card.
 export async function readEventId(page: Page, name: string): Promise<string> {
   const href = await page
-    .locator('a[href^="/e/"][href$="/manage"]', { hasText: name })
+    .locator("li", { hasText: name })
+    .getByRole("link", { name: "Manage Event", exact: true })
     .first()
     .getAttribute("href");
   const eventId = href?.match(/^\/e\/([^/]+)\/manage$/)?.[1];

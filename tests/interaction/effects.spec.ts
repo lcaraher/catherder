@@ -72,7 +72,12 @@ test.beforeEach(async ({ page }) => {
   }, POINTER_SEEN_KEY);
   await signIn(page, ORGANIZER);
   // The home page streams in after the loading skeleton and moves the footer down.
-  await expect(page.locator('a[href$="/manage"]', { hasText: DENSE_EVENT_NAME }).first()).toBeVisible();
+  await expect(
+    page
+      .locator("li", { hasText: DENSE_EVENT_NAME })
+      .getByRole("link", { name: "Manage Event", exact: true })
+      .first(),
+  ).toBeVisible();
 });
 
 test("a. header link comet on hover", async ({ page }) => {
@@ -221,6 +226,7 @@ test("h. segmented highlight slides", async ({ page }) => {
 });
 
 test("i. event row hover edge", async ({ page }) => {
+  await page.goto("/admin");
   const row = page.locator("a.row-edge", { hasText: DENSE_EVENT_NAME }).first();
   await expect.poll(() => pseudoOpacity(row, "::before")).toBe("0");
   await row.hover();
