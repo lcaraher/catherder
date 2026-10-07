@@ -21,6 +21,8 @@ interface Props {
   tabs: WindowTab[];
   panels: Record<string, ReactNode>;
   initialTab?: string | string[];
+  /** The tab to open on when initialTab names no tab; the first tab if absent. */
+  defaultTab?: string;
   /** Called with each newly active tab, and once on mount with the first. */
   onChange?: (id: string) => void;
   /** A greyed tab at the end of the row that leads to another page. */
@@ -28,10 +30,10 @@ interface Props {
 }
 
 /** Window-style tabs over one sheet; every panel stays mounted, only the active one shown. */
-export function WindowTabs({ label, tabs, panels, initialTab, onChange, link }: Props) {
+export function WindowTabs({ label, tabs, panels, initialTab, defaultTab, onChange, link }: Props) {
   const base = useId();
   const ids = tabs.map((tab) => tab.id);
-  const [active, setActive] = useState(() => pickTab(initialTab, ids, ids[0]));
+  const [active, setActive] = useState(() => pickTab(initialTab, ids, defaultTab ?? ids[0]));
   if (ids.length > 0 && !ids.includes(active)) setActive(ids[0]);
 
   const notify = useEffectEvent((id: string) => onChange?.(id));

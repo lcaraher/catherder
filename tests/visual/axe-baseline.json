@@ -30,7 +30,42 @@
     "violations": []
   },
   {
+    "route": "/e/<dense>/responses?tab=participants",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<dense>/responses?tab=questions",
+    "state": "greta",
+    "violations": []
+  },
+  {
     "route": "/e/<id>/manage",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/manage?tab=availability",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/manage?tab=participants",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/manage?tab=questions",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/manage?tab=results",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/manage?tab=settings",
     "state": "greta",
     "violations": []
   },
@@ -40,7 +75,27 @@
     "violations": []
   },
   {
+    "route": "/e/<id>/respond?tab=details",
+    "state": "pat",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/respond?tab=questions",
+    "state": "pat",
+    "violations": []
+  },
+  {
     "route": "/e/<id>/responses",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/responses?tab=participants",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/responses?tab=questions",
     "state": "greta",
     "violations": []
   },
@@ -56,11 +111,6 @@
   },
   {
     "route": "/join",
-    "state": "signed-out",
-    "violations": []
-  },
-  {
-    "route": "/join/NOSUCHCODE0",
     "state": "signed-out",
     "violations": []
   },

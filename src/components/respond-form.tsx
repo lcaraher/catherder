@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   cellsToRanges,
   weekFromRanges,
@@ -14,6 +14,8 @@ import { Pane } from "@/components/pane";
 import { SaveButton, UnsavedNote } from "@/components/save-form";
 import { DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import { WeekGridEditor } from "@/components/week-grid-editor";
+import { BlankTab } from "@/components/blank-tab";
+import { WindowTabs } from "@/components/window-tabs";
 import { useWeekGrid } from "@/components/use-week-grid";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
 import {
@@ -21,6 +23,7 @@ import {
   OTHER_ANSWER_MAX_LENGTH,
   TEXT_ANSWER_MAX_LENGTH,
 } from "@/domain/questions";
+import { questionsLeft } from "@/domain/respond-pips";
 
 export interface QuestionDto {
   id: string;
@@ -50,6 +53,13 @@ interface Props {
   alreadySubmitted: boolean;
   /** The viewer's clock format, passed down from the page — never read here. */
   clockFormat: ClockFormat;
+  initialTab?: string | string[];
+  defaultTab: string;
+  /** The Details panel, built by the page. */
+  details: ReactNode;
+  detailsGreyed: boolean;
+  /** The time-zone and clock-format pickers, shown above the grid. */
+  pickers: ReactNode;
 }
 
 type SubmitStatus = "idle" | "submitting" | "submitted" | "error";
@@ -113,6 +123,11 @@ export function RespondForm({
   initialAnswers,
   alreadySubmitted,
   clockFormat,
+  initialTab,
+  defaultTab,
+  details,
+  detailsGreyed,
+  pickers,
 }: Props) {
   const { initialWeek, weekRef, week, gridKey, gridProps, replaceWeek } =
     useWeekGrid(initialRanges);
@@ -126,6 +141,7 @@ export function RespondForm({
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [confirming, setConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [questionsSeen, setQuestionsSeen] = useState(false);
 
   // The last successful submit; dirtiness compares against it, so a
   // standing-week reload counts as unsaved while edit-then-undo does not.
@@ -136,6 +152,14 @@ export function RespondForm({
   );
   // Once a response is stored, submitting again needs a change.
   const submittedOnce = alreadySubmitted || status === "submitted";
+  const weekEmpty = cellsToRanges(weekToCells(week)).length === 0;
+  const left = questionsLeft(
+    questions.map((question) => ({
+      required: question.required,
+      answered: isAnswered(question, answers[question.id]),
+    })),
+    questionsSeen || submittedOnce,
+  );
   useUnsavedChangesGuard(
     () =>
       !weeksEqual(weekRef.current, saved.week) ||
@@ -221,38 +245,6 @@ export function RespondForm({
       );
       setStatus("error");
     }
-  }
-
-  // The only submit control sits below the questions.
-  function submitControls(margin: string) {
-    return (
-      <div className={`${margin} flex flex-wrap items-center gap-3`}>
-        {submittedOnce && (weekDirty || answersDirty) && (
-          <UnsavedNote size="md" onDiscard={discard} />
-        )}
-        <SaveButton
-          type="button"
-          onClick={submit}
-          disabled={status === "submitting"}
-          inactive={submittedOnce && !weekDirty && !answersDirty}
-          className={`${PRIMARY} text-sm`}
-          confirmText="Submitted"
-          confirmation={confirming ? "Submitted" : null}
-        >
-          {status === "submitting"
-            ? "Submitting…"
-            : alreadySubmitted && status !== "submitted"
-              ? "Resubmit"
-              : "Submit"}
-        </SaveButton>
-        <p role="status" className="sr-only">
-          {confirming ? "Response submitted" : ""}
-        </p>
-        {status === "error" && (
-          <span className="text-sm text-error">{errorMessage}</span>
-        )}
-      </div>
-    );
   }
 
   // One-line "Other" input with the same cap-and-counter style as text
@@ -452,58 +444,129 @@ export function RespondForm({
 
   return (
     <div>
-      <Pane className="unsaved-frame">
-      {submittedOnce && weekDirty && <span data-unsaved hidden />}
-      <WeekGridEditor
-        key={gridKey}
-        {...gridProps}
-        clockFormat={clockFormat}
-        extraControls={
-          <div className="flex flex-wrap items-center gap-2">
-            {confirmingReload ? (
-              <>
-                <span className="text-muted">
-                  Replace this grid with your saved week? Edits made here for
-                  this event will be lost.
-                </span>
-                <button
-                  type="button"
-                  onClick={reloadFromStanding}
-                  className={DANGER_SM}
-                >
-                  Yes, replace
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingReload(false)}
-                  className={SECONDARY_SM}
-                >
-                  Cancel
-                </button>
-              </>
+      <WindowTabs
+        label="Response sections"
+        initialTab={initialTab}
+        defaultTab={defaultTab}
+        onChange={(id) => {
+          if (id === "questions") setQuestionsSeen(true);
+        }}
+        tabs={[
+          { id: "details", label: "Details", greyed: detailsGreyed },
+          {
+            id: "availability",
+            label: "Availability",
+            pip: { count: weekEmpty ? 1 : 0, spoken: "week not filled in" },
+          },
+          {
+            id: "questions",
+            label: "Questions",
+            greyed: questions.length === 0,
+            pip:
+              questions.length > 0
+                ? {
+                    count: left,
+                    spoken: left === 1 ? "1 question left" : `${left} questions left`,
+                  }
+                : undefined,
+          },
+        ]}
+        panels={{
+          details,
+          availability: (
+            <>
+              {pickers}
+              <Pane className="unsaved-frame">
+                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your availability</h2>
+                {submittedOnce && weekDirty && <span data-unsaved hidden />}
+                <WeekGridEditor
+                  key={gridKey}
+                  {...gridProps}
+                  clockFormat={clockFormat}
+                  extraControls={
+                    <div className="flex flex-wrap items-center gap-2">
+                      {confirmingReload ? (
+                        <>
+                          <span className="text-muted">
+                            Replace this grid with your saved week? Edits made here for
+                            this event will be lost.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={reloadFromStanding}
+                            className={DANGER_SM}
+                          >
+                            Yes, replace
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingReload(false)}
+                            className={SECONDARY_SM}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingReload(true)}
+                          className={SECONDARY_SM}
+                        >
+                          Reload from my saved availability
+                        </button>
+                      )}
+                    </div>
+                  }
+                />
+              </Pane>
+            </>
+          ),
+          questions:
+            questions.length > 0 ? (
+              <Pane className="unsaved-frame">
+                {submittedOnce && answersDirty && <span data-unsaved hidden />}
+                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Questions</h2>
+                <ul className="flex flex-col gap-3">{questions.map(renderQuestion)}</ul>
+              </Pane>
             ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmingReload(true)}
-                className={SECONDARY_SM}
-              >
-                Reload from my saved availability
-              </button>
-            )}
-          </div>
-        }
+              <BlankTab
+                heading="Questions"
+                lines={[
+                  "Looks like the organizer had no questions for anyone.",
+                  "Hope they know what they're doing.",
+                ]}
+              />
+            ),
+        }}
       />
-      </Pane>
 
-      {questions.length > 0 && (
-        <Pane className="unsaved-frame mt-6">
-          {submittedOnce && answersDirty && <span data-unsaved hidden />}
-          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Questions</h2>
-          <ul className="flex flex-col gap-3">{questions.map(renderQuestion)}</ul>
-        </Pane>
-      )}
-
-      {submitControls("mt-6")}
+      {/* The only submit control sits under the tabs, reachable from every tab. */}
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        {submittedOnce && (weekDirty || answersDirty) && (
+          <UnsavedNote size="md" onDiscard={discard} />
+        )}
+        <SaveButton
+          type="button"
+          onClick={submit}
+          disabled={status === "submitting"}
+          inactive={submittedOnce && !weekDirty && !answersDirty}
+          className={`${PRIMARY} text-sm`}
+          confirmText="Submitted"
+          confirmation={confirming ? "Submitted" : null}
+        >
+          {status === "submitting"
+            ? "Submitting…"
+            : alreadySubmitted && status !== "submitted"
+              ? "Resubmit"
+              : "Submit"}
+        </SaveButton>
+        <p role="status" className="sr-only">
+          {confirming ? "Response submitted" : ""}
+        </p>
+        {status === "error" && (
+          <span className="text-sm text-error">{errorMessage}</span>
+        )}
+      </div>
     </div>
   );
 }

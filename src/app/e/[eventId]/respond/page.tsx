@@ -13,6 +13,7 @@ import {
   buildTimeZoneOptions,
   groupTimeZoneOptions,
 } from "@/domain/time-zones";
+import { BlankTab } from "@/components/blank-tab";
 import { ClockFormatPicker } from "@/components/clock-format-picker";
 import { EventDescription } from "@/components/event-description";
 import { RespondForm } from "@/components/respond-form";
@@ -20,16 +21,20 @@ import { ResultsIcon } from "@/components/results-icon";
 import { SECONDARY_SM } from "@/components/button-classes";
 import { TimeZonePicker } from "@/components/time-zone-picker";
 import { WeekGridDisplay } from "@/components/week-grid-display";
+import { WindowTabs } from "@/components/window-tabs";
 import { ZoneChip } from "@/components/zone-chip";
 
 export const dynamic = "force-dynamic";
 
 export default async function RespondPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ eventId: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const { eventId } = await params;
+  const { tab } = await searchParams;
   const user = await requireUser();
 
   const event = await prisma.event.findUnique({
@@ -100,10 +105,27 @@ export default async function RespondPage({
     where: { eventId, userId: user.id },
     include: { choices: true, text: true },
   });
-  const description = event.description !== null && (
-    <div className="mt-3 border-t border-edge pt-3">
-      <EventDescription text={event.description} />
-    </div>
+  const hasDescription = event.description !== null && event.description.trim() !== "";
+  const details = hasDescription ? (
+    <Pane>
+      <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Details</h2>
+      <EventDescription text={event.description ?? ""} />
+    </Pane>
+  ) : (
+    <BlankTab
+      heading="Details"
+      lines={["Looks like this page is blank.", "Hope you know what you are signing up for."]}
+    />
+  );
+  const defaultTab = hasDescription ? "details" : "availability";
+  const noQuestions = (
+    <BlankTab
+      heading="Questions"
+      lines={[
+        "Looks like the organizer had no questions for anyone.",
+        "Hope they know what they're doing.",
+      ]}
+    />
   );
 
   if (!canEdit) {
@@ -119,91 +141,118 @@ export default async function RespondPage({
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <Pane as="div" className="mb-6">
         <h1 className="mb-3 text-2xl font-semibold">{event.name}</h1>
-        <p className="rounded border border-edge bg-surface-muted px-3 py-2 text-sm font-medium text-muted">
-          {event.archivedAt !== null
-            ? "This event has been archived."
-            : "Editing is closed because this event is not open for responses. If you need to change your response, ask the organizer to unlock it for you."}
-        </p>
-        {description}
+        <div className="rounded border border-notice-warn-border bg-notice-warn px-3 py-2 text-sm text-notice-warn-text">
+          <p className="font-small font-semibold">Editing is closed.</p>
+          <p className="mt-1">
+            {event.archivedAt !== null
+              ? "This event has been archived."
+              : "This event is not open for responses at this time. If you need to change your response, ask the organizer to unlock it for you."}
+          </p>
+        </div>
         {resultsLink}
         </Pane>
 
-        {!hasSubmission ? (
-          <p className="text-sm text-hint">
-            You have not submitted a response for this event.
-          </p>
-        ) : (
-          <>
-            <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">
-                Your availability
-              </h2>
-              <p className="mb-3 text-sm font-medium text-hint">
-                Times are based in your time zone:{" "}
-                <ZoneChip
-                  label={
-                    buildTimeZoneOptions([user.timeZone])[0]?.label ??
-                    user.timeZone
-                  }
-                />
-              </p>
-              <WeekGridDisplay
-                ranges={toRanges(eventRows)}
-                clockFormat={user.clockFormat}
-              />
-            </Pane>
-
-            {event.questions.length > 0 && (
-              <Pane className="mt-6">
-                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your answers</h2>
-                <ul className="flex flex-col gap-3">
-                  {event.questions.map((question, index) => {
-                    const answer = answersByQuestion.get(question.id);
-                    const labelById = new Map(
-                      question.options.map((o) => [o.id, o.label]),
-                    );
-                    let display = "—";
-                    if (answer) {
-                      if (question.type === "TEXT") {
-                        display = answer.text?.text.trim() || "—";
-                      } else if (question.type === "RANKING") {
-                        const ranked = [...answer.choices]
-                          .filter((c) => c.rank !== null)
-                          .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
-                          .map(
-                            (c) =>
-                              `${c.rank}. ${labelById.get(c.optionId) ?? "?"}`,
-                          );
-                        if (ranked.length > 0) display = ranked.join(", ");
-                      } else {
-                        const chosen = answer.choices
-                          .map((c) => labelById.get(c.optionId))
-                          .filter((label): label is string => Boolean(label));
-                        if (answer.otherText) {
-                          chosen.push(`Other: ${answer.otherText}`);
-                        }
-                        if (chosen.length > 0) display = chosen.join(", ");
-                      }
+        <WindowTabs
+          label="Response sections"
+          initialTab={tab}
+          defaultTab={defaultTab}
+          tabs={[
+            { id: "details", label: "Details", greyed: !hasDescription },
+            { id: "availability", label: "Availability" },
+            { id: "questions", label: "Questions", greyed: event.questions.length === 0 },
+          ]}
+          panels={{
+            details,
+            availability: hasSubmission ? (
+              <Pane>
+                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">
+                  Your availability
+                </h2>
+                <p className="mb-3 text-sm font-medium text-hint">
+                  Times are based in your time zone:{" "}
+                  <ZoneChip
+                    label={
+                      buildTimeZoneOptions([user.timeZone])[0]?.label ??
+                      user.timeZone
                     }
-                    return (
-                      <li
-                        key={question.id}
-                        className="rounded border border-edge p-4"
-                      >
-                        <p className="mb-2 text-sm font-medium">
-                          {index + 1}. {question.prompt}
-                        </p>
-                        <p className="whitespace-pre-wrap text-sm text-muted">
-                          {display}
-                        </p>
-                      </li>
-                    );
-                  })}
-                </ul>
+                  />
+                </p>
+                <WeekGridDisplay
+                  ranges={toRanges(eventRows)}
+                  clockFormat={user.clockFormat}
+                />
               </Pane>
-            )}
-          </>
-        )}
+            ) : (
+              <Pane>
+                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">
+                  Your availability
+                </h2>
+                <p className="text-sm text-hint">
+                  You have not submitted a response for this event.
+                </p>
+              </Pane>
+            ),
+            questions:
+              event.questions.length === 0 ? (
+                noQuestions
+              ) : hasSubmission ? (
+                <Pane>
+                  <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your answers</h2>
+                  <ul className="flex flex-col gap-3">
+                    {event.questions.map((question, index) => {
+                      const answer = answersByQuestion.get(question.id);
+                      const labelById = new Map(
+                        question.options.map((o) => [o.id, o.label]),
+                      );
+                      let display = "—";
+                      if (answer) {
+                        if (question.type === "TEXT") {
+                          display = answer.text?.text.trim() || "—";
+                        } else if (question.type === "RANKING") {
+                          const ranked = [...answer.choices]
+                            .filter((c) => c.rank !== null)
+                            .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+                            .map(
+                              (c) =>
+                                `${c.rank}. ${labelById.get(c.optionId) ?? "?"}`,
+                            );
+                          if (ranked.length > 0) display = ranked.join(", ");
+                        } else {
+                          const chosen = answer.choices
+                            .map((c) => labelById.get(c.optionId))
+                            .filter((label): label is string => Boolean(label));
+                          if (answer.otherText) {
+                            chosen.push(`Other: ${answer.otherText}`);
+                          }
+                          if (chosen.length > 0) display = chosen.join(", ");
+                        }
+                      }
+                      return (
+                        <li
+                          key={question.id}
+                          className="rounded border border-edge p-4"
+                        >
+                          <p className="mb-2 text-sm font-medium">
+                            {index + 1}. {question.prompt}
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm text-muted">
+                            {display}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Pane>
+              ) : (
+                <Pane>
+                  <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your answers</h2>
+                  <p className="text-sm text-hint">
+                    You have not submitted a response for this event.
+                  </p>
+                </Pane>
+              ),
+          }}
+        />
       </main>
     );
   }
@@ -242,23 +291,9 @@ export default async function RespondPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <Pane as="div" className="mb-6">
-      <h1 className="mb-1 text-2xl font-semibold">{event.name}</h1>
-      <p className="text-sm font-medium text-hint">
-        Adjust your availability for this event (If your &lsquo;My
-        Availability&rsquo; page is filled in, it will pre-fill those saved
-        times here; changes here apply to this event only), then answer the
-        questions below.
-      </p>
-      {description}
+      <h1 className={`${showResultsLink ? "mb-1 " : ""}text-2xl font-semibold`}>{event.name}</h1>
       {resultsLink}
       </Pane>
-      <TimeZonePicker
-        groups={zoneGroups}
-        initialZoneId={user.timeZone}
-        initialDismissedZone={user.dismissedDeviceZone}
-        hint="Every hour in the grid below is read in this zone. It's your personal setting — if it isn't where you actually are, fix it before filling in your week."
-      />
-      <ClockFormatPicker initialFormat={user.clockFormat} />
       <RespondForm
         eventId={eventId}
         initialRanges={initialRanges}
@@ -277,6 +312,21 @@ export default async function RespondPage({
         initialAnswers={initialAnswers}
         alreadySubmitted={participant.responseStatus === "SUBMITTED"}
         clockFormat={user.clockFormat}
+        initialTab={tab}
+        defaultTab={defaultTab}
+        details={details}
+        detailsGreyed={!hasDescription}
+        pickers={
+          <>
+            <TimeZonePicker
+              groups={zoneGroups}
+              initialZoneId={user.timeZone}
+              initialDismissedZone={user.dismissedDeviceZone}
+              hint="Every hour in the grid below is read in this zone. It's your personal setting — if it isn't where you actually are, fix it before filling in your week."
+            />
+            <ClockFormatPicker initialFormat={user.clockFormat} />
+          </>
+        }
       />
     </main>
   );
