@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
-import { canEditResponse } from "@/domain/response-access";
+import { myEventCards } from "@/domain/my-events";
 import { Pane } from "@/components/pane";
 import { PRIMARY } from "@/components/button-classes";
+import { EventCard } from "@/components/event-card";
 import { EventRow } from "@/components/event-row";
 import { Logo } from "@/components/logo";
 import { Wordmark } from "@/components/wordmark";
@@ -47,6 +48,7 @@ export default async function Home() {
             resultsRevealedAt: true,
             archivedAt: true,
             organizerParticipates: true,
+            createdAt: true,
             organizerUser: { select: { displayName: true } },
           },
         },
@@ -60,44 +62,41 @@ export default async function Home() {
         name: true,
         status: true,
         archivedAt: true,
+        createdAt: true,
         organizerUser: { select: { displayName: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
   ]);
 
-  // A non-participating organizer never appears in the response lists;
-  // their events are under "Events you run" instead. Archived events leave
-  // every list; only the owner keeps them, under "Archived" at the bottom.
-  const playerParticipations = participations.filter(
-    (p) =>
-      p.event.archivedAt === null &&
-      (p.role !== "ORGANIZER" || p.event.organizerParticipates),
-  );
-  const needsResponse = playerParticipations.filter(
-    (p) =>
-      p.event.status !== "DRAFT" &&
-      p.responseStatus === "INVITED" &&
-      canEditResponse({
-        eventStatus: p.event.status,
-        editUnlockedAt: p.editUnlockedAt,
+  const cards = myEventCards({
+    participations: participations.map((p) => ({
+      role: p.role,
+      responseStatus: p.responseStatus,
+      editUnlockedAt: p.editUnlockedAt,
+      event: {
+        id: p.event.id,
+        name: p.event.name,
+        status: p.event.status,
+        resultsRevealedAt: p.event.resultsRevealedAt,
         archivedAt: p.event.archivedAt,
-      }),
-  );
-  const submitted = playerParticipations.filter(
-    (p) => p.responseStatus === "SUBMITTED",
-  );
-  const activeOrganized = organizedEvents.filter(
-    (event) => event.archivedAt === null,
-  );
+        organizerParticipates: p.event.organizerParticipates,
+        createdAt: p.event.createdAt,
+        organizerName: p.event.organizerUser.displayName,
+      },
+    })),
+    organized: organizedEvents.map((event) => ({
+      id: event.id,
+      name: event.name,
+      status: event.status,
+      archivedAt: event.archivedAt,
+      createdAt: event.createdAt,
+      organizerName: event.organizerUser.displayName,
+    })),
+  });
   const archivedOrganized = organizedEvents.filter(
     (event) => event.archivedAt !== null,
   );
-
-  const nothingWaiting =
-    needsResponse.length === 0 &&
-    submitted.length === 0 &&
-    activeOrganized.length === 0;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
@@ -111,80 +110,19 @@ export default async function Home() {
           New event
         </Link>
       </div>
-      {nothingWaiting ? (
+      {cards.length === 0 ? (
         <p className="text-sm text-hint">
           Nothing is waiting for you right now — enjoy the quiet.
         </p>
       ) : (
-        <div className="flex flex-col gap-6">
-          {needsResponse.length > 0 && (
-            <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Needs your response</h2>
-              <ul className="flex flex-col gap-2">
-                {needsResponse.map((p) => (
-                  <EventRow
-                    key={p.eventId}
-                    href={`/e/${p.eventId}/respond`}
-                    name={p.event.name}
-                    organizerName={p.event.organizerUser?.displayName}
-                    status={p.event.status}
-                  />
-                ))}
-              </ul>
-            </Pane>
-          )}
-
-          {submitted.length > 0 && (
-            <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your responses</h2>
-              <ul className="flex flex-col gap-2">
-                {submitted.map((p) => {
-                  const editable = canEditResponse({
-                    eventStatus: p.event.status,
-                    editUnlockedAt: p.editUnlockedAt,
-                    archivedAt: p.event.archivedAt,
-                  });
-                  return (
-                    <EventRow
-                      key={p.eventId}
-                      href={`/e/${p.eventId}/respond`}
-                      name={p.event.name}
-                      organizerName={p.event.organizerUser?.displayName}
-                      status={p.event.status}
-                      resultsHref={
-                        p.event.resultsRevealedAt !== null
-                          ? `/e/${p.eventId}/responses`
-                          : undefined
-                      }
-                      note={
-                        editable ? "Your response can still be changed." : "Locked"
-                      }
-                      notePencil={editable}
-                    />
-                  );
-                })}
-              </ul>
-            </Pane>
-          )}
-
-          {activeOrganized.length > 0 && (
-            <Pane>
-              <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Events you run</h2>
-              <ul className="flex flex-col gap-2">
-                {activeOrganized.map((event) => (
-                  <EventRow
-                    key={event.id}
-                    href={`/e/${event.id}/manage`}
-                    name={event.name}
-                    organizerName={event.organizerUser?.displayName}
-                    status={event.status}
-                  />
-                ))}
-              </ul>
-            </Pane>
-          )}
-
-        </div>
+        <Pane>
+          <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">My Events</h2>
+          <ul className="flex flex-col gap-2">
+            {cards.map((card) => (
+              <EventCard key={card.eventId} card={card} />
+            ))}
+          </ul>
+        </Pane>
       )}
 
       {archivedOrganized.length > 0 && (
