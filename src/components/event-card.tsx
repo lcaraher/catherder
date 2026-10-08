@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { EventCardData } from "@/domain/my-events";
+import { noticeLabel } from "@/domain/question-notice";
 import { statusLabel } from "@/domain/status-label";
 import { SECONDARY_SM } from "@/components/button-classes";
 import { ResultsIcon } from "@/components/results-icon";
@@ -9,6 +10,9 @@ const STATUS_STYLES: Record<string, string> = {
   OPEN: "bg-badge-open text-badge-open-text",
   CLOSED: "bg-badge-closed text-badge-closed-text",
 };
+
+const CHIP =
+  "rounded border border-notice-warn-border bg-notice-warn px-2 py-px text-xs font-medium text-notice-warn-text";
 
 const BUTTON = `${SECONDARY_SM} no-underline inline-flex items-center`;
 
@@ -30,10 +34,12 @@ export function EventCard({ card }: { card: EventCardData }) {
           >
             {statusLabel(card.status)}
           </span>
-          {card.response === "todo" && (
-            <span className="rounded border border-notice-warn-border bg-notice-warn px-2 py-px text-xs font-medium text-notice-warn-text">
-              Needs your response
-            </span>
+          {card.response === "todo" && <span className={CHIP}>Needs your response</span>}
+          {card.changedQuestions > 0 && (
+            <span className={CHIP}>{noticeLabel("changed", card.changedQuestions)}</span>
+          )}
+          {card.addedQuestions > 0 && (
+            <span className={CHIP}>{noticeLabel("added", card.addedQuestions)}</span>
           )}
           {card.response === "editable" && (
             <span className="inline-flex items-center gap-1 text-xs text-hint">

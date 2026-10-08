@@ -205,6 +205,9 @@ model Question {
   required Boolean @default(false)
   // Choice questions only: offers a free-text "Other" alongside the options.
   allowOther Boolean @default(false)
+  // Version the organizer last asked people to check (changed) or answer (new).
+  // Null means never asked.
+  checkRequestedVersion Int?
 
   event   Event            @relation(fields: [eventId], references: [id])
   options QuestionOption[]

@@ -521,7 +521,8 @@ export async function addQuestion(formData: FormData): Promise<SaveResult> {
     .map(([name, value]) => ({ name, label: String(value).trim() }));
   const optionLines = optionFields.map((field) => field.label).filter((label) => label !== "");
   const firstEmpty = optionFields.find((field) => field.label === "")?.name;
-  await requireEventManager(eventId);
+  const askToAnswer = String(formData.get("askToAnswer") ?? "") === "on";
+  const { event, user } = await requireEventManager(eventId);
 
   if (!QUESTION_TYPES.includes(type)) return saveError(SAVE_FAILED, "type");
   if (prompt === "") return saveError(NO_WORDING, "prompt");
@@ -533,23 +534,47 @@ export async function addQuestion(formData: FormData): Promise<SaveResult> {
   }
 
   const count = await prisma.question.count({ where: { eventId } });
-  await prisma.question.create({
-    data: {
-      eventId,
-      type,
-      prompt,
-      version: 1,
-      displayOrder: count,
-      options:
-        type === "TEXT"
-          ? undefined
-          : {
-              create: optionLines.map((label, i) => ({
-                label,
-                displayOrder: i,
-              })),
-            },
-    },
+  // Respondents: submitted participants, the organizer only when they take part.
+  const respondents = askToAnswer
+    ? await prisma.eventParticipant.count({
+        where: {
+          eventId,
+          responseStatus: "SUBMITTED",
+          ...(event.organizerParticipates ? {} : { role: { not: "ORGANIZER" } }),
+        },
+      })
+    : 0;
+  const asked = respondents > 0;
+  await prisma.$transaction(async (tx) => {
+    const question = await tx.question.create({
+      data: {
+        eventId,
+        type,
+        prompt,
+        version: 1,
+        displayOrder: count,
+        ...(asked ? { checkRequestedVersion: 1 } : {}),
+        options:
+          type === "TEXT"
+            ? undefined
+            : {
+                create: optionLines.map((label, i) => ({
+                  label,
+                  displayOrder: i,
+                })),
+              },
+      },
+    });
+    if (asked) {
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "Question",
+          entityId: question.id,
+          action: "question_answer_requested",
+        },
+      });
+    }
   });
   revalidatePath(eventPath(eventId));
   return saved();
@@ -709,6 +734,7 @@ interface CardChanges {
   required: boolean;
   allowOther: boolean;
   options: CardOption[];
+  askToCheck?: boolean;
 }
 
 function parseCardChanges(value: FormDataEntryValue | null): CardChanges | null {
@@ -781,6 +807,7 @@ export async function saveQuestionCard(formData: FormData): Promise<SaveResult> 
   });
   const answered =
     (await prisma.answer.count({ where: { questionId: question.id } })) > 0;
+  const askToCheck = answered && wordingChanged && card.askToCheck === true;
 
   await prisma.$transaction(async (tx) => {
     for (const optionId of removed) {
@@ -831,8 +858,19 @@ export async function saveQuestionCard(formData: FormData): Promise<SaveResult> 
         ...(isChoice ? { allowOther: card.allowOther } : {}),
         // Answer.questionVersion records which version each answer was for.
         ...(answered && wordingChanged ? { version: { increment: 1 } } : {}),
+        ...(askToCheck ? { checkRequestedVersion: question.version + 1 } : {}),
       },
     });
+    if (askToCheck) {
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: user.id,
+          entity: "Question",
+          entityId: question.id,
+          action: "question_check_requested",
+        },
+      });
+    }
     const switchAudits = [
       requiredChanged &&
         (card.required ? "question_required_set" : "question_required_cleared"),

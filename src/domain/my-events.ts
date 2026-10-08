@@ -1,4 +1,5 @@
 // The signed-in home page's event cards: one per event, with what the viewer may do there.
+// Cards with a response to give or questions to look at come first, then newest first.
 
 import { canEditResponse, type EventStatus } from "./response-access.ts";
 
@@ -6,6 +7,7 @@ export interface MyParticipation {
   role: "ORGANIZER" | "PLAYER";
   responseStatus: "INVITED" | "SUBMITTED";
   editUnlockedAt: Date | null;
+  questionNotice?: { changed: number; added: number };
   event: {
     id: string;
     name: string;
@@ -37,6 +39,8 @@ export interface EventCardData {
   response: CardResponse;
   organizer: boolean;
   resultsShared: boolean;
+  changedQuestions: number;
+  addedQuestions: number;
 }
 
 function responseState(p: MyParticipation): CardResponse {
@@ -68,6 +72,7 @@ export function myEventCards({
     if (p.role === "ORGANIZER" && !event.organizerParticipates) continue;
     const response = responseState(p);
     if (response === null && !organizedIds.has(event.id)) continue;
+    const notice = response === "editable" ? p.questionNotice : undefined;
     cards.set(event.id, {
       createdAt: event.createdAt,
       card: {
@@ -78,6 +83,8 @@ export function myEventCards({
         response,
         organizer: false,
         resultsShared: event.resultsRevealedAt !== null,
+        changedQuestions: notice?.changed ?? 0,
+        addedQuestions: notice?.added ?? 0,
       },
     });
   }
@@ -99,14 +106,18 @@ export function myEventCards({
         response: null,
         organizer: true,
         resultsShared: false,
+        changedQuestions: 0,
+        addedQuestions: 0,
       },
     });
   }
 
+  const needsViewer = (card: EventCardData) =>
+    card.response === "todo" || card.changedQuestions + card.addedQuestions > 0;
   return [...cards.values()]
     .sort(
       (a, b) =>
-        Number(b.card.response === "todo") - Number(a.card.response === "todo") ||
+        Number(needsViewer(b.card)) - Number(needsViewer(a.card)) ||
         b.createdAt.getTime() - a.createdAt.getTime(),
     )
     .map(({ card }) => card);

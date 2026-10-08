@@ -39,4 +39,28 @@ describe("questionsLeft", () => {
     assert.equal(questionsLeft([], false), 0);
     assert.equal(questionsLeft([], true), 0);
   });
+
+  it("counts a marked answered question while seen and not opened", () => {
+    const questions = [{ required: false, answered: true, marked: true }];
+    assert.equal(questionsLeft(questions, true, false), 1);
+    assert.equal(questionsLeft(questions, true, true), 0);
+  });
+
+  it("counts a marked unanswered required question once", () => {
+    const questions = [{ required: true, answered: false, marked: true }];
+    assert.equal(questionsLeft(questions, true, false), 1);
+    assert.equal(questionsLeft(questions, false, false), 1);
+  });
+
+  it("treats a left-out opened as seen", () => {
+    const questions = [
+      { required: false, answered: false },
+      { required: true, answered: false },
+      { required: false, answered: true, marked: true },
+    ];
+    assert.equal(questionsLeft(questions, false), questionsLeft(questions, false, false));
+    assert.equal(questionsLeft(questions, true), questionsLeft(questions, true, true));
+    assert.equal(questionsLeft(questions.slice(0, 2), false), 2);
+    assert.equal(questionsLeft(questions.slice(0, 2), true), 1);
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { DANGER_SM, SECONDARY_SM } from "@/components/button-classes";
+import { Checkbox } from "@/components/form-controls";
 import {
   SaveButton,
   SaveMessage,
@@ -11,6 +12,7 @@ import {
 } from "@/components/save-form";
 import { Segmented } from "@/components/segmented";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
+import { askLabel } from "@/domain/question-notice";
 
 const inputClass =
   "min-w-0 flex-1 rounded border border-edge-strong bg-field px-2 py-1 text-sm aria-invalid:border-error";
@@ -83,6 +85,7 @@ interface Props {
 export function QuestionCard({ action, question, header }: Props) {
   const saved = useMemo(() => fromQuestion(question), [question]);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [askToCheck, setAskToCheck] = useState(false);
   const shown = draft ?? saved;
   const dirty = draft !== null && !draftEqual(draft, saved);
   useUnsavedChangesGuard(() => dirty);
@@ -91,7 +94,10 @@ export function QuestionCard({ action, question, header }: Props) {
 
   const { formProps, confirmation, error, errorId, fieldProps, clearError } = useSaveForm({
     action,
-    onSaved: () => setDraft(null),
+    onSaved: () => {
+      setDraft(null);
+      setAskToCheck(false);
+    },
   });
 
   const edit = (patch: Partial<Draft>) => setDraft({ ...shown, ...patch });
@@ -124,6 +130,7 @@ export function QuestionCard({ action, question, header }: Props) {
   const payload = JSON.stringify({
     questionId: question.id,
     ...shown,
+    askToCheck,
   });
 
   return (
@@ -236,10 +243,16 @@ export function QuestionCard({ action, question, header }: Props) {
           </div>
         )}
         {answered && draft !== null && wordingChanged(draft, saved) && (
-          <p className="mb-2 text-xs text-muted">
-            People have already answered. Saving starts a fresh version; their answers stay with
-            the old wording.
-          </p>
+          <>
+            <p className="mb-2 text-xs text-muted">
+              People have already answered. Saving starts a fresh version; their answers stay with
+              the old wording.
+            </p>
+            <label className="mb-2 flex items-start gap-2 text-xs">
+              <Checkbox checked={askToCheck} onChange={(e) => setAskToCheck(e.target.checked)} />
+              {askLabel("check", question.answerCount)}
+            </label>
+          </>
         )}
         {removedWithChoices.map((option) => {
           const count = choiceCounts.get(option.id!) ?? 0;
@@ -255,6 +268,7 @@ export function QuestionCard({ action, question, header }: Props) {
             <UnsavedNote
               onDiscard={() => {
                 setDraft(null);
+                setAskToCheck(false);
                 clearError();
               }}
             />
