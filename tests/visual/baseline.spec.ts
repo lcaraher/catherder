@@ -191,6 +191,8 @@ async function waitForPage(page: Page) {
     timeout: 20_000,
   });
   await expect(page.locator("h1:visible").first()).toBeVisible();
+  // The description editor loads after hydration; its placeholder box goes when it does.
+  await expect(page.locator("[data-editor-loading]")).toHaveCount(0, { timeout: 20_000 });
 }
 
 // Sets every footer line to the first, which fits on one line.

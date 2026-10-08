@@ -78,6 +78,10 @@ const PAIRS: Pair[] = [
   ["grid-line", "surface-card", 0, "info"],
   ["foreground", "btn-go", 4.5, "text"],
   ["faint", "surface-card", 4.5, "text"],
+  ["foreground", "diff-added", 4.5, "text"],
+  ["foreground", "diff-added-strong", 4.5, "text"],
+  ["foreground", "diff-removed", 4.5, "text"],
+  ["foreground", "diff-removed-strong", 4.5, "text"],
   ["bevel-light", "surface", 0, "info"],
   ["bevel-dark", "surface", 0, "info"],
 ];

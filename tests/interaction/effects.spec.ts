@@ -11,6 +11,10 @@ import {
 const POINTER_SEEN_KEY = "catherder-theme-pointer-seen";
 const DESCRIPTION_MARK = ".";
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, (char) => `\\${char}`);
+}
+
 // Each running animation or transition under the element, as "name" plus its pseudo-element.
 function animations(locator: Locator): Promise<string[]> {
   return locator.evaluate((el) =>
@@ -236,31 +240,36 @@ test("i. event row hover edge", async ({ page }) => {
 test("j. saved tick pops in", async ({ page }) => {
   const manage = `/e/${await denseEventId(page)}/manage`;
   await page.goto(manage);
-  const textarea = page.locator("#event-description");
-  const form = page.locator("form").filter({ has: textarea });
+  const input = page.locator('input[name="description"]');
+  const form = page.locator("form").filter({ has: input });
+  const editor = form.getByRole("textbox", { name: "Description" });
   const save = form.getByRole("button", { name: "Save", exact: true });
   const unsaved = form.getByText("Unsaved changes");
   const tick = form.locator(".pop-in");
-  await waitForHydration(textarea);
-  const original = await textarea.inputValue();
+  await waitForHydration(editor);
+  const original = await input.inputValue();
   test.info().annotations.push({
     type: "description",
     description: `${original.length} characters before; "${DESCRIPTION_MARK}" appended, then removed`,
   });
 
   try {
-    await textarea.press("Control+End");
+    await editor.click();
+    await editor.press("Control+End");
     await page.keyboard.type(DESCRIPTION_MARK);
-    await expect(textarea).toHaveValue(original + DESCRIPTION_MARK);
+    // After a closing block such as a code block, the mark starts a new paragraph.
+    await expect(input).toHaveValue(
+      new RegExp(`^${escapeRegExp(original)}\\s*${escapeRegExp(DESCRIPTION_MARK)}$`),
+    );
     await expect(unsaved).toBeVisible();
     await save.click();
     await expect(unsaved).toHaveCount(0);
     await expect(tick).toBeVisible();
     await expect.poll(() => animations(tick)).toContain("pop");
 
-    await textarea.press("Control+End");
+    await editor.press("Control+End");
     await page.keyboard.press("Backspace");
-    await expect(textarea).toHaveValue(original);
+    await expect(input).toHaveValue(original);
     await expect(unsaved).toBeVisible();
     await save.click();
     await expect(unsaved).toHaveCount(0);
@@ -268,14 +277,20 @@ test("j. saved tick pops in", async ({ page }) => {
     // Confirms the stored text after a reload and puts it back if a step failed.
     page.on("dialog", (dialog) => void dialog.accept());
     await page.goto(manage);
-    await waitForHydration(textarea);
-    if ((await textarea.inputValue()) !== original) {
-      await textarea.fill(original);
+    await waitForHydration(editor);
+    if ((await input.inputValue()) !== original) {
+      await form.getByRole("radio", { name: "Markdown view" }).click();
+      const source = form.locator(".mdxeditor-source-editor .cm-content");
+      await source.click();
+      await source.press("Control+A");
+      if (original) await page.keyboard.insertText(original);
+      else await page.keyboard.press("Backspace");
       await save.click();
       await expect(unsaved).toHaveCount(0);
       await page.goto(manage);
+      await waitForHydration(editor);
     }
-    await expect(textarea).toHaveValue(original);
+    await expect(input).toHaveValue(original);
   }
 });
 
