@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.1134.0",
+    "@mdxeditor/editor": "4.3.2",
     "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6",
     "jose": "^6.2.12",

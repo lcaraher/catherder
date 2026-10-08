@@ -80,6 +80,12 @@
   --notice-admin-border: #c9bcff; /* organizer-override banner border */
   --notice-admin-text: #c9bcff; /* organizer-override banner text */
 
+  /* ----- Changes since last save ----- */
+  --diff-added: #133336; /* a line added since the last save */
+  --diff-added-strong: #154f4d; /* words added since the last save */
+  --diff-removed: #3b2c32; /* a line removed since the last save */
+  --diff-removed-strong: #644045; /* words removed since the last save */
+
   /* ----- Availability states ----- */
   --avail: #1fb8a6; /* available fill */
   --tentative: #605640; /* tentative fill */
@@ -181,6 +187,10 @@
   --notice-admin: #393446;
   --notice-admin-border: #c4a8ff;
   --notice-admin-text: #c4a8ff;
+  --diff-added: #213a39;
+  --diff-added-strong: #2e5e5a;
+  --diff-removed: #3e2a2d;
+  --diff-removed-strong: #663f41;
   --avail: #5ee6d6;
   --tentative: #65563c;
   --tentative-border: #f0c674;
@@ -272,6 +282,10 @@
   --notice-admin: #d0cabf;
   --notice-admin-border: #1c1a17;
   --notice-admin-text: #1c1a17;
+  --diff-added: #cedece;
+  --diff-added-strong: #a3c6b0;
+  --diff-removed: #ebd2c9;
+  --diff-removed-strong: #dcafa5;
   --avail: #2f3a7a;
   --tentative: #cbb794;
   --tentative-border: #7a4a00;
@@ -363,6 +377,10 @@
   --notice-admin: #33374b;
   --notice-admin-border: #c9bcff;
   --notice-admin-text: #c9bcff;
+  --diff-added: #133336;
+  --diff-added-strong: #154f4d;
+  --diff-removed: #3b2c32;
+  --diff-removed-strong: #644045;
   --avail: #1fb8a6;
   --tentative: #605640;
   --tentative-border: #f0c674;
@@ -454,6 +472,10 @@
   --notice-admin: #4a394f;
   --notice-admin-border: #e8b86d;
   --notice-admin-text: #e8b86d;
+  --diff-added: #303a4f;
+  --diff-added-strong: #415b64;
+  --diff-removed: #472c48;
+  --diff-removed-strong: #6d3f55;
   --avail: #7fd8b4;
   --tentative: #6e595d;
   --tentative-border: #f2c885;
@@ -557,6 +579,10 @@
   --color-notice-admin: var(--notice-admin);
   --color-notice-admin-border: var(--notice-admin-border);
   --color-notice-admin-text: var(--notice-admin-text);
+  --color-diff-added: var(--diff-added);
+  --color-diff-added-strong: var(--diff-added-strong);
+  --color-diff-removed: var(--diff-removed);
+  --color-diff-removed-strong: var(--diff-removed-strong);
   --color-avail: var(--avail);
   --color-tentative: var(--tentative);
   --color-tentative-border: var(--tentative-border);
@@ -1305,6 +1331,13 @@
     linear-gradient(100deg, var(--accent-gradient-a), var(--accent-gradient-b)) border-box;
 }
 
+/* A read-only box at full strength rather than the disabled half. */
+@utility full-strength {
+  & > input:disabled {
+    opacity: 1;
+  }
+}
+
 /* Inline code in described text. */
 @utility code-size {
   font-size: 0.9em;
@@ -1333,4 +1366,239 @@ main a:not(.no-underline) {
 
 main a:not(.no-underline):hover {
   color: var(--link-hover);
+}
+
+/* Details summary without the disclosure marker. */
+@utility summary-plain {
+  list-style: none;
+  &::-webkit-details-marker {
+    display: none;
+  }
+}
+
+/* Description editor (MDXEditor): its variables mapped onto tokens; the frame, its views and their colours. */
+.description-editor:is(.mdxeditor, .mdxeditor-popup-container) {
+  --basePageBg: var(--field);
+  --baseBase: var(--surface-card);
+  --baseBg: var(--surface-raised);
+  --baseBgSubtle: var(--surface-card);
+  --baseLine: var(--edge);
+  --baseBorder: var(--edge-strong);
+  --baseBorderHover: var(--muted);
+  --baseSolid: var(--hint);
+  --baseSolidHover: var(--muted);
+  --baseText: var(--muted);
+  --baseTextContrast: var(--foreground);
+  --baseBgHover: var(--btn-secondary-hover);
+  --baseBgActive: var(--selected);
+  --accentSolid: var(--ring);
+  --accentSolidHover: var(--ring);
+  --accentBorder: var(--ring);
+  --accentBorderHover: var(--ring);
+  --accentBg: var(--selected);
+  --accentBgHover: var(--btn-secondary-hover);
+  --accentBgActive: var(--selected);
+  --accentLine: var(--edge);
+  --accentText: var(--foreground);
+  --accentTextContrast: var(--foreground);
+  font-family: inherit;
+}
+
+.description-editor.mdxeditor {
+  border: 1px solid var(--edge-strong);
+  border-radius: 0.25rem;
+  background-color: var(--field);
+  color: var(--foreground);
+}
+
+/* Text over the length limit: the frame border in the error colour. */
+[data-over-limit] .description-editor.mdxeditor {
+  border-color: var(--error);
+}
+
+/* Focus reaching the editing area from the keyboard rings the whole frame. */
+[data-keyboard-focus] > .description-editor.mdxeditor {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* The toolbar wraps rather than scrolling under the view switch; its buttons are all 32px. */
+.description-editor.mdxeditor .mdxeditor-toolbar {
+  flex-wrap: wrap;
+  border-radius: 0.1875rem 0.1875rem 0 0;
+  background-color: var(--surface-raised);
+
+  & [role="combobox"] {
+    flex-shrink: 0;
+    width: max-content;
+  }
+  & button[data-toolbar-item]:not([role]) {
+    display: inline-grid;
+    place-content: center;
+    width: 2rem;
+    height: 2rem;
+  }
+  & .description-editor-button {
+    border-radius: 0.25rem;
+    color: var(--foreground);
+  }
+  & .description-editor-button:hover {
+    background-color: var(--btn-secondary-hover);
+  }
+  & .description-editor-button[aria-pressed="true"] {
+    background-color: var(--selected);
+  }
+  & .description-editor-button[aria-disabled="true"] {
+    background-color: transparent;
+    cursor: default;
+  }
+  & .description-editor-button[aria-disabled="true"] svg {
+    color: var(--disabled);
+  }
+}
+
+.description-editor.mdxeditor .mdxeditor-toolbar [data-toolbar-item]:focus-visible,
+.description-editor.mdxeditor .mdxeditor-toolbar [role="combobox"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* All three views grow with the text to 500px, then scroll inside. */
+.description-editor.mdxeditor .mdxeditor-diff-source-wrapper {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.description-editor.mdxeditor .description-editor-content,
+.description-editor.mdxeditor .mdxeditor-source-editor .cm-editor,
+.description-editor.mdxeditor .mdxeditor-diff-editor {
+  min-height: 160px;
+}
+
+/* The editing area, as the description page shows the text. */
+.description-editor.mdxeditor .description-editor-content {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--foreground);
+
+  & p {
+    margin: 0.5rem 0;
+  }
+  & h2,
+  & h3 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+  }
+  & h2 {
+    margin: 1rem 0 0.5rem;
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+  & h3 {
+    margin: 0.75rem 0 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  & > :first-child {
+    margin-top: 0;
+  }
+  & > :last-child {
+    margin-bottom: 0;
+  }
+  & ul,
+  & ol {
+    margin: 0.5rem 0;
+    padding-left: 1.25rem;
+  }
+  & ul {
+    list-style-type: disc;
+  }
+  & ol {
+    list-style-type: decimal;
+  }
+  & ul:has(> li[aria-checked]) {
+    padding-left: 1rem;
+    list-style-type: none;
+  }
+  & li {
+    margin: 0.125rem 0;
+  }
+  & li[aria-checked="true"] {
+    text-decoration: none;
+  }
+  & blockquote {
+    margin: 0.5rem 0;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--edge-strong);
+    color: var(--muted);
+  }
+  & hr {
+    margin: 0.75rem 0;
+    border-color: var(--edge);
+  }
+  & code span {
+    padding: 0 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--surface-raised);
+    font-size: 0.9em;
+  }
+  & a {
+    color: var(--link-hover);
+  }
+}
+
+/* CodeMirror: the Markdown view, the changes view and code blocks. */
+.description-editor.mdxeditor .cm-editor {
+  background-color: var(--field);
+  color: var(--foreground);
+
+  & .cm-content {
+    caret-color: var(--foreground);
+  }
+  & .cm-content span {
+    color: inherit;
+  }
+  & .cm-cursor {
+    border-left-color: var(--foreground);
+  }
+  & .cm-gutters {
+    border-right: 1px solid var(--edge);
+    background-color: var(--surface-raised);
+    color: var(--hint);
+  }
+  & .cm-activeLine,
+  & .cm-activeLineGutter {
+    background-color: transparent;
+  }
+  & .cm-selectionBackground,
+  &.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+  & .cm-content ::selection,
+  & .cm-selectionMatch,
+  &.cm-focused .cm-matchingBracket {
+    background-color: var(--selected);
+  }
+  & .cm-panels {
+    background-color: var(--surface-raised);
+    color: var(--foreground);
+  }
+  &.cm-merge-a .cm-changedLine,
+  & .cm-deletedChunk {
+    background-color: var(--diff-removed);
+  }
+  &.cm-merge-b .cm-changedLine {
+    background-color: var(--diff-added);
+  }
+  &.cm-merge-a .cm-changedText,
+  & .cm-deletedChunk .cm-deletedText {
+    background: var(--diff-removed-strong);
+  }
+  &.cm-merge-b .cm-changedText {
+    background: var(--diff-added-strong);
+  }
+  &.cm-merge-a .cm-changedLineGutter {
+    background: var(--diff-removed-strong);
+  }
+  &.cm-merge-b .cm-changedLineGutter {
+    background: var(--diff-added-strong);
+  }
 }

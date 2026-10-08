@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import type { MDXEditorMethods } from "@mdxeditor/editor";
 import { SECONDARY_SM } from "@/components/button-classes";
 import {
   SaveButton,
@@ -10,7 +12,18 @@ import {
   type SaveAction,
 } from "@/components/save-form";
 import { useUnsavedChangesGuard } from "@/components/use-unsaved-changes-guard";
-import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
+import { EVENT_DESCRIPTION_MAX_LENGTH, descriptionCounterVisible } from "@/domain/events";
+
+// Browser-only; until it loads, an empty box the size of its frame and toolbar.
+const DescriptionEditor = dynamic(
+  () => import("./description-editor").then((m) => m.DescriptionEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div data-editor-loading className="min-h-70.25 rounded border border-edge-strong bg-field md:min-h-60.75" />
+    ),
+  },
+);
 
 interface Props {
   /** The updateEventDescription server action, passed down from the page. */
@@ -23,35 +36,44 @@ interface Props {
 export function EventDescriptionForm({ action, eventId, initialText }: Props) {
   const [text, setText] = useState(initialText);
   const [savedText, setSavedText] = useState(initialText);
+  const editorRef = useRef<MDXEditorMethods>(null);
   const overCap = text.length > EVENT_DESCRIPTION_MAX_LENGTH;
   const dirty = text !== savedText;
   useUnsavedChangesGuard(() => dirty);
-  const { formProps, confirmation, error, errorId, fieldProps } = useSaveForm({
+  const { formProps, confirmation, error, errorId } = useSaveForm({
     action,
     onSaved: (formData) => setSavedText(String(formData.get("description") ?? "")),
   });
+  // MDXEditor tidying the text it was given is not an edit.
+  const onChange = useCallback((markdown: string, initialMarkdownNormalize: boolean) => {
+    setText(markdown);
+    if (initialMarkdownNormalize) setSavedText(markdown);
+  }, []);
+  const discard = () => {
+    editorRef.current?.setMarkdown(savedText);
+    setText(savedText);
+  };
 
   return (
     <form {...formProps} className="flex flex-col gap-2 text-sm">
       <input type="hidden" name="eventId" value={eventId} />
-      <label htmlFor="event-description" className="text-muted">
-        Description (Markdown; shown to participants on their respond page)
-      </label>
-      <textarea
-        id="event-description"
-        name="description"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={6}
-        {...fieldProps("description")}
-        className="w-full rounded border border-edge-strong bg-field px-2 py-1 text-sm aria-invalid:border-error"
-      />
-      <p className={`text-xs ${overCap ? "text-error" : "text-faint"}`}>
-        {text.length}/{EVENT_DESCRIPTION_MAX_LENGTH}
-      </p>
+      <input type="hidden" name="description" value={text} />
+      <div data-over-limit={overCap || undefined}>
+        <DescriptionEditor
+          markdown={initialText}
+          savedMarkdown={savedText}
+          onChange={onChange}
+          editorRef={editorRef}
+        />
+      </div>
+      {descriptionCounterVisible(text.length) && (
+        <p className={`text-xs ${overCap ? "text-error" : "text-faint"}`}>
+          {text.length}/{EVENT_DESCRIPTION_MAX_LENGTH}
+        </p>
+      )}
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          {dirty && <UnsavedNote onDiscard={() => setText(savedText)} />}
+          {dirty && <UnsavedNote onDiscard={discard} />}
           <SaveButton
             inactive={!dirty}
             className={SECONDARY_SM}
