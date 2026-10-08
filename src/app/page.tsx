@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { myEventCards } from "@/domain/my-events";
+import { questionNotices } from "@/domain/question-notice";
 import { Pane } from "@/components/pane";
 import { PRIMARY } from "@/components/button-classes";
 import { EventCard } from "@/components/event-card";
@@ -36,7 +37,7 @@ export default async function Home() {
     );
   }
 
-  const [participations, organizedEvents] = await Promise.all([
+  const [participations, organizedEvents, myAnswers] = await Promise.all([
     prisma.eventParticipant.findMany({
       where: { userId: user.id },
       include: {
@@ -50,6 +51,10 @@ export default async function Home() {
             organizerParticipates: true,
             createdAt: true,
             organizerUser: { select: { displayName: true } },
+            questions: {
+              where: { checkRequestedVersion: { not: null } },
+              select: { id: true, checkRequestedVersion: true },
+            },
           },
         },
       },
@@ -67,6 +72,10 @@ export default async function Home() {
       },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.answer.findMany({
+      where: { userId: user.id },
+      select: { questionId: true, questionVersion: true, eventId: true },
+    }),
   ]);
 
   const cards = myEventCards({
@@ -74,6 +83,11 @@ export default async function Home() {
       role: p.role,
       responseStatus: p.responseStatus,
       editUnlockedAt: p.editUnlockedAt,
+      questionNotice: questionNotices({
+        submitted: p.responseStatus === "SUBMITTED",
+        questions: p.event.questions,
+        answers: myAnswers.filter((answer) => answer.eventId === p.event.id),
+      }),
       event: {
         id: p.event.id,
         name: p.event.name,

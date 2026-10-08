@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react";
 import { DANGER_SM, SECONDARY_SM } from "@/components/button-classes";
-import { Select } from "@/components/form-controls";
+import { Checkbox, Select } from "@/components/form-controls";
 import { SaveButton, SaveMessage, useSaveForm, type SaveAction } from "@/components/save-form";
+import { askLabel } from "@/domain/question-notice";
 
 const inputClass =
   "rounded border border-edge-strong bg-field px-2 py-1 text-sm aria-invalid:border-error";
@@ -12,10 +13,12 @@ interface Props {
   /** The addQuestion server action, passed down from the page. */
   action: SaveAction;
   eventId: string;
+  /** Participants who have already submitted a response. */
+  respondedCount: number;
 }
 
 /** The Add a question form at the foot of the Questions section. */
-export function AddQuestionForm({ action, eventId }: Props) {
+export function AddQuestionForm({ action, eventId, respondedCount }: Props) {
   const [type, setType] = useState("SINGLE_CHOICE");
   // Each option field's key; field names are option-<key>, submitted in this order.
   const nextKey = useRef(2);
@@ -108,6 +111,12 @@ export function AddQuestionForm({ action, eventId }: Props) {
             + Add option
           </button>
         </fieldset>
+      )}
+      {respondedCount > 0 && (
+        <label className="flex items-start gap-2 text-xs">
+          <Checkbox name="askToAnswer" />
+          {askLabel("answer", respondedCount)}
+        </label>
       )}
       <div>
         <SaveButton className={SECONDARY_SM} confirmText="Saved" confirmation={confirmation}>

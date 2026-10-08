@@ -9,6 +9,7 @@ import {
   canEditResponse,
   canViewOthersResponses,
 } from "@/domain/response-access";
+import { questionMark } from "@/domain/question-notice";
 import {
   buildTimeZoneOptions,
   groupTimeZoneOptions,
@@ -16,6 +17,7 @@ import {
 import { BlankTab } from "@/components/blank-tab";
 import { ClockFormatPicker } from "@/components/clock-format-picker";
 import { EventDescription } from "@/components/event-description";
+import { QuestionMarkChip } from "@/components/question-mark-chip";
 import { RespondForm } from "@/components/respond-form";
 import { ResultsIcon } from "@/components/results-icon";
 import { SECONDARY_SM } from "@/components/button-classes";
@@ -105,6 +107,14 @@ export default async function RespondPage({
     where: { eventId, userId: user.id },
     include: { choices: true, text: true },
   });
+  const submitted = participant.responseStatus === "SUBMITTED";
+  const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer]));
+  const marks = new Map(
+    event.questions.map((question) => [
+      question.id,
+      questionMark(question, answerByQuestion.get(question.id) ?? null, submitted),
+    ]),
+  );
   const hasDescription = event.description !== null && event.description.trim() !== "";
   const details = hasDescription ? (
     <Pane>
@@ -131,9 +141,8 @@ export default async function RespondPage({
   if (!canEdit) {
     // A participant may always view their own submission (canViewOwnResponse),
     // so render it read-only with the reason editing is closed.
-    const answersByQuestion = new Map(answers.map((a) => [a.questionId, a]));
     const hasSubmission =
-      participant.responseStatus === "SUBMITTED" ||
+      submitted ||
       eventRows.length > 0 ||
       answers.length > 0;
 
@@ -200,7 +209,7 @@ export default async function RespondPage({
                   <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Your answers</h2>
                   <ul className="flex flex-col gap-3">
                     {event.questions.map((question, index) => {
-                      const answer = answersByQuestion.get(question.id);
+                      const answer = answerByQuestion.get(question.id);
                       const labelById = new Map(
                         question.options.map((o) => [o.id, o.label]),
                       );
@@ -234,6 +243,7 @@ export default async function RespondPage({
                         >
                           <p className="mb-2 text-sm font-medium">
                             {index + 1}. {question.prompt}
+                            <QuestionMarkChip mark={marks.get(question.id) ?? null} />
                           </p>
                           <p className="whitespace-pre-wrap text-sm text-muted">
                             {display}
@@ -304,13 +314,14 @@ export default async function RespondPage({
           prompt: question.prompt,
           required: question.required,
           allowOther: question.allowOther,
+          mark: marks.get(question.id) ?? null,
           options: question.options.map((option) => ({
             id: option.id,
             label: option.label,
           })),
         }))}
         initialAnswers={initialAnswers}
-        alreadySubmitted={participant.responseStatus === "SUBMITTED"}
+        alreadySubmitted={submitted}
         clockFormat={user.clockFormat}
         initialTab={tab}
         defaultTab={defaultTab}

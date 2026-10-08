@@ -120,6 +120,13 @@ export default async function EventPage({
       ? [ownerRow, ...nonOwnerRows]
       : nonOwnerRows;
 
+  // Submitted participants; the organizer only when they take part.
+  const respondedCount = event.participants.filter(
+    (participant) =>
+      participant.responseStatus === "SUBMITTED" &&
+      (event.organizerParticipates || participant.role !== "ORGANIZER"),
+  ).length;
+
   const answers = await prisma.answer.findMany({
     where: { eventId },
     include: { choices: true, text: true },
@@ -540,7 +547,11 @@ export default async function EventPage({
               )}
 
               <h3 className="mb-2 text-sm font-semibold">Add a question</h3>
-              <AddQuestionForm action={addQuestion} eventId={event.id} />
+              <AddQuestionForm
+                action={addQuestion}
+                eventId={event.id}
+                respondedCount={respondedCount}
+              />
             </Pane>
           ),
           settings: (

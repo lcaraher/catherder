@@ -66,6 +66,8 @@ describe("myEventCards", () => {
         response: null,
         organizer: true,
         resultsShared: false,
+        changedQuestions: 0,
+        addedQuestions: 0,
       },
     ]);
   });
@@ -151,6 +153,58 @@ describe("myEventCards", () => {
     assert.deepEqual(
       cards.map((c) => c.eventId),
       ["todo-new", "todo-old", "done-new", "run-old"],
+    );
+  });
+
+  it("carries both question counts on an editable card", () => {
+    const cards = myEventCards({
+      participations: [
+        participation({
+          responseStatus: "SUBMITTED",
+          questionNotice: { changed: 2, added: 1 },
+        }),
+      ],
+      organized: [],
+    });
+    assert.equal(cards[0].response, "editable");
+    assert.equal(cards[0].changedQuestions, 2);
+    assert.equal(cards[0].addedQuestions, 1);
+  });
+
+  it("carries neither question count on a locked card", () => {
+    const cards = myEventCards({
+      participations: [
+        participation({
+          responseStatus: "SUBMITTED",
+          questionNotice: { changed: 2, added: 1 },
+          event: { status: "DRAFT" },
+        }),
+      ],
+      organized: [],
+    });
+    assert.equal(cards[0].response, "locked");
+    assert.equal(cards[0].changedQuestions, 0);
+    assert.equal(cards[0].addedQuestions, 0);
+  });
+
+  it("puts a card with a question notice ahead of a newer card without one", () => {
+    const cards = myEventCards({
+      participations: [
+        participation({
+          responseStatus: "SUBMITTED",
+          event: { id: "plain-new", createdAt: NEW },
+        }),
+        participation({
+          responseStatus: "SUBMITTED",
+          questionNotice: { changed: 0, added: 1 },
+          event: { id: "notice-old", createdAt: OLD },
+        }),
+      ],
+      organized: [],
+    });
+    assert.deepEqual(
+      cards.map((c) => c.eventId),
+      ["notice-old", "plain-new"],
     );
   });
 });

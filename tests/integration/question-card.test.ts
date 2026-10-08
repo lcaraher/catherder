@@ -27,6 +27,7 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
     prisma: typeof import("@/adapters/db/client").prisma;
     login: typeof import("@/app/api/dev-auth/login/route").POST;
     saveQuestionCard: typeof import("@/app/e/[eventId]/manage/actions").saveQuestionCard;
+    addQuestion: typeof import("@/app/e/[eventId]/manage/actions").addQuestion;
     setQuestionAnswersRevealed: typeof import("@/app/e/[eventId]/manage/actions").setQuestionAnswersRevealed;
   };
   let m: Modules;
@@ -105,7 +106,7 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
   type Option = { key: string; id?: string; label: string; removed?: boolean };
   function card(
     question: { id: string; prompt: string; required: boolean; allowOther: boolean },
-    changes: { prompt?: string; required?: boolean; options: Option[] },
+    changes: { prompt?: string; required?: boolean; options: Option[]; askToCheck?: boolean },
   ): FormData {
     const form = new FormData();
     form.set(
@@ -116,8 +117,20 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
         required: changes.required ?? question.required,
         allowOther: question.allowOther,
         options: changes.options,
+        askToCheck: changes.askToCheck,
       }),
     );
+    return form;
+  }
+
+  function newQuestion(prompt: string, askToAnswer: boolean): FormData {
+    const form = new FormData();
+    form.set("eventId", eventId);
+    form.set("type", "SINGLE_CHOICE");
+    form.set("prompt", prompt);
+    form.set("option-0", "Yes");
+    form.set("option-1", "No");
+    if (askToAnswer) form.set("askToAnswer", "on");
     return form;
   }
 
@@ -144,6 +157,7 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
       prisma: (await import("@/adapters/db/client")).prisma,
       login: (await import("@/app/api/dev-auth/login/route")).POST,
       saveQuestionCard: (await import("@/app/e/[eventId]/manage/actions")).saveQuestionCard,
+      addQuestion: (await import("@/app/e/[eventId]/manage/actions")).addQuestion,
       setQuestionAnswersRevealed: (await import("@/app/e/[eventId]/manage/actions"))
         .setQuestionAnswersRevealed,
     };
@@ -363,5 +377,80 @@ describe.skipIf(!hasDatabase)("saving a question card against PostgreSQL", () =>
     }
     const after = await m.prisma.question.findUniqueOrThrow({ where: { id: question.id } });
     expect(after.answersRevealed).toBe(question.answersRevealed);
+  });
+
+  it("asks the people who answered to check new wording, with one audit row", async () => {
+    const question = await answeredQuestion();
+    const [a, b] = question.options;
+    const result = await m.saveQuestionCard(
+      card(question, {
+        options: [
+          { key: a.id, id: a.id, label: "A" },
+          { key: b.id, id: b.id, label: "Bee" },
+        ],
+        askToCheck: true,
+      }),
+    );
+    expect(result).toEqual({ ok: true });
+    const after = await m.prisma.question.findUniqueOrThrow({ where: { id: question.id } });
+    expect(after.version).toBe(2);
+    expect(after.checkRequestedVersion).toBe(2);
+    expect(
+      await m.prisma.auditEvent.count({
+        where: { entityId: question.id, action: "question_check_requested" },
+      }),
+    ).toBe(1);
+  });
+
+  it("leaves checkRequestedVersion null for new wording saved without the ask", async () => {
+    const question = await answeredQuestion();
+    const options = question.options.map((o) => ({ key: o.id, id: o.id, label: `${o.label}!` }));
+    expect(await m.saveQuestionCard(card(question, { options }))).toEqual({ ok: true });
+    const after = await m.prisma.question.findUniqueOrThrow({ where: { id: question.id } });
+    expect(after.version).toBe(2);
+    expect(after.checkRequestedVersion).toBeNull();
+  });
+
+  it("leaves checkRequestedVersion null for a switch-only save with the ask", async () => {
+    const question = await answeredQuestion();
+    const options = question.options.map((o) => ({ key: o.id, id: o.id, label: o.label }));
+    const result = await m.saveQuestionCard(
+      card(question, { required: true, options, askToCheck: true }),
+    );
+    expect(result).toEqual({ ok: true });
+    const after = await m.prisma.question.findUniqueOrThrow({ where: { id: question.id } });
+    expect(after.version).toBe(1);
+    expect(after.checkRequestedVersion).toBeNull();
+    expect(
+      await m.prisma.auditEvent.count({
+        where: { entityId: question.id, action: "question_check_requested" },
+      }),
+    ).toBe(0);
+  });
+
+  it("asks the people who responded to answer a new question, with one audit row", async () => {
+    expect(await m.addQuestion(newQuestion("Asked to answer?", true))).toEqual({ ok: true });
+    const added = await m.prisma.question.findFirstOrThrow({
+      where: { eventId, prompt: "Asked to answer?" },
+    });
+    expect(added.checkRequestedVersion).toBe(1);
+    expect(
+      await m.prisma.auditEvent.count({
+        where: { entityId: added.id, action: "question_answer_requested" },
+      }),
+    ).toBe(1);
+  });
+
+  it("adds a question with checkRequestedVersion null without the ask", async () => {
+    expect(await m.addQuestion(newQuestion("Not asked?", false))).toEqual({ ok: true });
+    const added = await m.prisma.question.findFirstOrThrow({
+      where: { eventId, prompt: "Not asked?" },
+    });
+    expect(added.checkRequestedVersion).toBeNull();
+    expect(
+      await m.prisma.auditEvent.count({
+        where: { entityId: added.id, action: "question_answer_requested" },
+      }),
+    ).toBe(0);
   });
 });

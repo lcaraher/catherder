@@ -11,6 +11,7 @@ import {
 } from "@/domain/availability";
 import { Checkbox, Radio, Select } from "@/components/form-controls";
 import { Pane } from "@/components/pane";
+import { QuestionMarkChip } from "@/components/question-mark-chip";
 import { SaveButton, UnsavedNote } from "@/components/save-form";
 import { DANGER_SM, PRIMARY, SECONDARY_SM } from "@/components/button-classes";
 import { WeekGridEditor } from "@/components/week-grid-editor";
@@ -31,6 +32,8 @@ export interface QuestionDto {
   prompt: string;
   required: boolean;
   allowOther: boolean;
+  /** Changed or added since this viewer's stored answer. */
+  mark: "changed" | "new" | null;
   options: { id: string; label: string }[];
 }
 
@@ -142,6 +145,10 @@ export function RespondForm({
   const [confirming, setConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [questionsSeen, setQuestionsSeen] = useState(false);
+  // A successful submit stamps every answer with the current version.
+  const [marksCleared, setMarksCleared] = useState(false);
+  const shownMark = (question: QuestionDto) => (marksCleared ? null : question.mark);
+  const anyMarked = questions.some((question) => shownMark(question) !== null);
 
   // The last successful submit; dirtiness compares against it, so a
   // standing-week reload counts as unsaved while edit-then-undo does not.
@@ -157,8 +164,10 @@ export function RespondForm({
     questions.map((question) => ({
       required: question.required,
       answered: isAnswered(question, answers[question.id]),
+      marked: shownMark(question) !== null,
     })),
     questionsSeen || submittedOnce,
+    questionsSeen,
   );
   useUnsavedChangesGuard(
     () =>
@@ -236,6 +245,7 @@ export function RespondForm({
         throw new Error(body?.error ?? `submit failed (${response.status})`);
       }
       setSaved({ week: sentWeek, answers: sentAnswers });
+      setMarksCleared(true);
       setStatus("submitted");
       setConfirming(true);
       setTimeout(() => setConfirming(false), 2000);
@@ -284,6 +294,7 @@ export function RespondForm({
           {question.required && (
             <span className="ml-2 text-xs font-normal text-hint">required</span>
           )}
+          <QuestionMarkChip mark={shownMark(question)} />
         </p>
 
         {question.type === "SINGLE_CHOICE" && (
@@ -549,7 +560,7 @@ export function RespondForm({
           type="button"
           onClick={submit}
           disabled={status === "submitting"}
-          inactive={submittedOnce && !weekDirty && !answersDirty}
+          inactive={submittedOnce && !weekDirty && !answersDirty && !anyMarked}
           className={`${PRIMARY} text-sm`}
           confirmText="Submitted"
           confirmation={confirming ? "Submitted" : null}

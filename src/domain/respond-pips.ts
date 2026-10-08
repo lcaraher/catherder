@@ -1,7 +1,10 @@
-// Unanswered questions; once the Questions tab has been seen, only the required ones.
+// Unanswered questions (only required ones once the tab is seen), plus marked ones until opened.
 export function questionsLeft(
-  questions: { required: boolean; answered: boolean }[],
+  questions: { required: boolean; answered: boolean; marked?: boolean }[],
   seen: boolean,
+  opened: boolean = seen,
 ): number {
-  return questions.filter((q) => !q.answered && (!seen || q.required)).length;
+  return questions.filter(
+    (q) => (!q.answered && (q.required || !seen)) || (q.marked && !opened),
+  ).length;
 }
