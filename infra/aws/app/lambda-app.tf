@@ -44,6 +44,7 @@ resource "aws_lambda_function" "app" {
       DATABASE_NAME           = aws_db_instance.postgres.db_name
       DATABASE_PORT           = tostring(aws_db_instance.postgres.port)
       DB_POOL_MAX             = "1"
+      IMAGES_BUCKET           = aws_s3_bucket.images.id
       SITE_ADMIN_USERNAMES    = data.aws_ssm_parameter.site_admin_usernames.value
     }
   }

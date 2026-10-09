@@ -39,7 +39,16 @@ ENV DATABASE_SSL_CA=${LAMBDA_TASK_ROOT}/certs/rds-global-bundle.pem
 COPY docker/migrate/migrate.mjs ./migrate.mjs
 CMD ["migrate.handler"]
 
-# Stage 5: minimal runtime image for the app (last, so a plain `docker build .` produces it)
+# Stage 5: Lambda that resizes uploaded images; sharp is installed here, not copied, so it fetches its Linux arm64 binary.
+FROM public.ecr.aws/lambda/nodejs:24 AS resize
+WORKDIR ${LAMBDA_TASK_ROOT}
+COPY docker/resize/package.json ./
+RUN npm install --omit=dev --no-audit --no-fund \
+    && rm -rf /root/.npm /root/.cache
+COPY src/adapters/images/resize.ts src/adapters/images/resize-handler.ts docker/resize/handler.mjs ./
+CMD ["handler.handler"]
+
+# Stage 6: minimal runtime image for the app (last, so a plain `docker build .` produces it)
 FROM node:24-slim AS app
 WORKDIR /app
 ENV NODE_ENV=production

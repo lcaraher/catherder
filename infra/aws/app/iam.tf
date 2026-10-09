@@ -63,3 +63,40 @@ resource "aws_iam_role_policy" "app_runtime_secrets" {
   role   = aws_iam_role.app_runtime.id
   policy = data.aws_iam_policy_document.app_runtime_secrets.json
 }
+
+# Uploads go in under pending/ only; resized images and refusals are read back, and images a saved description no longer uses are removed.
+data "aws_iam_policy_document" "app_runtime_images" {
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.images.arn}/pending/*"]
+  }
+
+  statement {
+    effect  = "Allow"
+    actions = ["s3:GetObject"]
+    resources = [
+      "${aws_s3_bucket.images.arn}/images/*",
+      "${aws_s3_bucket.images.arn}/failed/*",
+    ]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:DeleteObject"]
+    resources = ["${aws_s3_bucket.images.arn}/images/*"]
+  }
+
+  # Makes a missing object answer 404 rather than 403.
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.images.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "app_runtime_images" {
+  name   = "use-images-bucket"
+  role   = aws_iam_role.app_runtime.id
+  policy = data.aws_iam_policy_document.app_runtime_images.json
+}

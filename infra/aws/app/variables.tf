@@ -45,8 +45,19 @@ variable "app_image_tag" {
   type        = string
 }
 
+variable "resize_image_tag" {
+  description = "ECR image tag a NEW resize function is created with; the pipeline passes the commit's tag and changes the running image afterwards."
+  type        = string
+}
+
 variable "app_reserved_concurrency" {
   description = "Caps the app function's concurrent copies to bound cost; the account limit must keep at least 100 unreserved."
   type        = number
   default     = 300
+}
+
+variable "resize_reserved_concurrency" {
+  description = "Caps the resize function's concurrent copies to bound cost; the account limit must keep at least 100 unreserved."
+  type        = number
+  default     = 2
 }
