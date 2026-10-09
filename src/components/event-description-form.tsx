@@ -4,6 +4,8 @@ import { useCallback, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { MDXEditorMethods } from "@mdxeditor/editor";
 import { SECONDARY_SM } from "@/components/button-classes";
+import { EventDescription } from "@/components/event-description";
+import { ReaderPreviewDisclosure } from "@/components/reader-preview-disclosure";
 import {
   SaveButton,
   SaveMessage,
@@ -32,7 +34,7 @@ interface Props {
   initialText: string;
 }
 
-/** Description editor on the event page, with the text-answer style counter. */
+/** Description editor on the event page, with the text-answer style counter and a live Reader Preview. */
 export function EventDescriptionForm({ action, eventId, initialText }: Props) {
   const [text, setText] = useState(initialText);
   const [savedText, setSavedText] = useState(initialText);
@@ -55,36 +57,43 @@ export function EventDescriptionForm({ action, eventId, initialText }: Props) {
   };
 
   return (
-    <form {...formProps} className="flex flex-col gap-2 text-sm">
-      <input type="hidden" name="eventId" value={eventId} />
-      <input type="hidden" name="description" value={text} />
-      <div data-over-limit={overCap || undefined}>
-        <DescriptionEditor
-          markdown={initialText}
-          savedMarkdown={savedText}
-          onChange={onChange}
-          editorRef={editorRef}
-        />
-      </div>
-      {descriptionCounterVisible(text.length) && (
-        <p className={`text-xs ${overCap ? "text-error" : "text-faint"}`}>
-          {text.length}/{EVENT_DESCRIPTION_MAX_LENGTH}
-        </p>
-      )}
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          {dirty && <UnsavedNote onDiscard={discard} />}
-          <SaveButton
-            inactive={!dirty}
-            className={SECONDARY_SM}
-            confirmText="Saved"
-            confirmation={confirmation}
-          >
-            Save
-          </SaveButton>
+    <>
+      <form {...formProps} className="flex flex-col gap-2 text-sm">
+        <input type="hidden" name="eventId" value={eventId} />
+        <input type="hidden" name="description" value={text} />
+        <div data-over-limit={overCap || undefined}>
+          <DescriptionEditor
+            markdown={initialText}
+            savedMarkdown={savedText}
+            onChange={onChange}
+            editorRef={editorRef}
+          />
         </div>
-        <SaveMessage error={error} id={errorId} />
-      </div>
-    </form>
+        {descriptionCounterVisible(text.length) && (
+          <p className={`text-xs ${overCap ? "text-error" : "text-faint"}`}>
+            {text.length}/{EVENT_DESCRIPTION_MAX_LENGTH}
+          </p>
+        )}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            {dirty && <UnsavedNote onDiscard={discard} />}
+            <SaveButton
+              inactive={!dirty}
+              className={SECONDARY_SM}
+              confirmText="Saved"
+              confirmation={confirmation}
+            >
+              Save
+            </SaveButton>
+          </div>
+          <SaveMessage error={error} id={errorId} />
+        </div>
+      </form>
+      <ReaderPreviewDisclosure>
+        <div className="mt-3">
+          <EventDescription text={text} />
+        </div>
+      </ReaderPreviewDisclosure>
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot } from "@/domain/availability";
 import { canManageEvent, isAdminOverride } from "@/domain/event-access";
+import { hasDescription } from "@/domain/events";
 import { formatInviteCode } from "@/domain/invites";
 import {
   addQuestion,
@@ -23,6 +24,7 @@ import {
   unarchiveEvent,
   updateEvent,
   updateEventDescription,
+  updateEventShortDescription,
 } from "./actions";
 import { ActionForm, SaveConfirmations } from "@/components/save-form";
 import { AddQuestionForm } from "@/components/add-question-form";
@@ -31,12 +33,12 @@ import { ArchiveEventForm } from "@/components/archive-event-form";
 import { CreatedNote } from "@/components/created-note";
 import { EditEventForm } from "@/components/edit-event-form";
 import { DANGER_SM, PRIMARY_GO_SM, PRIMARY_SM, SECONDARY_SM } from "@/components/button-classes";
-import { EventDescription } from "@/components/event-description";
 import { EventDescriptionForm } from "@/components/event-description-form";
 import { InvitePanel } from "@/components/invite-panel";
 import { OrganizerAvailabilityEditor } from "@/components/organizer-availability-editor";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { Pane } from "@/components/pane";
+import { ShortDescriptionForm } from "@/components/short-description-form";
 import { statusLabel } from "@/domain/status-label";
 import { QuestionDeleteForm } from "@/components/question-delete-form";
 import { QuestionCard } from "@/components/question-card";
@@ -315,6 +317,20 @@ export default async function EventPage({
                 )}
               </Pane>
 
+              <Pane className="mb-6">
+                <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Short description</h2>
+                <div className="unsaved-frame flex flex-col gap-3 rounded border border-edge p-3">
+                  <ShortDescriptionForm
+                    action={updateEventShortDescription}
+                    eventId={event.id}
+                    eventName={event.name}
+                    hasDescription={hasDescription(event.description)}
+                    hasQuestions={event.questions.length > 0}
+                    initialText={event.shortDescription ?? ""}
+                  />
+                </div>
+              </Pane>
+
               <Pane>
                 <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Description</h2>
                 <div className="unsaved-frame flex flex-col gap-3 rounded border border-edge p-3">
@@ -323,28 +339,6 @@ export default async function EventPage({
                     eventId={event.id}
                     initialText={event.description ?? ""}
                   />
-                  {event.description !== null && (
-                    <details className="group border-t border-edge pt-3">
-                      <summary className="summary-plain flex cursor-pointer items-center gap-2 rounded bg-badge-organizer px-2.5 py-1.5 font-small text-sm font-medium text-badge-organizer-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-                        <svg
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="size-3.5 shrink-0 transition-transform duration-160 group-open:rotate-90 motion-reduce:transition-none"
-                          aria-hidden="true"
-                        >
-                          <path d="M6 4l4 4-4 4" />
-                        </svg>
-                        Reader Preview
-                      </summary>
-                      <div className="mt-3">
-                        <EventDescription text={event.description} />
-                      </div>
-                    </details>
-                  )}
                 </div>
               </Pane>
             </>

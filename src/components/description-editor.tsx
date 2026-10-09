@@ -1,34 +1,16 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FocusEvent,
-  type ReactNode,
-  type RefObject,
-} from "react";
+import { useMemo, type RefObject } from "react";
 import {
   BlockTypeSelect,
-  Button,
-  CreateLink,
   DiffSourceToggleWrapper,
-  IS_BOLD,
-  IS_CODE,
-  IS_ITALIC,
-  IS_STRIKETHROUGH,
   InsertTable,
   InsertThematicBreak,
   MDXEditor,
-  TooltipWrap,
   activeEditor$,
-  applyFormat$,
   applyListType$,
   codeBlockPlugin,
   codeMirrorPlugin,
-  createRootEditorSubscription$,
-  currentFormat$,
   currentListType$,
   currentSelection$,
   diffSourcePlugin,
@@ -42,7 +24,6 @@ import {
   listsPlugin,
   markdownShortcutPlugin,
   quotePlugin,
-  realmPlugin,
   tablePlugin,
   thematicBreakPlugin,
   toolbarPlugin,
@@ -53,12 +34,19 @@ import {
   type MDXEditorMethods,
 } from "@mdxeditor/editor";
 import "@mdxeditor/editor/style.css";
+import {
+  FormatButtons,
+  LinkButton,
+  ToolbarButton,
+  tabLeavesPlugin,
+  translateWith,
+  useKeyboardFocus,
+} from "@/components/editor-parts";
 
 type ListType = "bullet" | "number" | "check";
 
 const LABELS: Record<string, string> = {
   "contentArea.editableMarkdown": "Description",
-  "toolbar.link": "Link",
   "toolbar.table": "Table",
   "toolbar.thematicBreak": "Divider line",
   "toolbar.blockTypeSelect.selectBlockTypeTooltip": "Text style",
@@ -68,92 +56,17 @@ const LABELS: Record<string, string> = {
   "toolbar.source": "Markdown view",
 };
 
-// MDXEditor's text for `key`; its own default, placeholders filled, when we have none.
-function translate(
-  key: string,
-  defaultValue: string,
-  interpolations: Record<string, unknown> = {},
-) {
+const translateLabel = translateWith(LABELS);
+
+// MDXEditor's text for `key`, with the two heading levels named.
+function translate(key: string, defaultValue: string, interpolations: Record<string, unknown> = {}) {
   if (key === "toolbar.blockTypes.heading") {
     return interpolations.level === 3 ? "Subheading" : "Heading";
   }
-  if (key in LABELS) return LABELS[key];
-  return Object.entries(interpolations).reduce(
-    (text, [name, value]) => text.replaceAll(`{{${name}}}`, String(value)),
-    defaultValue,
-  );
+  return translateLabel(key, defaultValue, interpolations);
 }
 
 const TO_MARKDOWN_OPTIONS = { bullet: "-" } as const;
-
-// Tab and Shift+Tab leave the editing area instead of indenting or inserting a tab.
-const tabLeavesPlugin = realmPlugin({
-  init(realm) {
-    realm.pub(createRootEditorSubscription$, (editor) =>
-      editor.registerCommand(lexical.KEY_TAB_COMMAND, () => true, lexical.COMMAND_PRIORITY_HIGH),
-    );
-  },
-});
-
-// A disabled button stays focusable, so its tooltip still shows on keyboard focus.
-function ToolbarButton({
-  label,
-  tooltip = label,
-  pressed,
-  disabled = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  tooltip?: string;
-  pressed?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <TooltipWrap title={tooltip}>
-      <Button
-        type="button"
-        aria-label={label}
-        aria-pressed={pressed}
-        aria-disabled={disabled || undefined}
-        onClick={disabled ? undefined : onClick}
-        className="description-editor-button"
-      >
-        {children}
-      </Button>
-    </TooltipWrap>
-  );
-}
-
-function FormatButton({
-  label,
-  tooltip,
-  format,
-  flag,
-  icon,
-}: {
-  label: string;
-  tooltip?: string;
-  format: "bold" | "italic" | "strikethrough" | "code";
-  flag: number;
-  icon: IconKey;
-}) {
-  const currentFormat = useCellValue(currentFormat$);
-  const applyFormat = usePublisher(applyFormat$);
-  const iconFor = useCellValue(iconComponentFor$);
-  return (
-    <ToolbarButton
-      label={label}
-      tooltip={tooltip}
-      pressed={(currentFormat & flag) !== 0}
-      onClick={() => applyFormat(format)}
-    >
-      {iconFor(icon)}
-    </ToolbarButton>
-  );
-}
 
 function ListButton({ label, type, icon }: { label: string; type: ListType; icon: IconKey }) {
   const [currentListType, inTable, iconFor] = useCellValues(
@@ -198,7 +111,8 @@ function IndentIcon({ outdent = false }: { outdent?: boolean }) {
 // Whether the cursor is in the first item of a list, which has no item above to nest under.
 function inFirstListItem(editor: lexical.LexicalEditor | null): boolean {
   if (!editor) return false;
-  return editor.read(() => {
+  // "latest" reads the committed state; the default would flush pending updates during render.
+  return editor.read("latest", () => {
     const selection = lexical.$getSelection();
     if (!lexical.$isRangeSelection(selection)) return false;
     let node: lexical.LexicalNode | null = selection.anchor.getNode();
@@ -241,66 +155,19 @@ function CodeBlockButton() {
 function Toolbar() {
   return (
     <DiffSourceToggleWrapper>
-      <FormatButton
-        label="Bold"
-        tooltip="Bold (Ctrl+B)"
-        format="bold"
-        flag={IS_BOLD}
-        icon="format_bold"
-      />
-      <FormatButton
-        label="Italic"
-        tooltip="Italic (Ctrl+I)"
-        format="italic"
-        flag={IS_ITALIC}
-        icon="format_italic"
-      />
-      <FormatButton
-        label="Strikethrough"
-        format="strikethrough"
-        flag={IS_STRIKETHROUGH}
-        icon="strikeThrough"
-      />
-      <FormatButton label="Inline code" format="code" flag={IS_CODE} icon="code" />
+      <FormatButtons />
       <BlockTypeSelect />
       <ListButton label="Bulleted list" type="bullet" icon="format_list_bulleted" />
       <ListButton label="Numbered list" type="number" icon="format_list_numbered" />
       <ListButton label="Checklist" type="check" icon="format_list_checked" />
       <IndentButton />
       <IndentButton outdent />
-      <CreateLink />
+      <LinkButton />
       <InsertTable />
       <InsertThematicBreak />
       <CodeBlockButton />
     </DiffSourceToggleWrapper>
   );
-}
-
-// Whether focus reached the editing area from the keyboard rather than a pointer.
-function useKeyboardFocus() {
-  const [on, setOn] = useState(false);
-  const pointer = useRef(false);
-  useEffect(() => {
-    const down = () => (pointer.current = true);
-    const key = () => (pointer.current = false);
-    document.addEventListener("pointerdown", down, true);
-    document.addEventListener("keydown", key, true);
-    return () => {
-      document.removeEventListener("pointerdown", down, true);
-      document.removeEventListener("keydown", key, true);
-    };
-  }, []);
-  const isContent = (event: FocusEvent) =>
-    (event.target as HTMLElement).classList.contains("description-editor-content");
-  return {
-    on,
-    onFocus: (event: FocusEvent) => {
-      if (isContent(event)) setOn(!pointer.current);
-    },
-    onBlur: (event: FocusEvent) => {
-      if (isContent(event)) setOn(false);
-    },
-  };
 }
 
 interface Props {

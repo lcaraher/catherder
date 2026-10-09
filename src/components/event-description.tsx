@@ -13,7 +13,7 @@ const remarkPlugins = [remarkGfm];
 
 // Only web links survive; anything else (javascript:, data:, mailto:) is
 // blanked. Applied to every URL attribute, including image sources.
-const urlTransform: UrlTransform = (url) => {
+export const urlTransform: UrlTransform = (url) => {
   const trimmed = url.trim();
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return "";
@@ -66,20 +66,27 @@ function labelTask(children: ReactNode, id: string): ReactNode[] {
   ];
 }
 
+// A link opens in a new tab; one whose address was blanked shows as underlined text.
+export const linkRenderer: Components["a"] = ({ href, children }) =>
+  href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline hover:text-muted"
+    >
+      {children}
+    </a>
+  ) : (
+    <span className="underline">{children}</span>
+  );
+
+export const codeRenderer: Components["code"] = ({ children }) => (
+  <code className="rounded bg-surface-raised px-1 code-size break-all">{children}</code>
+);
+
 const components: Components = {
-  a: ({ href, children }) =>
-    href ? (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline hover:text-muted"
-      >
-        {children}
-      </a>
-    ) : (
-      <span className="underline">{children}</span>
-    ),
+  a: linkRenderer,
   // Images never load; the alt text stands in so nothing is fetched.
   img: ({ alt }) => <span className="text-hint">[{alt || "image"}]</span>,
   h1: ({ children }) => (
@@ -149,11 +156,7 @@ const components: Components = {
       {children}
     </blockquote>
   ),
-  code: ({ children }) => (
-    <code className="rounded bg-surface-raised px-1 code-size break-all">
-      {children}
-    </code>
-  ),
+  code: codeRenderer,
   pre: ({ children }) => (
     <pre className="my-2 overflow-x-auto rounded border border-edge bg-surface-raised p-2 text-xs">
       {children}
