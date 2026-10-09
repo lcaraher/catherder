@@ -106,7 +106,8 @@ jobs:
       - run: terraform init -input=false -backend-config backend.dev.hcl
 
       # No lock: the plan role can only read, and a plan needs none.
-      - run: terraform plan -input=false -lock=false -no-color -var-file dev.tfvars
+      # The resize tag only matters to a function not yet created; a pull request's image is never built.
+      - run: terraform plan -input=false -lock=false -no-color -var-file dev.tfvars -var "resize_image_tag=resize-$(git rev-parse --short=7 HEAD)"
 
   build:
     if: github.event_name == 'push'
@@ -119,7 +120,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [app, migrate]
+        target: [app, migrate, resize]
 
     steps:
       - uses: actions/checkout@v7
@@ -179,6 +180,8 @@ jobs:
           repo=$(aws ecr describe-repositories --repository-names catherder --query 'repositories[0].repositoryUri' --output text)
           echo "MIGRATE_IMAGE=$repo:migrate-$sha" >> "$GITHUB_ENV"
           echo "APP_IMAGE=$repo:app-$sha" >> "$GITHUB_ENV"
+          echo "RESIZE_TAG=resize-$sha" >> "$GITHUB_ENV"
+          echo "RESIZE_IMAGE=$repo:resize-$sha" >> "$GITHUB_ENV"
 
       # Lambda refuses a second update while one is in progress, so every update waits for completion.
       - name: Update the migrate function
@@ -207,8 +210,14 @@ jobs:
         working-directory: infra/aws/app
 
       # Applies whatever infrastructure changed in this merge; image tags are not Terraform's to change (see the lifecycle blocks).
-      - run: terraform apply -input=false -auto-approve -no-color -var-file dev.tfvars
+      - run: terraform apply -input=false -auto-approve -no-color -var-file dev.tfvars -var "resize_image_tag=$RESIZE_TAG"
         working-directory: infra/aws/app
+
+      # On the first deploy Terraform has just created the function from this same image, so the update changes nothing.
+      - name: Update the resize function
+        run: |
+          aws lambda update-function-code --function-name catherder-dev-resize --image-uri "$RESIZE_IMAGE" --query FunctionName --output text
+          aws lambda wait function-updated-v2 --function-name catherder-dev-resize
 
       - name: Update the app function
         run: |

@@ -132,3 +132,13 @@ output "app_certificate_arn" {
   description = "ARN of the regional certificate on the application domain."
   value       = aws_acm_certificate.app.arn
 }
+
+output "images_bucket_name" {
+  description = "Name of the S3 bucket holding event images."
+  value       = aws_s3_bucket.images.id
+}
+
+output "resize_function_name" {
+  description = "Name of the image resize Lambda function."
+  value       = aws_lambda_function.resize.function_name
+}
