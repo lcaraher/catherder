@@ -5,6 +5,7 @@ import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { dbTimeToSlot, type AvailabilityRange } from "@/domain/availability";
 import { canManageEvent } from "@/domain/event-access";
+import { hasDescription as eventHasDescription } from "@/domain/events";
 import {
   canEditResponse,
   canViewOthersResponses,
@@ -21,6 +22,7 @@ import { QuestionMarkChip } from "@/components/question-mark-chip";
 import { RespondForm } from "@/components/respond-form";
 import { ResultsIcon } from "@/components/results-icon";
 import { SECONDARY_SM } from "@/components/button-classes";
+import { ShortDescription } from "@/components/short-description";
 import { TimeZonePicker } from "@/components/time-zone-picker";
 import { WeekGridDisplay } from "@/components/week-grid-display";
 import { WindowTabs } from "@/components/window-tabs";
@@ -115,7 +117,7 @@ export default async function RespondPage({
       questionMark(question, answerByQuestion.get(question.id) ?? null, submitted),
     ]),
   );
-  const hasDescription = event.description !== null && event.description.trim() !== "";
+  const hasDescription = eventHasDescription(event.description);
   const details = hasDescription ? (
     <Pane>
       <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Details</h2>
@@ -149,8 +151,9 @@ export default async function RespondPage({
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <Pane as="div" className="mb-6">
-        <h1 className="mb-3 text-2xl font-semibold">{event.name}</h1>
-        <div className="rounded border border-notice-warn-border bg-notice-warn px-3 py-2 text-sm text-notice-warn-text">
+        <h1 className="text-2xl font-semibold">{event.name}</h1>
+        <ShortDescription text={event.shortDescription} />
+        <div className="mt-3 rounded border border-notice-warn-border bg-notice-warn px-3 py-2 text-sm text-notice-warn-text">
           <p className="font-small font-semibold">Editing is closed.</p>
           <p className="mt-1">
             {event.archivedAt !== null
@@ -302,6 +305,7 @@ export default async function RespondPage({
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <Pane as="div" className="mb-6">
       <h1 className={`${showResultsLink ? "mb-1 " : ""}text-2xl font-semibold`}>{event.name}</h1>
+      <ShortDescription text={event.shortDescription} />
       {resultsLink}
       </Pane>
       <RespondForm

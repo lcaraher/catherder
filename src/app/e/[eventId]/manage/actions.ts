@@ -9,6 +9,12 @@ import { createInviteInTx, withFreshInviteCode } from "@/adapters/db/invites";
 import { canManageEvent } from "@/domain/event-access";
 import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
 import { SAVE_FAILED, saveError, saved, type SaveResult } from "@/domain/save-result";
+import {
+  SHORT_DESCRIPTION_MAX_LENGTH,
+  SHORT_DESCRIPTION_STORED_MAX_LENGTH,
+  isBlankMarkdown,
+  shortDescriptionLength,
+} from "@/domain/short-description";
 
 const EVENT_MODES: EventMode[] = ["MULTI_GROUP", "SINGLE_ACTIVITY"];
 const QUESTION_TYPES: QuestionType[] = [
@@ -305,7 +311,7 @@ export async function updateEventDescription(formData: FormData): Promise<SaveRe
     );
   }
   // Blank is stored as null so "no description" has one representation.
-  const description = text === "" ? null : text;
+  const description = isBlankMarkdown(text) ? null : text;
   if (description === event.description) return saved();
 
   await prisma.$transaction(async (tx) => {
@@ -322,6 +328,43 @@ export async function updateEventDescription(formData: FormData): Promise<SaveRe
     });
   });
   revalidatePath(eventPath(eventId));
+  return saved();
+}
+
+export async function updateEventShortDescription(formData: FormData): Promise<SaveResult> {
+  const eventId = String(formData.get("eventId") ?? "");
+  const text = String(formData.get("shortDescription") ?? "").trim();
+  const { event, user } = await requireEventManager(eventId);
+
+  if (shortDescriptionLength(text) > SHORT_DESCRIPTION_MAX_LENGTH) {
+    return saveError(
+      `The short description is limited to ${SHORT_DESCRIPTION_MAX_LENGTH} characters.`,
+      "shortDescription",
+    );
+  }
+  if (text.length > SHORT_DESCRIPTION_STORED_MAX_LENGTH) {
+    return saveError(
+      "The short description's links and formatting make it too long to save.",
+      "shortDescription",
+    );
+  }
+  const shortDescription = isBlankMarkdown(text) ? null : text;
+  if (shortDescription === event.shortDescription) return saved();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({ where: { id: eventId }, data: { shortDescription } });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: user.id,
+        entity: "Event",
+        entityId: eventId,
+        action: "event_short_description_edited",
+        detail: { from: event.shortDescription },
+      },
+    });
+  });
+  revalidatePath(eventPath(eventId));
+  revalidatePath(`/e/${eventId}/respond`);
   return saved();
 }
 

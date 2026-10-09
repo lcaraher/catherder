@@ -1475,6 +1475,11 @@ main a:not(.no-underline):hover {
   min-height: 160px;
 }
 
+/* The short description's editing area: shorter, and it grows with the text without a limit. */
+.description-editor.short-description-editor.mdxeditor .description-editor-content {
+  min-height: 80px;
+}
+
 /* The editing area, as the description page shows the text. */
 .description-editor.mdxeditor .description-editor-content {
   font-size: 0.875rem;
