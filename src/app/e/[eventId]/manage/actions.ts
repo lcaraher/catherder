@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { EventMode, QuestionType } from "@prisma/client";
-import { ForbiddenError, requireUser } from "@/adapters/auth";
+import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
 import { createInviteInTx, withFreshInviteCode } from "@/adapters/db/invites";
-import { canManageEvent } from "@/domain/event-access";
+import { removeUnusedImages } from "@/adapters/images/unused";
 import { EVENT_DESCRIPTION_MAX_LENGTH } from "@/domain/events";
 import { SAVE_FAILED, saveError, saved, type SaveResult } from "@/domain/save-result";
 import {
@@ -15,6 +15,7 @@ import {
   isBlankMarkdown,
   shortDescriptionLength,
 } from "@/domain/short-description";
+import { requireEventManager } from "./event-manager";
 
 const EVENT_MODES: EventMode[] = ["MULTI_GROUP", "SINGLE_ACTIVITY"];
 const QUESTION_TYPES: QuestionType[] = [
@@ -23,23 +24,6 @@ const QUESTION_TYPES: QuestionType[] = [
   "TEXT",
   "RANKING",
 ];
-
-// Every action re-authorizes server-side; forms only decide what's
-// visible. Management facts come from the database, never from IdP claims.
-async function requireEventManager(eventId: string) {
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event) throw new Error("event not found");
-  const user = await requireUser();
-  const allowed = canManageEvent({
-    viewerUserId: user.id,
-    organizerUserId: event.organizerUserId,
-    viewerIsSiteAdmin: user.siteAdmin,
-  });
-  if (!allowed) {
-    throw new ForbiddenError("not allowed to manage this event");
-  }
-  return { event, user };
-}
 
 const ARCHIVED_MESSAGE =
   "This event is archived. Unarchive it before opening or closing it.";
@@ -327,6 +311,7 @@ export async function updateEventDescription(formData: FormData): Promise<SaveRe
       },
     });
   });
+  await removeUnusedImages(eventId, description);
   revalidatePath(eventPath(eventId));
   return saved();
 }

@@ -17,12 +17,14 @@ import {
   editorInTable$,
   headingsPlugin,
   iconComponentFor$,
+  imagePlugin,
   insertCodeBlock$,
   linkDialogPlugin,
   linkPlugin,
   lexical,
   listsPlugin,
   markdownShortcutPlugin,
+  openNewImageDialog$,
   quotePlugin,
   tablePlugin,
   thematicBreakPlugin,
@@ -42,6 +44,9 @@ import {
   translateWith,
   useKeyboardFocus,
 } from "@/components/editor-parts";
+import { PictureDialog, PictureEventContext } from "@/components/picture-dialog";
+import { uploadPicture, type UploadStage } from "@/components/picture-upload";
+import { imageAddress } from "@/domain/images";
 
 type ListType = "bullet" | "number" | "check";
 
@@ -152,6 +157,18 @@ function CodeBlockButton() {
   );
 }
 
+function PictureButton() {
+  const openNewImageDialog = usePublisher(openNewImageDialog$);
+  const iconFor = useCellValue(iconComponentFor$);
+  return (
+    <ToolbarButton label="Picture" onClick={() => openNewImageDialog()}>
+      {iconFor("add_photo")}
+    </ToolbarButton>
+  );
+}
+
+const PICTURE_SRC = /^img:([a-z0-9]{1,40})$/;
+
 function Toolbar() {
   return (
     <DiffSourceToggleWrapper>
@@ -163,6 +180,7 @@ function Toolbar() {
       <IndentButton />
       <IndentButton outdent />
       <LinkButton />
+      <PictureButton />
       <InsertTable />
       <InsertThematicBreak />
       <CodeBlockButton />
@@ -176,10 +194,28 @@ interface Props {
   savedMarkdown: string;
   onChange: (markdown: string, initialMarkdownNormalize: boolean) => void;
   editorRef: RefObject<MDXEditorMethods | null>;
+  eventId: string;
+  /** Called with a pasted or dropped picture's refusal, and with null when the next one starts. */
+  onPictureRefused: (message: string | null) => void;
+  /** Starts following one pasted or dropped picture's upload. */
+  trackPictureUpload: () => PictureUploadTracker;
+}
+
+export interface PictureUploadTracker {
+  stage: (stage: UploadStage) => void;
+  end: () => void;
 }
 
 /** The event description's formatted editor, with a Markdown view and a changes view. */
-export function DescriptionEditor({ markdown, savedMarkdown, onChange, editorRef }: Props) {
+export function DescriptionEditor({
+  markdown,
+  savedMarkdown,
+  onChange,
+  editorRef,
+  eventId,
+  onPictureRefused,
+  trackPictureUpload,
+}: Props) {
   // Stable plugin parameters, so a re-render does not republish them.
   const plugins = useMemo(
     () => [
@@ -189,6 +225,28 @@ export function DescriptionEditor({ markdown, savedMarkdown, onChange, editorRef
       thematicBreakPlugin(),
       linkPlugin(),
       linkDialogPlugin(),
+      imagePlugin({
+        // Resizing would write an HTML tag, which the page shows as text.
+        disableImageResize: true,
+        ImageDialog: PictureDialog,
+        // Only the event's own pictures load; any other address loads nothing.
+        imagePreviewHandler: async (src) => {
+          const match = PICTURE_SRC.exec(src);
+          return match ? imageAddress(eventId, match[1]) : "";
+        },
+        // Pasted and dropped pictures; a refusal never settles, as MDXEditor rethrows a rejection.
+        // MDXEditor waits for every picture in one paste or drop, so if one is refused none of them is inserted.
+        imageUploadHandler: (file) =>
+          new Promise<string>((resolve) => {
+            onPictureRefused(null);
+            const upload = trackPictureUpload();
+            void uploadPicture(eventId, file, upload.stage).then((outcome) => {
+              upload.end();
+              if (outcome.ok) resolve(outcome.src);
+              else onPictureRefused(outcome.message);
+            });
+          }),
+      }),
       tablePlugin(),
       codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
       codeMirrorPlugin({ codeBlockLanguages: { "": "Plain text" } }),
@@ -197,7 +255,7 @@ export function DescriptionEditor({ markdown, savedMarkdown, onChange, editorRef
       toolbarPlugin({ toolbarContents: () => <Toolbar /> }),
       tabLeavesPlugin(),
     ],
-    [savedMarkdown],
+    [savedMarkdown, eventId, onPictureRefused, trackPictureUpload],
   );
 
   const keyboardFocus = useKeyboardFocus();
@@ -208,16 +266,18 @@ export function DescriptionEditor({ markdown, savedMarkdown, onChange, editorRef
       onFocus={keyboardFocus.onFocus}
       onBlur={keyboardFocus.onBlur}
     >
-      <MDXEditor
-        ref={editorRef}
-        className="description-editor"
-        contentEditableClassName="description-editor-content"
-        markdown={markdown}
-        onChange={onChange}
-        plugins={plugins}
-        toMarkdownOptions={TO_MARKDOWN_OPTIONS}
-        translation={translate}
-      />
+      <PictureEventContext value={eventId}>
+        <MDXEditor
+          ref={editorRef}
+          className="description-editor"
+          contentEditableClassName="description-editor-content"
+          markdown={markdown}
+          onChange={onChange}
+          plugins={plugins}
+          toMarkdownOptions={TO_MARKDOWN_OPTIONS}
+          translation={translate}
+        />
+      </PictureEventContext>
     </div>
   );
 }

@@ -8,8 +8,15 @@ import {
 import Markdown, { type Components, type UrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Checkbox } from "@/components/form-controls";
+import { imageAddress } from "@/domain/images";
 
 const remarkPlugins = [remarkGfm];
+
+// An event picture's address in the Markdown: img:<id>.
+const PICTURE_URL = /^img:([a-z0-9]{1,40})$/;
+
+// Exactly the form imageAddress gives; a relative address, so Markdown alone can never produce it.
+const PICTURE_ADDRESS = /^\/e\/[a-z0-9]{1,40}\/images\/[a-z0-9]{1,40}$/;
 
 // Only web links survive; anything else (javascript:, data:, mailto:) is
 // blanked. Applied to every URL attribute, including image sources.
@@ -17,6 +24,31 @@ export const urlTransform: UrlTransform = (url) => {
   const trimmed = url.trim();
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return "";
+};
+
+// As urlTransform, except that an image's img:<id> becomes the event's address for that picture.
+function eventUrlTransform(eventId: string): UrlTransform {
+  return (url, key, node) => {
+    const match = key === "src" && node.tagName === "img" ? PICTURE_URL.exec(url.trim()) : null;
+    return match ? imageAddress(eventId, match[1]) : urlTransform(url, key, node);
+  };
+}
+
+// The event's own pictures come from its picture route; any other image shows its alt text only.
+const Picture: Components["img"] = ({ src, alt }) => {
+  if (typeof src !== "string" || !PICTURE_ADDRESS.test(src)) {
+    return <span className="text-hint">[{alt || "image"}]</span>;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt ?? ""}
+      loading="lazy"
+      decoding="async"
+      className="my-2 block h-auto max-w-full rounded border border-edge"
+    />
+  );
 };
 
 // Whether a child is the element react-markdown made for one of these tags.
@@ -87,8 +119,7 @@ export const codeRenderer: Components["code"] = ({ children }) => (
 
 const components: Components = {
   a: linkRenderer,
-  // Images never load; the alt text stands in so nothing is fetched.
-  img: ({ alt }) => <span className="text-hint">[{alt || "image"}]</span>,
+  img: Picture,
   h1: ({ children }) => (
     <h3 className="font-heading mt-4 mb-2 text-lg font-semibold first:mt-0">
       {children}
@@ -179,12 +210,12 @@ const components: Components = {
 };
 
 /** Renders an event's Markdown description; raw HTML shows as text. */
-export function EventDescription({ text }: { text: string }) {
+export function EventDescription({ eventId, text }: { eventId: string; text: string }) {
   return (
     <div className="text-sm break-words">
       <Markdown
         remarkPlugins={remarkPlugins}
-        urlTransform={urlTransform}
+        urlTransform={eventUrlTransform(eventId)}
         components={components}
       >
         {text}
