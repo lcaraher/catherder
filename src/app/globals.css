@@ -433,7 +433,7 @@
   --on-primary: #1a1230;
   --error: #ff8a8a;
   --edge: #413954;
-  --edge-strong: #706981;
+  --edge-strong: #746c85;
   --ring: #e8b86d;
   --bevel-light: #6c628b;
   --bevel-dark: var(--edge-strong);
@@ -1368,6 +1368,42 @@ main a:not(.no-underline):hover {
   color: var(--link-hover);
 }
 
+/* The picture dialog: across the window 160px from its top, the page dimmed behind it. */
+@utility picture-dialog {
+  position: fixed;
+  inset: 160px 0 auto;
+  margin: 0 auto;
+  width: min(420px, 100% - 32px);
+  max-width: none;
+  max-height: calc(100% - 192px);
+  overflow-y: auto;
+
+  &::backdrop {
+    background-color: color-mix(in srgb, var(--surface) 70%, transparent);
+  }
+}
+
+/* A 14px busy spinner, one turn every 800ms; it stands still under reduced motion. */
+@utility spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--edge-strong);
+  border-top-color: var(--ring);
+  border-radius: 9999px;
+  animation: spinner-turn 800ms linear infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes spinner-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Details summary without the disclosure marker. */
 @utility summary-plain {
   list-style: none;
@@ -1549,6 +1585,20 @@ main a:not(.no-underline):hover {
   }
   & a {
     color: var(--link-hover);
+  }
+}
+
+/* Pictures in the editing area look as on the page and never run past its right edge. */
+.description-editor.mdxeditor .description-editor-content [data-editor-block-type="image"] {
+  max-width: 100%;
+  vertical-align: top;
+
+  & img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--edge);
+    border-radius: 0.25rem;
   }
 }
 

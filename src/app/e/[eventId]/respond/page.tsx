@@ -121,7 +121,7 @@ export default async function RespondPage({
   const details = hasDescription ? (
     <Pane>
       <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Details</h2>
-      <EventDescription text={event.description ?? ""} />
+      <EventDescription eventId={eventId} text={event.description ?? ""} />
     </Pane>
   ) : (
     <BlankTab

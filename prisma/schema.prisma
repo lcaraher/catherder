@@ -75,6 +75,7 @@ model User {
   answers              Answer[]
   auditEvents          AuditEvent[]
   createdInvites       EventInvite[]
+  uploadedImages       EventImage[]           @relation("ImageUploader")
 }
 
 model ExternalIdentity {
@@ -121,8 +122,24 @@ model Event {
   questions     Question[]
   answers       Answer[]
   invite        EventInvite?
+  images        EventImage[]
 
   @@index([organizerUserId])
+}
+
+// A picture uploaded for an event's description; its file is in the images bucket (or the local stand-in) under the event's id and this id.
+// Ready once the resized WebP exists, refused once a failed/ note exists, so no status is stored.
+model EventImage {
+  id             String   @id @default(cuid())
+  eventId        String
+  uploaderUserId String
+  createdAt      DateTime @default(now())
+
+  event    Event @relation(fields: [eventId], references: [id])
+  uploader User  @relation("ImageUploader", fields: [uploaderUserId], references: [id])
+
+  @@index([eventId])
+  @@index([uploaderUserId, createdAt])
 }
 
 // One multi-use join code per event; regenerating replaces it in place.

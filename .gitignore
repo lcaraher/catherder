@@ -156,6 +156,9 @@ test-results/
 playwright-report/
 .playwright-mcp/
 
+# Local stand-in for the images bucket
+.local-images/
+
 # Local agent and editor config
 CLAUDE.md
 AGENTS.md
