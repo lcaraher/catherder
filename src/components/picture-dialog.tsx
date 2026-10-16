@@ -23,12 +23,19 @@ import {
 } from "@mdxeditor/editor";
 import { SECONDARY_SM } from "@/components/button-classes";
 import { UPLOAD_STAGE_WORDS, uploadPicture, type UploadStage } from "@/components/picture-upload";
-import { IMAGE_TYPES } from "@/domain/images";
+import { Segmented } from "@/components/segmented";
+import { IMAGE_TYPES, pictureSize, sizeTitle, type PictureSize } from "@/domain/images";
 
 /** The id of the event whose description the editor holds. */
 export const PictureEventContext = createContext("");
 
 const FIELD = "rounded border border-edge-strong bg-field px-2 py-1 text-sm disabled:opacity-50";
+
+const SIZE_OPTIONS = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+];
 
 function PictureDialogBody({
   state,
@@ -46,6 +53,9 @@ function PictureDialogBody({
   const editing = state.type === "editing";
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState(editing ? (state.initialValues.altText ?? "") : "");
+  const [size, setSize] = useState<PictureSize>(
+    editing ? pictureSize(state.initialValues.title) : "large",
+  );
   const [stage, setStage] = useState<UploadStage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busy = stage !== null;
@@ -59,7 +69,7 @@ function PictureDialogBody({
   async function submit() {
     if (busy || !ready) return;
     if (state.type === "editing") {
-      saveImage({ ...state.initialValues, altText: description.trim() });
+      saveImage({ ...state.initialValues, altText: description.trim(), title: sizeTitle(size) });
       return;
     }
     if (!file) return;
@@ -70,7 +80,7 @@ function PictureDialogBody({
       setError(outcome.message);
       return;
     }
-    insertImage({ src: outcome.src, altText: description.trim(), title: "" });
+    insertImage({ src: outcome.src, altText: description.trim(), title: sizeTitle(size) });
     closeDialog();
   }
 
@@ -84,7 +94,7 @@ function PictureDialogBody({
   return (
     <>
       <h2 id={titleId} className="font-heading text-base font-semibold">
-        {editing ? "Picture description" : "Add a picture"}
+        {editing ? "Picture description and size" : "Add a picture"}
       </h2>
       {!editing && (
         <div>
@@ -120,6 +130,17 @@ function PictureDialogBody({
           onChange={(event) => setDescription(event.target.value)}
           onKeyDown={onKeyDown}
           className={`w-full ${FIELD}`}
+        />
+      </div>
+      <div>
+        <p className="mb-1 text-muted">Size</p>
+        <Segmented
+          label="Size"
+          size="sm"
+          options={SIZE_OPTIONS}
+          value={size}
+          onChange={(value) => setSize(pictureSize(value))}
+          disabled={busy}
         />
         {/* Always in the page, so its words are announced; empty and without height when idle. */}
         <p role="status" className={stage ? "mt-3 flex items-center gap-2" : undefined}>

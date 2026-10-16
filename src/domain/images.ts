@@ -64,6 +64,19 @@ export function referencedImageIds(markdown: string): Set<string> {
   return ids;
 }
 
+/** How wide a picture is drawn; kept in its Markdown image title. */
+export type PictureSize = "small" | "medium" | "large";
+
+/** A picture's size from its title: exactly "small" or "medium", anything else large. */
+export function pictureSize(title: string | null | undefined): PictureSize {
+  return title === "small" || title === "medium" ? title : "large";
+}
+
+/** The title that keeps a size; large keeps none. */
+export function sizeTitle(size: PictureSize): string {
+  return size === "large" ? "" : size;
+}
+
 /** Where the app serves a picture. */
 export function imageAddress(eventId: string, imageId: string): string {
   return `/e/${eventId}/images/${imageId}`;

@@ -1593,6 +1593,14 @@ main a:not(.no-underline):hover {
   max-width: 100%;
   vertical-align: top;
 
+  /* Small and medium pictures capped as on the page, from the title MDXEditor puts on the img. */
+  &:has(img[title="small"]) {
+    max-width: 33.333%;
+  }
+  &:has(img[title="medium"]) {
+    max-width: 50%;
+  }
+
   & img {
     display: block;
     max-width: 100%;
