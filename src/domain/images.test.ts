@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { imageAddress, referencedImageIds, refusalMessage } from "./images.ts";
+import {
+  imageAddress,
+  pictureSize,
+  referencedImageIds,
+  refusalMessage,
+  sizeTitle,
+  type PictureSize,
+} from "./images.ts";
 
 const ids = (markdown: string) => [...referencedImageIds(markdown)].sort();
 
@@ -39,6 +46,39 @@ describe("referencedImageIds", () => {
 
   it("ignores ids that are not lowercase letters and digits, or too long", () => {
     assert.deepEqual(ids(`![a](img:ABC) ![b](img:a-b) ![c](img:${"a".repeat(41)})`), []);
+  });
+});
+
+describe("pictureSize", () => {
+  it("reads each size word", () => {
+    assert.equal(pictureSize("small"), "small");
+    assert.equal(pictureSize("medium"), "medium");
+  });
+
+  it("reads an empty or missing title as large", () => {
+    assert.equal(pictureSize(""), "large");
+    assert.equal(pictureSize(undefined), "large");
+    assert.equal(pictureSize(null), "large");
+  });
+
+  it("reads any other title as large", () => {
+    for (const title of ["Small", " small", "large", "big"]) {
+      assert.equal(pictureSize(title), "large", title);
+    }
+  });
+});
+
+describe("sizeTitle", () => {
+  it("keeps no title for large and the word otherwise", () => {
+    assert.equal(sizeTitle("large"), "");
+    assert.equal(sizeTitle("small"), "small");
+    assert.equal(sizeTitle("medium"), "medium");
+  });
+
+  it("round-trips with pictureSize", () => {
+    for (const size of ["small", "medium", "large"] as PictureSize[]) {
+      assert.equal(pictureSize(sizeTitle(size)), size);
+    }
   });
 });
 

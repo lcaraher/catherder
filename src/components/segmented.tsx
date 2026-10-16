@@ -20,6 +20,8 @@ interface Props {
   onChange: (value: string) => void;
   size?: "sm" | "md";
   className?: string;
+  /** Disables every segment. */
+  disabled?: boolean;
 }
 
 /**
@@ -33,13 +35,14 @@ export function Segmented({
   onChange,
   size = "md",
   className = "",
+  disabled,
 }: Props) {
   const group = `segmented overflow-hidden rounded border border-edge-strong ${
     size === "sm" ? "text-xs" : "text-sm"
   } ${className}`;
   const segment = (active: boolean) =>
-    `relative z-10 inline-flex items-center justify-center gap-1.5 ${size === "sm" ? "px-2 py-1" : "px-3 py-1"} ${FOCUS_RING} ${
-      active ? "text-on-primary" : "hover:bg-btn-secondary-hover"
+    `relative z-10 inline-flex items-center justify-center gap-1.5 ${size === "sm" ? "px-2 py-1" : "px-3 py-1"} ${FOCUS_RING} disabled:opacity-50 ${
+      active ? "text-on-primary" : "enabled:hover:bg-btn-secondary-hover"
     }`;
   const index = options.findIndex((option) => option.value === value);
   const groupStyle = { "--n": options.length } as CSSProperties;
@@ -65,6 +68,7 @@ export function Segmented({
           role="radio"
           aria-checked={option.value === value}
           title={option.title}
+          disabled={disabled}
           onClick={() => onChange(option.value)}
           className={segment(option.value === value)}
         >

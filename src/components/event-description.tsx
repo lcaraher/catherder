@@ -8,7 +8,7 @@ import {
 import Markdown, { type Components, type UrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Checkbox } from "@/components/form-controls";
-import { imageAddress } from "@/domain/images";
+import { imageAddress, pictureSize, type PictureSize } from "@/domain/images";
 
 const remarkPlugins = [remarkGfm];
 
@@ -34,8 +34,15 @@ function eventUrlTransform(eventId: string): UrlTransform {
   };
 }
 
+// Width cap per picture size, as a share of the column.
+const SIZE_WIDTH: Record<PictureSize, string> = {
+  small: "max-w-1/3",
+  medium: "max-w-1/2",
+  large: "max-w-full",
+};
+
 // The event's own pictures come from its picture route; any other image shows its alt text only.
-const Picture: Components["img"] = ({ src, alt }) => {
+const Picture: Components["img"] = ({ src, alt, title }) => {
   if (typeof src !== "string" || !PICTURE_ADDRESS.test(src)) {
     return <span className="text-hint">[{alt || "image"}]</span>;
   }
@@ -46,7 +53,7 @@ const Picture: Components["img"] = ({ src, alt }) => {
       alt={alt ?? ""}
       loading="lazy"
       decoding="async"
-      className="my-2 block h-auto max-w-full rounded border border-edge"
+      className={`my-2 block h-auto ${SIZE_WIDTH[pictureSize(title)]} rounded border border-edge`}
     />
   );
 };
