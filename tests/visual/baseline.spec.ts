@@ -40,9 +40,11 @@ const AS_ORGANIZER = [
   "/e/<id>/responses",
   "/e/<id>/responses?tab=participants",
   "/e/<id>/responses?tab=questions",
+  "/e/<id>/responses?tab=planning",
   "/e/<dense>/responses",
   "/e/<dense>/responses?tab=participants",
   "/e/<dense>/responses?tab=questions",
+  "/e/<dense>/responses?tab=planning",
 ];
 const AS_PARTICIPANT = [
   "/",

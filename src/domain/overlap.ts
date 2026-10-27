@@ -34,6 +34,12 @@ export interface OverlapResult {
 }
 
 const MINUTES_PER_SLOT = 30;
+const WEEK_SLOTS = WEEKDAY_COUNT * SLOTS_PER_DAY;
+
+/** A week slot index wrapped into 0–335, either direction. */
+function wrapWeekSlot(weekSlot: number): number {
+  return ((weekSlot % WEEK_SLOTS) + WEEK_SLOTS) % WEEK_SLOTS;
+}
 
 /** The zone's UTC offset in minutes at the given instant, via Intl.DateTimeFormat. */
 function utcOffsetMinutes(timeZone: string, at: Date): number {
@@ -110,7 +116,6 @@ export function computeOverlapGrid(
   const viewerApproximated = viewerOffset !== exactViewerOffset;
   const approximated: string[] = [];
 
-  const totalSlots = WEEKDAY_COUNT * SLOTS_PER_DAY;
   const grid: OverlapGrid = Array.from({ length: WEEKDAY_COUNT }, () =>
     Array.from({ length: SLOTS_PER_DAY }, () => ({
       available: [] as string[],
@@ -129,10 +134,7 @@ export function computeOverlapGrid(
     week.forEach((day, weekday) =>
       day.forEach((status, slot) => {
         if (status === null) return;
-        const shifted =
-          (((weekday * SLOTS_PER_DAY + slot + shiftSlots) % totalSlots) +
-            totalSlots) %
-          totalSlots;
+        const shifted = wrapWeekSlot(weekday * SLOTS_PER_DAY + slot + shiftSlots);
         const cell =
           grid[Math.floor(shifted / SLOTS_PER_DAY)][shifted % SLOTS_PER_DAY];
         (status === "AVAILABLE" ? cell.available : cell.tentative).push(
@@ -142,6 +144,22 @@ export function computeOverlapGrid(
     );
   }
   return { grid, approximated, viewerApproximated };
+}
+
+/**
+ * The week slot's position in toZone's week, by the grid's rule: both offsets
+ * at toZone's reference instant, rounded to the half-hour, wrapping round the week.
+ */
+export function moveWeekSlot(
+  weekSlot: number,
+  fromZone: string,
+  toZone: string,
+  now: Date = new Date(),
+): number {
+  const reference = referenceInstant(toZone, now);
+  const toOffset = roundToHalfHour(utcOffsetMinutes(toZone, reference));
+  const fromOffset = roundToHalfHour(utcOffsetMinutes(fromZone, reference));
+  return wrapWeekSlot(weekSlot + (toOffset - fromOffset) / MINUTES_PER_SLOT);
 }
 
 /**

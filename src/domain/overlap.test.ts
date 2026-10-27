@@ -6,12 +6,13 @@ import {
   computeOverlapGrid,
   heatRanges,
   heatStep,
+  moveWeekSlot,
   splitOrganizer,
   type OverlapParticipant,
 } from "./overlap.ts";
 
-// A fixed "now" so the reference week is deterministic. The test zones are
-// all fixed-offset (Etc/*, Asia/*), so DST cannot shift results either way.
+// A fixed "now" so the reference week is deterministic. The
+// grid tests use fixed-offset zones (Etc/*, Asia/*), so DST cannot shift them.
 const NOW = new Date("2026-09-13T12:00:00Z");
 
 function participant(
@@ -356,5 +357,58 @@ describe("heatRanges", () => {
         assert.ok(low <= available && available <= high);
       }
     }
+  });
+});
+
+describe("moveWeekSlot", () => {
+  // 2026-07-01 samples Monday 2026-07-06: New York −4, Chicago −5, London +1.
+  const JULY = new Date("2026-07-01T12:00:00Z");
+  // Saturday 19:00 is week slot 5 × 48 + 38.
+  const SATURDAY_7PM = 278;
+
+  it("moves New York Saturday 19:00 an hour earlier for Chicago", () => {
+    assert.equal(
+      moveWeekSlot(SATURDAY_7PM, "America/New_York", "America/Chicago", JULY),
+      276,
+    );
+  });
+
+  it("moves New York later for London, into Sunday only from 19:00", () => {
+    // Saturday 18:30 is London's Saturday 23:30; 19:00 is Sunday 00:00.
+    assert.equal(moveWeekSlot(277, "America/New_York", "Europe/London", JULY), 287);
+    assert.equal(
+      moveWeekSlot(SATURDAY_7PM, "America/New_York", "Europe/London", JULY),
+      288,
+    );
+  });
+
+  it("leaves a slot unchanged within one zone, a rounded zone too", () => {
+    assert.equal(
+      moveWeekSlot(SATURDAY_7PM, "America/New_York", "America/New_York", JULY),
+      SATURDAY_7PM,
+    );
+    assert.equal(moveWeekSlot(100, "Asia/Kathmandu", "Asia/Kathmandu", JULY), 100);
+  });
+
+  it("wraps across Sunday into Monday and back", () => {
+    // New York Sunday 22:00 (332) is London Monday 03:00 (6), and back.
+    assert.equal(moveWeekSlot(332, "America/New_York", "Europe/London", JULY), 6);
+    assert.equal(moveWeekSlot(6, "Europe/London", "America/New_York", JULY), 332);
+  });
+
+  it("lands where the grid paints the same half-hour", () => {
+    const { grid } = computeOverlapGrid(
+      [
+        participant({
+          userId: "a",
+          timeZone: "Asia/Kathmandu",
+          ranges: [range(5, 38, 39)],
+        }),
+      ],
+      "America/New_York",
+      JULY,
+    );
+    const moved = moveWeekSlot(SATURDAY_7PM, "Asia/Kathmandu", "America/New_York", JULY);
+    assert.deepEqual(grid[Math.floor(moved / 48)][moved % 48].available, ["a"]);
   });
 });

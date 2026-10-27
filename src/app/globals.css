@@ -628,6 +628,9 @@
   --spacing-tile-gap: 3px;
   --radius-tile: 5px;
   --radius-card: 8px;
+
+  /* The "?" in a help tip's circle. */
+  --text-help: 11px;
 }
 
 /* Hairline inside a marked overlap cell, in the cell's own digit colour. */
@@ -1164,50 +1167,43 @@
   }
 }
 
-/* Window tab row; with data-phone-rows its groups stack as rows below md. */
+/* Window tab row; with data-phone-rows below md, three equal columns in --tab-rows rows. */
 @utility window-tabs {
   display: flex;
   align-items: flex-end;
   gap: 2px;
   @media (width < 48rem) {
     &[data-phone-rows] {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 4px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(var(--tab-rows), auto);
+      align-items: end;
+      gap: 4px 2px;
     }
   }
 }
 
-/* The tabs inside the window tab row; their rows stack with it on phones. */
+/* The tabs inside the window tab row; on phones a subgrid spanning the whole row. */
 @utility window-tab-list {
   display: flex;
   align-items: flex-end;
   gap: 2px;
   @media (width < 48rem) {
     [data-phone-rows] & {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 4px;
+      display: grid;
+      grid-template-columns: subgrid;
+      grid-template-rows: subgrid;
+      grid-column: 1 / -1;
+      grid-row: 1 / -1;
+      align-items: end;
+      gap: 4px 2px;
     }
   }
 }
 
-/* A group of up to three tabs: no box of its own, a row on phones; the chosen row sits last. */
+/* A group of up to three tabs, or the link's wrapper: no box of its own. */
 @utility window-tab-row {
   display: contents;
-  @media (width < 48rem) {
-    [data-phone-rows] & {
-      display: flex;
-      align-items: flex-end;
-      gap: 2px;
-      &[data-chosen] {
-        order: 1;
-      }
-      &[data-link] {
-        order: -1;
-      }
-    }
-  }
 }
 
 /* One window tab: bevelled raised tab; the selected one joins the sheet below it. */
@@ -1246,9 +1242,11 @@
   &[data-greyed][aria-selected="true"] {
     background: var(--surface-card);
   }
+  /* On phones each tab and the link sit at their --tab-row and --tab-column. */
   @media (width < 48rem) {
     [data-phone-rows] & {
-      flex: 0 0 calc((100% - 4px) / 3);
+      grid-row: var(--tab-row);
+      grid-column: var(--tab-column);
       min-width: 0;
       padding-left: 6px;
       padding-right: 6px;

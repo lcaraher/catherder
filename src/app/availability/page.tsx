@@ -1,6 +1,7 @@
 import { requireUser } from "@/adapters/auth";
 import { Pane } from "@/components/pane";
 import { prisma } from "@/adapters/db/client";
+import { referenceNow } from "@/adapters/reference-now";
 import { dbTimeToSlot } from "@/domain/availability";
 import {
   buildTimeZoneOptions,
@@ -28,7 +29,7 @@ export default async function AvailabilityPage() {
   // Abbreviations and offsets are computed here, at render time, so DST is
   // right for today; the client only filters this prepared list.
   const zoneGroups = groupTimeZoneOptions(
-    buildTimeZoneOptions(Intl.supportedValuesOf("timeZone")),
+    buildTimeZoneOptions(Intl.supportedValuesOf("timeZone"), referenceNow()),
   );
 
   return (

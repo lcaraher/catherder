@@ -299,7 +299,8 @@ test("k. results panel previews the pointed cell", async ({ page }) => {
   const cell = page.getByRole("button", { name: /, [1-9]\d* available, / }).first();
   await waitForHydration(cell);
   const label = (await cell.getAttribute("aria-label")) ?? "";
-  const title = page.getByText(label.split(",")[0], { exact: true });
+  // Inside the grid's own panel only.
+  const title = page.locator("[data-results-panel]").getByText(label.split(",")[0], { exact: true });
 
   await expect(title).toHaveCount(0);
   await cell.hover();

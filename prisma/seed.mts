@@ -578,10 +578,31 @@ async function main() {
     }
   }
 
+  // Three times Greta shared on Playdates, created only when the event has none;
+  // Saturday 19:00, Thursday 19:30 and Friday 19:00 in her own zone.
+  const DENSE_SHARED_STARTS = [278, 183, 230];
+  const sharedCount = await prisma.eventSharedTime.count({
+    where: { eventId: dense.id },
+  });
+  if (sharedCount === 0) {
+    await prisma.eventSharedTime.createMany({
+      data: DENSE_SHARED_STARTS.map((startSlot) => ({
+        eventId: dense.id,
+        startSlot,
+        timeZone: USERS[0].timeZone,
+        lengthSlots: 6,
+      })),
+    });
+  }
+  const sharedTimes = await prisma.eventSharedTime.count({
+    where: { eventId: dense.id },
+  });
+
   console.log(
     `db:seed: events ${event.id} and ${dense.id}, ` +
       `${USERS.length + DENSE_USERS.length + 1} users (1 organizer and site admin, 1 on no event), ` +
-      `${questions.length + (denseQuestion ? 1 : 0)} questions`,
+      `${questions.length + (denseQuestion ? 1 : 0)} questions, ` +
+      `${sharedTimes} shared times`,
   );
 }
 
