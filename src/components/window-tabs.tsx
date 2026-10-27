@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useEffectEvent, useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { pickTab, tabRows } from "@/domain/tabs";
 
 const FOCUS_RING =
@@ -39,6 +47,17 @@ export function WindowTabs({ label, tabs, panels, initialTab, defaultTab, onChan
   const notify = useEffectEvent((id: string) => onChange?.(id));
   useEffect(() => notify(active), [active]);
 
+  // Phone rows: the chosen group last; the link joins a short last group, else takes the first row.
+  const groups = tabRows(tabs);
+  const chosen = groups.findIndex((row) => row.some((tab) => tab.id === active));
+  const last = groups.length - 1;
+  const linkJoins = link !== undefined && last >= 0 && groups[last].length < 3;
+  const linkRows = link && !linkJoins ? 1 : 0;
+  const groupRow = (index: number) =>
+    linkRows + 1 + (index === chosen ? last : chosen !== -1 && index > chosen ? index - 1 : index);
+  const place = (row: number, column: number) =>
+    ({ "--tab-row": row, "--tab-column": column }) as CSSProperties;
+
   const tabId = (id: string) => `${base}-tab-${id}`;
   const panelId = (id: string) => `${base}-panel-${id}`;
 
@@ -68,16 +87,12 @@ export function WindowTabs({ label, tabs, panels, initialTab, defaultTab, onChan
       <div
         className="window-tabs"
         data-phone-rows={tabs.length + (link ? 1 : 0) > 3 ? "" : undefined}
+        style={{ "--tab-rows": groups.length + linkRows } as CSSProperties}
       >
         <div role="tablist" aria-label={label} className="window-tab-list">
-          {tabRows(tabs).map((row) => (
-            <div
-              key={row[0].id}
-              role="none"
-              className="window-tab-row"
-              data-chosen={row.some((tab) => tab.id === active) ? "" : undefined}
-            >
-              {row.map((tab) => {
+          {groups.map((row, rowIndex) => (
+            <div key={row[0].id} role="none" className="window-tab-row">
+              {row.map((tab, column) => {
                 const selected = tab.id === active;
                 return (
                   <button
@@ -92,6 +107,7 @@ export function WindowTabs({ label, tabs, panels, initialTab, defaultTab, onChan
                     onClick={() => activate(tab.id)}
                     onKeyDown={(e) => onKeyDown(e, ids.indexOf(tab.id))}
                     className={`window-tab ${FOCUS_RING}`}
+                    style={place(groupRow(rowIndex), column + 1)}
                   >
                     {tab.label}
                     {tab.pip && tab.pip.count > 0 && (
@@ -109,11 +125,12 @@ export function WindowTabs({ label, tabs, panels, initialTab, defaultTab, onChan
           ))}
         </div>
         {link && (
-          <div className="window-tab-row" data-link="">
+          <div className="window-tab-row">
             <Link
               href={link.href}
               className={`window-tab no-underline ${FOCUS_RING}`}
               data-greyed=""
+              style={linkJoins ? place(groupRow(last), groups[last].length + 1) : place(1, 1)}
             >
               {link.label}
               <span aria-hidden="true"> ↗</span>

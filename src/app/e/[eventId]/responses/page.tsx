@@ -1,20 +1,25 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { referenceNow } from "@/adapters/reference-now";
 import { dbTimeToSlot, type AvailabilityRange } from "@/domain/availability";
+import { fitSharedTimes } from "@/domain/best-times";
 import { canManageEvent, isAdminOverride } from "@/domain/event-access";
-import { computeOverlapGrid, type OverlapParticipant } from "@/domain/overlap";
+import { computeOverlapGrid, moveWeekSlot, type OverlapParticipant } from "@/domain/overlap";
 import {
   canViewOthersResponses,
   canViewQuestionAnswers,
 } from "@/domain/response-access";
 import { buildTimeZoneOptions } from "@/domain/time-zones";
 import { ZoneChip } from "@/components/zone-chip";
+import { BestTimesBanner } from "@/components/best-times-banner";
 import { HeatLegend } from "@/components/heat-legend";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { OverlapGridView } from "@/components/overlap-grid";
 import { Pane } from "@/components/pane";
+import { PlanningPanel } from "@/components/planning-panel";
 import { QuestionResults, td, th } from "@/components/question-results";
+import { SaveConfirmations } from "@/components/save-form";
 import { BlankTab } from "@/components/blank-tab";
 import { WindowTabs } from "@/components/window-tabs";
 import { statusLabel } from "@/domain/status-label";
@@ -85,7 +90,8 @@ export default async function ResponsesPage({
     );
   }
 
-  const [availabilityRows, answers] = await Promise.all([
+  const singleActivity = event.mode === "SINGLE_ACTIVITY";
+  const [availabilityRows, answers, sharedRows] = await Promise.all([
     prisma.eventAvailability.findMany({
       where: { eventId },
       orderBy: [{ weekday: "asc" }, { startLocal: "asc" }],
@@ -94,6 +100,7 @@ export default async function ResponsesPage({
       where: { eventId },
       include: { choices: true, text: true },
     }),
+    singleActivity ? prisma.eventSharedTime.findMany({ where: { eventId } }) : [],
   ]);
 
   const rangesByUser = new Map<string, AvailabilityRange[]>();
@@ -133,9 +140,11 @@ export default async function ResponsesPage({
     ...person,
     ranges: rangesByUser.get(person.userId) ?? [],
   }));
+  const now = referenceNow();
   const { grid, approximated, viewerApproximated } = computeOverlapGrid(
     overlapInput,
     user.timeZone,
+    now,
   );
   const approximatedIds = new Set(approximated);
   const gridPeople = people.map((person) => ({
@@ -194,7 +203,25 @@ export default async function ResponsesPage({
   }));
 
   const viewerZoneLabel =
-    buildTimeZoneOptions([user.timeZone])[0]?.label ?? user.timeZone;
+    buildTimeZoneOptions([user.timeZone], now)[0]?.label ?? user.timeZone;
+
+  const submittedCount = respondents.filter(
+    (participant) => participant.responseStatus === "SUBMITTED",
+  ).length;
+  const unanswered = respondents.length - submittedCount;
+  const countedPeople = respondents.map((participant) => ({
+    userId: participant.userId,
+    displayName: participant.user.displayName,
+  }));
+  // Each shared time moved from the sharer's zone into the viewer's, by the grid's rule.
+  const sharedTimes = fitSharedTimes(
+    grid,
+    sharedRows.map((row) => ({
+      start: moveWeekSlot(row.startSlot, row.timeZone, user.timeZone, now),
+      lengthSlots: row.lengthSlots,
+    })),
+    countedPeople.map((person) => person.userId),
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
@@ -228,11 +255,26 @@ export default async function ResponsesPage({
           { id: "playdates", label: "Playdates" },
           { id: "participants", label: "Participants" },
           { id: "questions", label: "Questions", greyed: event.questions.length === 0 },
+          ...(viewerIsManager ? [{ id: "planning", label: "Planning" }] : []),
         ]}
         panels={{
           playdates: (
             <Pane>
               <h2 className="mb-3 border-b border-edge pb-2 text-lg font-semibold">Playdates</h2>
+              {sharedTimes.length > 0 && (
+                <BestTimesBanner
+                  times={sharedTimes}
+                  lengthSlots={event.requiredSlots}
+                  minPeople={event.planningMinPeople}
+                  organizerMustAttend={event.planningOrganizerMustAttend}
+                  people={countedPeople}
+                  organizerUserId={event.organizerUserId}
+                  clockFormat={user.clockFormat}
+                  zoneLabel={viewerZoneLabel}
+                  zoneApproximated={viewerApproximated}
+                  unanswered={unanswered}
+                />
+              )}
               <HeatLegend
                 counted={respondents.length}
                 countOrganizer={event.organizerParticipates}
@@ -243,11 +285,7 @@ export default async function ResponsesPage({
                 organizerUserId={event.organizerUserId}
                 organizerHasAvailability={organizerHasAvailability}
                 countOrganizer={event.organizerParticipates}
-                submittedCount={
-                  respondents.filter(
-                    (participant) => participant.responseStatus === "SUBMITTED",
-                  ).length
-                }
+                submittedCount={submittedCount}
                 clockFormat={user.clockFormat}
               />
             </Pane>
@@ -365,6 +403,30 @@ export default async function ResponsesPage({
                 ]}
               />
             ),
+          ...(viewerIsManager && {
+            planning: (
+              <SaveConfirmations>
+                <PlanningPanel
+                  eventId={eventId}
+                  singleActivity={singleActivity}
+                  grid={grid}
+                  people={countedPeople}
+                  organizerUserId={event.organizerUserId}
+                  clockFormat={user.clockFormat}
+                  zoneLabel={viewerZoneLabel}
+                  zoneApproximated={viewerApproximated}
+                  saved={{
+                    lengthSlots: event.requiredSlots,
+                    minPeople: event.planningMinPeople,
+                    organizerMustAttend: event.planningOrganizerMustAttend,
+                    nearlySlots: event.planningNearlySlots,
+                  }}
+                  shared={sharedTimes.map(({ start, lengthSlots }) => ({ start, lengthSlots }))}
+                  unanswered={unanswered}
+                />
+              </SaveConfirmations>
+            ),
+          }),
         }}
       />
     </main>

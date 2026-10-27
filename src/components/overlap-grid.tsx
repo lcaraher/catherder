@@ -307,6 +307,7 @@ export function OverlapGridView({
 
       {panelSlot !== null && selectedCell !== null && (
         <div
+          data-results-panel=""
           className={`mt-3 rounded border border-edge p-3 text-sm ${isPreview ? "opacity-80" : ""}`}
         >
           <p className="mb-2 font-medium">

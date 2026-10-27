@@ -3,6 +3,7 @@ import { Pane } from "@/components/pane";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/adapters/auth";
 import { prisma } from "@/adapters/db/client";
+import { referenceNow } from "@/adapters/reference-now";
 import { dbTimeToSlot, type AvailabilityRange } from "@/domain/availability";
 import { canManageEvent } from "@/domain/event-access";
 import { hasDescription as eventHasDescription } from "@/domain/events";
@@ -184,7 +185,7 @@ export default async function RespondPage({
                   Times are based in your time zone:{" "}
                   <ZoneChip
                     label={
-                      buildTimeZoneOptions([user.timeZone])[0]?.label ??
+                      buildTimeZoneOptions([user.timeZone], referenceNow())[0]?.label ??
                       user.timeZone
                     }
                   />
@@ -298,7 +299,7 @@ export default async function RespondPage({
   // Abbreviations and offsets are computed at render time so DST is right
   // for today; the client only filters this prepared list.
   const zoneGroups = groupTimeZoneOptions(
-    buildTimeZoneOptions(Intl.supportedValuesOf("timeZone")),
+    buildTimeZoneOptions(Intl.supportedValuesOf("timeZone"), referenceNow()),
   );
 
   return (

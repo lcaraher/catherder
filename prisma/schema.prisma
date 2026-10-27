@@ -101,6 +101,12 @@ model Event {
   organizerParticipates Boolean @default(false)
   // Target session length in half-hour slots (e.g. 6 = 3 hours).
   requiredSlots Int
+  // Times are listed only when at least this many counted people can make them.
+  planningMinPeople Int @default(2)
+  // Times are listed only when the organizer is available for the whole session.
+  planningOrganizerMustAttend Boolean @default(false)
+  // The "nearly fits" window in half-hours; null is off.
+  planningNearlySlots Int?
   minGroupSize  Int?
   maxGroupSize  Int?
   status        EventStatus
@@ -123,6 +129,7 @@ model Event {
   answers       Answer[]
   invite        EventInvite?
   images        EventImage[]
+  sharedTimes   EventSharedTime[]
 
   @@index([organizerUserId])
 }
@@ -140,6 +147,22 @@ model EventImage {
 
   @@index([eventId])
   @@index([uploaderUserId, createdAt])
+}
+
+// A time the organizer shared on Playdates; its start is a week slot in the sharer's own zone, never UTC.
+model EventSharedTime {
+  id      String @id @default(cuid())
+  eventId String
+  // 0–335, Monday 00:00 = 0, local wall-clock in timeZone.
+  startSlot Int
+  // The sharer's IANA zone when shared.
+  timeZone    String
+  lengthSlots Int
+  sharedAt    DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@index([eventId])
 }
 
 // One multi-use join code per event; regenerating replaces it in place.

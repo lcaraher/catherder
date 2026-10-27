@@ -35,6 +35,11 @@
     "violations": []
   },
   {
+    "route": "/e/<dense>/responses?tab=planning",
+    "state": "greta",
+    "violations": []
+  },
+  {
     "route": "/e/<dense>/responses?tab=questions",
     "state": "greta",
     "violations": []
@@ -91,6 +96,11 @@
   },
   {
     "route": "/e/<id>/responses?tab=participants",
+    "state": "greta",
+    "violations": []
+  },
+  {
+    "route": "/e/<id>/responses?tab=planning",
     "state": "greta",
     "violations": []
   },
