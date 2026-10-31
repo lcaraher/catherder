@@ -4,6 +4,7 @@ import type { AvailabilityRange } from "./availability.ts";
 import {
   collapseOverlapToHours,
   computeOverlapGrid,
+  foldEmptyRows,
   heatRanges,
   heatStep,
   moveWeekSlot,
@@ -298,6 +299,63 @@ describe("collapseOverlapToHours", () => {
       players: { available: ["a"], tentative: [] },
       organizer: null,
     });
+  });
+});
+
+describe("foldEmptyRows", () => {
+  // "K" kept, "." not kept.
+  const keptFrom = (pattern: string) => [...pattern].map((c) => c === "K");
+  const rows = (...indexes: number[]) =>
+    indexes.map((row) => ({ kind: "row" as const, row }));
+
+  it("folds a run at the start", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom("...KK"), 2), [
+      { kind: "fold", start: 0, end: 3 },
+      ...rows(3, 4),
+    ]);
+  });
+
+  it("folds a run in the middle", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom("K...K"), 2), [
+      ...rows(0),
+      { kind: "fold", start: 1, end: 4 },
+      ...rows(4),
+    ]);
+  });
+
+  it("folds a run at the end", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom("KK..."), 2), [
+      ...rows(0, 1),
+      { kind: "fold", start: 2, end: 5 },
+    ]);
+  });
+
+  it("keeps a run shorter than minRun as rows", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom("K.K..K"), 3), rows(0, 1, 2, 3, 4, 5));
+  });
+
+  it("folds a single row with minRun 1", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom("K.K"), 1), [
+      ...rows(0),
+      { kind: "fold", start: 1, end: 2 },
+      ...rows(2),
+    ]);
+  });
+
+  it("with minRun 2, folds a run of two and keeps a run of one", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom(".K..K"), 2), [
+      ...rows(0, 1),
+      { kind: "fold", start: 2, end: 4 },
+      ...rows(4),
+    ]);
+  });
+
+  it("returns every row when no row is kept", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom("...."), 1), rows(0, 1, 2, 3));
+  });
+
+  it("returns every row when every row is kept", () => {
+    assert.deepEqual(foldEmptyRows(keptFrom("KKKK"), 1), rows(0, 1, 2, 3));
   });
 });
 

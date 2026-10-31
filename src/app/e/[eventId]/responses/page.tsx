@@ -20,6 +20,7 @@ import { Pane } from "@/components/pane";
 import { PlanningPanel } from "@/components/planning-panel";
 import { QuestionResults, td, th } from "@/components/question-results";
 import { SaveConfirmations } from "@/components/save-form";
+import { ScheduleFold } from "@/components/schedule-fold";
 import { BlankTab } from "@/components/blank-tab";
 import { WindowTabs } from "@/components/window-tabs";
 import { statusLabel } from "@/domain/status-label";
@@ -275,19 +276,22 @@ export default async function ResponsesPage({
                   unanswered={unanswered}
                 />
               )}
-              <HeatLegend
-                counted={respondents.length}
-                countOrganizer={event.organizerParticipates}
-              />
-              <OverlapGridView
-                grid={grid}
-                people={gridPeople}
-                organizerUserId={event.organizerUserId}
-                organizerHasAvailability={organizerHasAvailability}
-                countOrganizer={event.organizerParticipates}
-                submittedCount={submittedCount}
-                clockFormat={user.clockFormat}
-              />
+              <ScheduleFold>
+                <HeatLegend
+                  counted={respondents.length}
+                  countOrganizer={event.organizerParticipates}
+                />
+                <OverlapGridView
+                  grid={grid}
+                  people={gridPeople}
+                  organizerUserId={event.organizerUserId}
+                  organizerHasAvailability={organizerHasAvailability}
+                  organizerMustAttend={event.planningOrganizerMustAttend}
+                  countOrganizer={event.organizerParticipates}
+                  submittedCount={submittedCount}
+                  clockFormat={user.clockFormat}
+                />
+              </ScheduleFold>
             </Pane>
           ),
           participants: (

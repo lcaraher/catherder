@@ -273,6 +273,44 @@ export function collapseOverlapToHours(
   }) as OverlapGrid | SplitOverlapGrid;
 }
 
+/** One drawn row of the schedule, or a fold over rows start to end (end exclusive). */
+export type FoldedRow =
+  | { kind: "row"; row: number }
+  | { kind: "fold"; start: number; end: number };
+
+/**
+ * Folds each run of at least minRun rows that are not kept; shorter runs stay
+ * as rows. With no row kept, every row is returned and nothing folds.
+ */
+export function foldEmptyRows(
+  kept: readonly boolean[],
+  minRun: number,
+): FoldedRow[] {
+  if (!kept.includes(true)) {
+    return kept.map((_, row) => ({ kind: "row", row }));
+  }
+  const result: FoldedRow[] = [];
+  let row = 0;
+  while (row < kept.length) {
+    if (kept[row]) {
+      result.push({ kind: "row", row });
+      row++;
+      continue;
+    }
+    let end = row;
+    while (end < kept.length && !kept[end]) end++;
+    if (end - row >= minRun) {
+      result.push({ kind: "fold", start: row, end });
+    } else {
+      for (let shortRow = row; shortRow < end; shortRow++) {
+        result.push({ kind: "row", row: shortRow });
+      }
+    }
+    row = end;
+  }
+  return result;
+}
+
 export type HeatStep = 0 | 1 | 2 | 3 | 4 | 5;
 
 /** The heat step for a cell: the available count as a fifth of the counted group. */
