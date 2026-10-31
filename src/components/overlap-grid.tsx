@@ -8,6 +8,7 @@ import {
 } from "@/domain/availability";
 import {
   collapseOverlapToHours,
+  foldEmptyRows,
   heatStep,
   splitOrganizer,
   type OverlapGrid,
@@ -18,7 +19,6 @@ import {
   HEAT_TEXT_CLASSES,
   ORGANIZER_MARK_CLASSES,
 } from "@/components/heat-legend";
-import { Checkbox } from "@/components/form-controls";
 import { OrganizerBadge } from "@/components/organizer-badge";
 import { Segmented } from "@/components/segmented";
 import { ZoneChip } from "@/components/zone-chip";
@@ -50,6 +50,8 @@ interface Props {
   organizerUserId: string;
   /** Whether the organizer has any availability rows for this event. */
   organizerHasAvailability: boolean;
+  /** The event's saved "Only times the organizer can attend" planning setting. */
+  organizerMustAttend: boolean;
   /**
    * When true the numbers include the organizer; when false they appear
    * only as the anchor mark.
@@ -72,13 +74,13 @@ export function OverlapGridView({
   people,
   organizerUserId,
   organizerHasAvailability,
+  organizerMustAttend,
   countOrganizer,
   submittedCount,
   clockFormat,
 }: Props) {
   // Hour mode everywhere by default, matching the editors.
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [organizerOnly, setOrganizerOnly] = useState(false);
   const [selected, setSelected] = useState<{
     weekday: number;
     row: number;
@@ -100,6 +102,23 @@ export function OverlapGridView({
   const shownGrid = granularity === "half" ? splitGrid : hourGrid;
   const rowCount = granularity === "half" ? SLOTS_PER_DAY : 24;
   const slotsPerRow = granularity === "half" ? 1 : 2;
+  const trimmed = organizerMustAttend && organizerHasAvailability;
+
+  // Rows to draw and runs folded away, in the view shown.
+  const drawnRows = useMemo(() => {
+    const kept = Array.from({ length: rowCount }, (_, row) =>
+      shownGrid.some((day) => {
+        const cell = day[row];
+        if (trimmed) return cell.organizer === "AVAILABLE";
+        return (
+          cell.players.available.length > 0 ||
+          cell.players.tentative.length > 0 ||
+          cell.organizer !== null
+        );
+      }),
+    );
+    return foldEmptyRows(kept, granularity === "half" ? 2 : 1);
+  }, [shownGrid, rowCount, trimmed, granularity]);
 
   const personById = useMemo(
     () => new Map(people.map((person) => [person.userId, person])),
@@ -193,25 +212,17 @@ export function OverlapGridView({
           }}
         />
 
-        <div className="flex items-center gap-2 text-sm">
-          <label className="flex items-center gap-2">
-            <Checkbox
-              checked={organizerOnly}
-              disabled={!organizerHasAvailability}
-              onChange={(e) => {
-                setOrganizerOnly(e.target.checked);
-                setSelected(null);
-                setPointed(null);
-              }}
-            />
-            Only times the organizer can make
-          </label>
-          {!organizerHasAvailability && (
-            <span className="text-xs text-hint">
-              The organizer has not set their availability for this event
-            </span>
-          )}
-        </div>
+        {trimmed ? (
+          <p className="text-sm">
+            Showing only times the organizer can attend. Other squares are blank.
+          </p>
+        ) : (
+          organizerMustAttend && (
+            <p className="text-sm">
+              The organizer hasn’t set their availability yet, so every time is shown.
+            </p>
+          )
+        )}
       </div>
 
       <div className="grid select-none grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] gap-tile-gap">
@@ -224,7 +235,22 @@ export function OverlapGridView({
             {label}
           </div>
         ))}
-        {Array.from({ length: rowCount }, (_, row) => {
+        {drawnRows.map((entry) => {
+          if (entry.kind === "fold") {
+            return (
+              <div key={`fold-${entry.start}`} className="contents">
+                <div />
+                <div className="col-span-7 flex min-h-5 items-center rounded-tile border border-dashed border-edge-strong px-2 py-0.5 text-xs text-hint">
+                  {formatSlotLabel(entry.start * slotsPerRow, clockFormat)}–
+                  {formatSlotLabel(entry.end * slotsPerRow, clockFormat)}
+                  {trimmed
+                    ? ": the organizer isn’t available"
+                    : ": no one is available"}
+                </div>
+              </div>
+            );
+          }
+          const row = entry.row;
           const showLabel = granularity === "hour" || row % 2 === 0;
           return (
             <div key={row} className="contents">
@@ -241,8 +267,8 @@ export function OverlapGridView({
                 const cell = shownGrid[weekday][row];
                 const height = granularity === "half" ? "h-4" : "h-6";
 
-                // Organizer filter: cells outside their availability go blank.
-                if (organizerOnly && cell.organizer === null) {
+                // Trimmed: squares outside the organizer's availability go blank.
+                if (trimmed && cell.organizer !== "AVAILABLE") {
                   return (
                     <div
                       key={weekday}
