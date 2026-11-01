@@ -66,6 +66,8 @@ const PAIRS: Pair[] = [
   ["avail", "unavail", 3, "ui"],
   ["organizer-mark", "surface-card", 3, "ui"],
   ["organizer-mark", "heat-0", 3, "ui"],
+  ["heat-5", "surface-card", 3, "ui"],
+  ["heat-5", "surface-raised", 3, "ui"],
   ["on-primary", "accent-gradient-a", 4.5, "text"],
   ["on-primary", "accent-gradient-b", 4.5, "text"],
   ["link-hover", "surface-card", 4.5, "text"],

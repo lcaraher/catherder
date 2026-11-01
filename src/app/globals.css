@@ -628,6 +628,7 @@
   --spacing-tile-gap: 3px;
   --radius-tile: 5px;
   --radius-card: 8px;
+  --radius-bar: 3px;
 
   /* The "?" in a help tip's circle. */
   --text-help: 11px;
@@ -867,6 +868,30 @@
     &[data-signed-out] {
       grid-template-columns: 1.15fr 1fr 1.3fr;
     }
+  }
+}
+
+/* Answer bars: stacked rows on phones; from sm one grid of label, bar and count. */
+@utility answer-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  @media (width >= 40rem) {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(5rem, 1fr) max-content;
+    gap: 0.375rem 0.625rem;
+    align-items: center;
+  }
+}
+
+/* One answer bar: label and count above the bar on phones; from sm its cells join answer-bars. */
+@utility answer-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 0.25rem 0.625rem;
+  align-items: center;
+  @media (width >= 40rem) {
+    display: contents;
   }
 }
 

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { AnswersView } from "@/components/answers-view";
 import { OrganizerBadge } from "@/components/organizer-badge";
+import { choiceTallies, rankingTallies } from "@/domain/question-tallies";
 
 export const th = "py-1 pr-4 font-small text-xs font-medium text-muted";
 export const td = "border-t border-edge py-2 pr-4 align-top";
@@ -39,13 +41,99 @@ interface Props {
   control?: ReactNode;
 }
 
-/** One question's answers: the text answers, or a table of choices with their totals. */
+interface BarRow {
+  label: string;
+  count: number;
+  text: string;
+}
+
+// Label, bar and count per row; each fill is its count's share of the total.
+function AnswerBars({ rows, total }: { rows: BarRow[]; total: number }) {
+  return (
+    <div className="answer-bars mb-1 text-xs">
+      {rows.map((row, i) => (
+        <div key={i} className="answer-bar-row">
+          <span className="text-foreground">{row.label}</span>
+          <span
+            aria-hidden="true"
+            className="block h-3 overflow-hidden rounded-bar bg-surface-raised col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto"
+          >
+            <span
+              className="block h-full rounded-bar bg-heat-5"
+              style={{ width: `${total > 0 ? (row.count / total) * 100 : 0}%` }}
+            />
+          </span>
+          <span className="text-muted tabular-nums col-start-2 row-start-1 sm:col-start-auto sm:row-start-auto">
+            {row.text}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Missing({ count, verb }: { count: number; verb: "answered" | "ranked" }) {
+  if (count <= 0) return null;
+  return (
+    <p className="mt-1 text-xs text-hint">
+      {count === 1 ? `1 hasn't ${verb} yet.` : `${count} haven't ${verb} yet.`}
+    </p>
+  );
+}
+
+/** One question's answers: the text answers, or a choice question's totals and per-person table. */
 export function QuestionResults({ index, question, respondents, answers, visible, control }: Props) {
   const byUser = new Map(answers.map((answer) => [answer.userId, answer]));
-  const respondentIds = new Set(respondents.map((respondent) => respondent.userId));
   const labelById = new Map(question.options.map((option) => [option.id, option.label]));
-  // Tallies count respondents only; a non-participating organizer's answers never do.
-  const counted = [...byUser.values()].filter((answer) => respondentIds.has(answer.userId));
+
+  let totals: ReactNode = null;
+  if (question.type === "RANKING") {
+    const tallies = rankingTallies(question, respondents, answers);
+    totals = (
+      <>
+        <p className="mb-1.5 text-xs text-hint">Ranked first by:</p>
+        <AnswerBars
+          total={tallies.total}
+          rows={tallies.rows.map((row) => ({
+            label: row.label,
+            count: row.firstCount,
+            text:
+              row.averagePlace === null
+                ? `${row.firstCount} of ${tallies.total}`
+                : `${row.firstCount} of ${tallies.total} · average place ${row.averagePlace.toFixed(1)}`,
+          }))}
+        />
+        <Missing count={tallies.notRanked} verb="ranked" />
+      </>
+    );
+  } else if (question.type !== "TEXT") {
+    const tallies = choiceTallies(question, respondents, answers);
+    totals = (
+      <>
+        <AnswerBars
+          total={tallies.total}
+          rows={tallies.rows.map((row) => ({
+            label: row.label,
+            count: row.count,
+            text: `${row.count} of ${tallies.total}`,
+          }))}
+        />
+        {tallies.otherTexts.length > 0 && (
+          <div className="mt-1.5 text-xs text-muted">
+            Other:
+            <ul className="mt-0.5">
+              {tallies.otherTexts.map((text, i) => (
+                <li key={i} className="whitespace-pre-wrap">
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Missing count={tallies.notAnswered} verb="answered" />
+      </>
+    );
+  }
 
   return (
     <div className="rounded border border-edge p-4 text-sm">
@@ -78,99 +166,51 @@ export function QuestionResults({ index, question, respondents, answers, visible
           })}
         </ul>
       ) : (
-        <>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr>
-                <th className={th}>Name</th>
-                <th className={th}>{question.type === "RANKING" ? "Ranked order" : "Choice"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {respondents.map((respondent) => {
-                const answer = byUser.get(respondent.userId);
-                let display: string | null = null;
-                if (answer) {
-                  if (question.type === "RANKING") {
-                    const ranked = [...answer.choices]
-                      .filter((choice) => choice.rank !== null)
-                      .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
-                      .map((choice) => `${choice.rank}. ${labelById.get(choice.optionId) ?? "?"}`);
-                    if (ranked.length > 0) display = ranked.join(", ");
-                  } else {
-                    const chosen = answer.choices
-                      .map((choice) => labelById.get(choice.optionId))
-                      .filter((label): label is string => Boolean(label));
-                    if (answer.otherText) {
-                      chosen.push(`Other: ${answer.otherText}`);
+        <AnswersView
+          totals={totals}
+          each={
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr>
+                  <th className={th}>Name</th>
+                  <th className={th}>{question.type === "RANKING" ? "Ranked order" : "Choice"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {respondents.map((respondent) => {
+                  const answer = byUser.get(respondent.userId);
+                  let display: string | null = null;
+                  if (answer) {
+                    if (question.type === "RANKING") {
+                      const ranked = [...answer.choices]
+                        .filter((choice) => choice.rank !== null)
+                        .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+                        .map((choice) => `${choice.rank}. ${labelById.get(choice.optionId) ?? "?"}`);
+                      if (ranked.length > 0) display = ranked.join(", ");
+                    } else {
+                      const chosen = answer.choices
+                        .map((choice) => labelById.get(choice.optionId))
+                        .filter((label): label is string => Boolean(label));
+                      if (answer.otherText) {
+                        chosen.push(`Other: ${answer.otherText}`);
+                      }
+                      if (chosen.length > 0) display = chosen.join(", ");
                     }
-                    if (chosen.length > 0) display = chosen.join(", ");
                   }
-                }
-                return (
-                  <tr key={respondent.userId}>
-                    <td className={td}>
-                      <span className="break-words">{respondent.displayName}</span>
-                      {respondent.isOrganizer && <OrganizerBadge className="ml-2 align-middle" />}
-                    </td>
-                    <td className={td}>{display ?? <span className="text-hint">no answer</span>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="mt-3 mb-0.5 font-small text-xs font-medium text-foreground">Totals</p>
-          <ul className="flex flex-col gap-0.5 text-xs text-muted">
-            {question.type === "RANKING" && (
-              <li className="text-hint">Summed rank per option — lower is better:</li>
-            )}
-            {question.options.map((option) => {
-              if (question.type === "RANKING") {
-                const entries = counted.flatMap((answer) =>
-                  answer.choices.filter(
-                    (choice) => choice.optionId === option.id && choice.rank !== null,
-                  ),
-                );
-                const sum = entries.reduce((total, choice) => total + (choice.rank ?? 0), 0);
-                return (
-                  <li key={option.id}>
-                    {option.label} —{" "}
-                    {entries.length > 0
-                      ? `${sum} (${entries.length} of ${respondents.length} ranked)`
-                      : "not ranked"}
-                  </li>
-                );
-              }
-              const count = counted.filter((answer) =>
-                answer.choices.some((choice) => choice.optionId === option.id),
-              ).length;
-              return (
-                <li key={option.id}>
-                  {option.label} — {count}
-                </li>
-              );
-            })}
-            {question.type !== "RANKING" &&
-              (() => {
-                // Shown while Other is offered, and kept for old Other answers
-                // after the setting is turned off.
-                const otherTexts = counted
-                  .map((answer) => answer.otherText)
-                  .filter((text): text is string => Boolean(text));
-                if (!question.allowOther && otherTexts.length === 0) return null;
-                return (
-                  <li>
-                    Other — {otherTexts.length}
-                    {otherTexts.map((text, i) => (
-                      <p key={i} className="whitespace-pre-wrap">
-                        {text}
-                      </p>
-                    ))}
-                  </li>
-                );
-              })()}
-          </ul>
-        </>
+                  return (
+                    <tr key={respondent.userId}>
+                      <td className={td}>
+                        <span className="break-words">{respondent.displayName}</span>
+                        {respondent.isOrganizer && <OrganizerBadge className="ml-2 align-middle" />}
+                      </td>
+                      <td className={td}>{display ?? <span className="text-hint">no answer</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          }
+        />
       )}
     </div>
   );
